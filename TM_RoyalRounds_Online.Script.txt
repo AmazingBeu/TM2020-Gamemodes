@@ -38,7 +38,7 @@
 #Setting S_RoundsPerMap -1 as _("Number of rounds per map") ///< Number of round to play on one map before going to the next one
 #Setting S_MapsPerMatch -1 as _("Number of maps per match") ///< Number of maps to play before finishing the match
 #Setting S_UseTieBreak True as _("Use tie-break")	///< Continue to play the map until the tie is broken
-#Setting S_SegmentsPerRounds 5 as "Number of segment to end the round"
+#Setting S_SegmentsPerRound 5 as "Number of segment to end the round"
 #Setting S_RoundWaitingScreenDuration 20 as _("Round waiting screen duration") //< Maximum time spent waiting for players at the beginning of each round
 #Setting S_PointsRepartition "" as _("Custom points distribution") //< comma separated points distribution. eg: "10,6,4,3,2,1"
 
@@ -208,6 +208,7 @@ StateMgr::Yield();
 declare Integer Server_PointsLimit;
 declare Integer Server_RoundsPerMap;
 declare Integer Server_MapsPerMatch;
+declare Integer Server_SegmentsPerRound;
 ***
 
 ***Match_StartServer***
@@ -241,6 +242,7 @@ WarmUp::SetAvailability(False); // (Impossible at the moment https://forum.nadeo
 Server_PointsLimit = S_PointsLimit - 1;
 Server_RoundsPerMap = S_RoundsPerMap - 1;
 Server_MapsPerMatch = S_MapsPerMatch - 1;
+Server_SegmentsPerRound = S_SegmentsPerRound - 1;
 ***
 
 ***Match_InitMap***
@@ -248,7 +250,7 @@ Server_MapsPerMatch = S_MapsPerMatch - 1;
 declare Integer Map_ValidRoundsNb;
 declare Boolean Map_Skipped;
 
-UpdateScoresTableFooter(S_PointsLimit, S_RoundsPerMap, S_MapsPerMatch, Map_ValidRoundsNb);
+UpdateScoresTableFooter(S_PointsLimit, S_RoundsPerMap, S_MapsPerMatch, Map_ValidRoundsNb, S_SegmentsPerRound);
 
 declare CMapLandmark[] Map_Starts;
 declare Integer Map_NextEmptyArmorCheckTime;
@@ -361,7 +363,7 @@ if (Pause::IsActive()) {
 MB_Yield(); //< Yield to wait for everyone to be ready
 StartTime = Now + Race::C_SpawnDuration;
 
-UpdateScoresTableFooter(S_PointsLimit, S_RoundsPerMap, S_MapsPerMatch, Map_ValidRoundsNb);
+UpdateScoresTableFooter(S_PointsLimit, S_RoundsPerMap, S_MapsPerMatch, Map_ValidRoundsNb, S_SegmentsPerRound);
 StateMgr::ForcePlayersStates([StateMgr::C_State_Playing]);
 
 // Spawn players for the race
@@ -424,7 +426,7 @@ foreach (Event in RacePendingEvents) {
 		   if (Event.Player != Null) {
 			   if (Event.IsEndRace) {
 					declare Integer CurrentSegment for Event.Player.Score = 1;
-					if (CurrentSegment  < S_SegmentsPerRounds) { // TODO Try to keep CP diff a the bottom of the screen
+					if (CurrentSegment  < S_SegmentsPerRound) { // TODO Try to keep CP diff a the bottom of the screen
 						CurrentSegment = CurrentSegment + 1;
 						Race::StopSkipScoresTable(Event.Player);
 						declare Boolean ModeRounds_CanSpawn for Event.Player.Score = Rounds_Settings_CanSpawnDefault;
@@ -456,7 +458,7 @@ foreach (Event in PendingEvents) {
 }
 
  // Spawn players
-if (PlayersNbDead > 0) { //< Check for unspawned players only if at least one player is unspawned
+if (Players.count > 0 && PlayersNbAlive <= 0) { //< Check for unspawned players only if at least one player is unspawned
 	declare Boolean NoOneCanPlay = True;
 	foreach (Player in Players) {
 		declare Boolean ModeRounds_CanSpawn for Player.Score  = Rounds_Settings_CanSpawnDefault;
@@ -477,20 +479,26 @@ if (PlayersNbDead > 0) { //< Check for unspawned players only if at least one pl
 			}
 		}
 	}
-	if (NoOneCanPlay && PlayersNbAlive <= 0)  MB_StopRound();
+	if (NoOneCanPlay && PlayersNbAlive <= 0) {
+		MB_StopRound();
+		Round_Skipped = False;
+	}
+
 }
 
 // Server info change
 if (
 	Server_PointsLimit != S_PointsLimit ||
 	Server_RoundsPerMap != S_RoundsPerMap ||
-	Server_MapsPerMatch != S_MapsPerMatch
+	Server_MapsPerMatch != S_MapsPerMatch ||
+	Server_SegmentsPerRound != S_SegmentsPerRound
 ) {
 	Server_PointsLimit = S_PointsLimit;
 	Server_RoundsPerMap = S_RoundsPerMap;
 	Server_MapsPerMatch = S_MapsPerMatch;
+	Server_SegmentsPerRound = S_SegmentsPerRound;
 	
-	UpdateScoresTableFooter(S_PointsLimit, S_RoundsPerMap, S_MapsPerMatch, Map_ValidRoundsNb);
+	UpdateScoresTableFooter(S_PointsLimit, S_RoundsPerMap, S_MapsPerMatch, Map_ValidRoundsNb, S_SegmentsPerRound);
 }
 ***
 
@@ -557,7 +565,8 @@ Scores::SetPlayerWinner(Scores::GetBestPlayer(Scores::C_Sort_MatchPoints));
  *	@param	_MapsPerMatch							The number of maps per match
  *	@param	_ValidRoundsNb						Number of valid rounds played
  */
-Void UpdateScoresTableFooter(Integer _PointsLimit, Integer _RoundsPerMap, Integer _MapsPerMatch, Integer _ValidRoundsNb) {
+Void UpdateScoresTableFooter(Integer _PointsLimit, Integer _RoundsPerMap, Integer _MapsPerMatch, Integer _ValidRoundsNb, Integer _SegmentsPerRound) {
+	log("UpdateScoresTableFooter");
 	declare Text[] Parts;
 	declare Text Message = "";
 	if (_PointsLimit > 0) {
@@ -578,12 +587,18 @@ Void UpdateScoresTableFooter(Integer _PointsLimit, Integer _RoundsPerMap, Intege
 		//L16N [Rounds] Number of maps played during the match.
 		Parts.add(_("Maps : "));
 	}
+	if (_SegmentsPerRound != 5) {
+		if (Parts.count > 0) Message ^= " | ";
+		Message ^= """%{{{Parts.count + 1}}}{{{_SegmentsPerRound}}}""";
+		Parts.add("Segments : ");
+	}
 	
 	switch (Parts.count) {
 		case 0: UIModules_ScoresTable::SetFooterInfo(Message);
 		case 1: UIModules_ScoresTable::SetFooterInfo(TL::Compose(Message, Parts[0]));
 		case 2: UIModules_ScoresTable::SetFooterInfo(TL::Compose(Message, Parts[0], Parts[1]));
 		case 3: UIModules_ScoresTable::SetFooterInfo(TL::Compose(Message, Parts[0], Parts[1], Parts[2]));
+		case 4: UIModules_ScoresTable::SetFooterInfo(TL::Compose(Message, Parts[0], Parts[1], Parts[2], Parts[3]));
 	}
 }
 
