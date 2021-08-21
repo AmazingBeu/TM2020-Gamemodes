@@ -4,7 +4,7 @@
 #Extends "Libs/Nadeo/TMNext/TrackMania/Modes/TMNextBase.Script.txt"
 
 #Const CompatibleMapTypes			"TrackMania\\TM_Royal,TM_Royal"
-#Const Version						"2021-08-06"
+#Const Version						"2021-08-21"
 #Const ScriptName					"Modes/TrackMania/TM_RoyalRounds_Online.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -246,6 +246,7 @@ Server_MapsPerMatch = S_MapsPerMatch - 1;
 ***Match_InitMap***
 ***
 declare Integer Map_ValidRoundsNb;
+declare Boolean Map_Skipped;
 
 UpdateScoresTableFooter(S_PointsLimit, S_RoundsPerMap, S_MapsPerMatch, Map_ValidRoundsNb);
 
@@ -304,6 +305,9 @@ if (WaitingScreenDuration >= 0) {
 ***
 // Add bot when necessary
 Users_SetNbFakeUsers(C_FakeUsersNb, 0);
+
+Map_Skipped = True;
+
 StartTime = Now + Race::C_SpawnDuration;
 
 CarRank::Reset();
@@ -525,13 +529,16 @@ if (Round_ForceEndRound || Round_SkipPauseRound || Round_Skipped) {
 	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
 	
-	if (MapIsOver(S_UseTieBreak, S_PointsLimit, Map_ValidRoundsNb, S_RoundsPerMap)) MB_StopMap();
+	if (MapIsOver(S_UseTieBreak, S_PointsLimit, Map_ValidRoundsNb, S_RoundsPerMap)) {
+		Map_Skipped = False;
+		MB_StopMap();
+	}
 }
 ***
 
 ***Match_EndMap***
 ***
-if (MatchIsOver(S_UseTieBreak, S_PointsLimit, S_MapsPerMatch, S_RoundsPerMap)) MB_StopMatch();
+if (MatchIsOver(S_UseTieBreak, S_PointsLimit, MB_GetMapCount(), S_MapsPerMatch, S_RoundsPerMap, Map_Skipped)) MB_StopMatch();
 
 if (!MB_MapIsRunning() && MB_MatchIsRunning()) MB_SkipPodiumSequence();
 
@@ -689,14 +696,34 @@ Boolean MapIsOver(Boolean _UseTieBreak, Integer _PointsLimit, Integer _ValidRoun
  *
  *	@return		True if it is the case, false otherwise
  */
-Boolean MatchIsOver(Boolean _UseTieBreak, Integer _PointsLimit, Integer _MapsPerMatch, Integer _RoundsPerMap) {
+ Boolean MatchIsOver(Boolean _UseTieBreak, Integer _PointsLimit, Integer _MapCount, Integer _MapsPerMatch, Integer _RoundsPerMap, Boolean _MapSkipped) {
 	declare Integer PointsLimitReached = PointsLimitReached(_UseTieBreak, _PointsLimit);
-	
-	if (_MapsPerMatch > 1 && PointsLimitReached == C_PointsLimit_Tie) return False; //< Ties are allowed if the map was skipped and match is played on one map only
-	if (PointsLimitReached == C_PointsLimit_Reached) return True; //< There is a points limit and it is reached
-	if (_MapsPerMatch > 1 && MB_GetMapCount() >= _MapsPerMatch) return True; //< There is a maps limit and it is reached
-	if (_MapsPerMatch <= 1 && _RoundsPerMap <= 0) return True;
-	
+
+	Log::Log("""[Rounds] MatchIsOver() > _UseTieBreak: {{{_UseTieBreak}}} | _PointsLimit: {{{_PointsLimit}}} | _MapCount: {{{_MapCount}}} | _MapsPerMatch: {{{_MapsPerMatch}}} | _RoundsPerMap: {{{_RoundsPerMap}}} | PointsLimitReached: {{{PointsLimitReached}}} | _MapSkipped : {{{_MapSkipped}}}""");
+
+	// If there is a point limit and it is reached, stop the match
+	if (PointsLimitReached == C_PointsLimit_Reached) {
+			return True;
+	}
+	// If there is an explicit maps limit ...
+	else if (_MapsPerMatch >= 1) {
+			if (
+					(_MapCount >= _MapsPerMatch && PointsLimitReached != C_PointsLimit_Tie) || //< ... stop the match if the maps limit is reached and the match is not a tie
+					(_MapSkipped && _MapsPerMatch == 1 && _MapCount >= _MapsPerMatch) //< ... stop the match if the map was skipped and the match is played on only one map
+			) {
+					return True;
+			}
+	}
+	// If there is a rounds limit but no maps limit, continue to play until another limit is reached
+	else if (_RoundsPerMap >= 1) {
+			return False;
+	}
+	// If there is neither a points limit nor a rounds limit, always stop the match at the end of the first map, even if there is a tie
+	else {
+			return True;
+	}
+
+	// In all other cases continue to play
 	return False;
 }
 
