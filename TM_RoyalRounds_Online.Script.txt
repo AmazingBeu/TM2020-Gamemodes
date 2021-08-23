@@ -433,7 +433,6 @@ foreach (Event in RacePendingEvents) {
 						ModeRounds_CanSpawn = True;
 					} else {
 						Scores::UpdatePlayerBestRaceIfBetter(Event.Player);
-						Scores::UpdatePlayerBestLapIfBetter(Event.Player);
 						Scores::UpdatePlayerPrevRace(Event.Player);
 						ComputeLatestRaceScores();
 						Race::SortScores(Race::C_Sort_TotalPoints);
@@ -483,7 +482,6 @@ if (Players.count > 0 && PlayersNbAlive <= 0) { //< Check for unspawned players 
 		MB_StopRound();
 		Round_Skipped = False;
 	}
-
 }
 
 // Server info change
@@ -563,10 +561,10 @@ Scores::SetPlayerWinner(Scores::GetBestPlayer(Scores::C_Sort_MatchPoints));
  *	@param	_PointsLimit							The points limit
  *	@param	_RoundsPerMap							The number of round per map
  *	@param	_MapsPerMatch							The number of maps per match
- *	@param	_ValidRoundsNb						Number of valid rounds played
+ *	@param	_ValidRoundsNb							Number of valid rounds played
+ *	@param	_SegmentsPerRound						The number of segment per round
  */
 Void UpdateScoresTableFooter(Integer _PointsLimit, Integer _RoundsPerMap, Integer _MapsPerMatch, Integer _ValidRoundsNb, Integer _SegmentsPerRound) {
-	log("UpdateScoresTableFooter");
 	declare Text[] Parts;
 	declare Text Message = "";
 	if (_PointsLimit > 0) {
@@ -613,12 +611,7 @@ Integer GetFinishTimeout(Integer _FinishTimeout) {
 	if (_FinishTimeout >= 0) {
 		FinishTimeout = _FinishTimeout * 1000;
 	} else {
-		FinishTimeout = 5000;
-		if (Map.TMObjective_IsLapRace && Race::GetLapsNb() > 0 && Map.TMObjective_NbLaps > 0) {
-			FinishTimeout += ((Map.TMObjective_AuthorTime / Map.TMObjective_NbLaps) * Race::GetLapsNb()) / 6;
-		} else {
-			FinishTimeout += Map.TMObjective_AuthorTime / 6;
-		}
+		FinishTimeout = 5000 + Map.TMObjective_AuthorTime / 6;
 	}
 	
 	return Now + FinishTimeout;
