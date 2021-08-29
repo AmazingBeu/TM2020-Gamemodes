@@ -145,7 +145,7 @@ if (C_HudModulePath != "") Hud_Load(C_HudModulePath);
 
 ***Match_AfterLoadHud***
 ***
-UIModules_TimeGap::SetTimeGapMode(UIModules_TimeGap::C_TimeGapMode_CurRace);
+UIModules_TimeGap::SetTimeGapMode(UIModules_TimeGap::C_TimeGapMode_Hidden);
 UIModules_PauseMenuOnline::SetAllowPrevReplay(True);
 
 ClientManiaAppUrl = C_ManiaAppUrl;
