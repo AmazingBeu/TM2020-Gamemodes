@@ -457,10 +457,10 @@ foreach (Event in PendingEvents) {
 }
 
  // Spawn players
-if (Players.count > 0 && PlayersNbAlive <= 0) { //< Check for unspawned players only if at least one player is unspawned
+if (Players.count > 0 && PlayersNbDead >= 1) { //< Check for unspawned players only if at least one player is unspawned
 	declare Boolean NoOneCanPlay = True;
 	foreach (Player in Players) {
-		declare Boolean ModeRounds_CanSpawn for Player.Score  = Rounds_Settings_CanSpawnDefault;
+		declare Boolean ModeRounds_CanSpawn for Player.Score = Rounds_Settings_CanSpawnDefault;
 		if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned && ModeRounds_CanSpawn) {
 			NoOneCanPlay = False;
 			if (Race::IsReadyToStart(Player)) {
