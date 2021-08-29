@@ -22,13 +22,15 @@
 
 #Include "Libs/Nadeo/ModeLibs/Common/Utils.Script.txt" as ModeUtils
 #Include "Libs/Nadeo/TMNext/TrackMania/Menu/Constants.Script.txt" as MenuConsts
-#Include "Libs/Nadeo/TMNext/TrackMania/Modes/Rounds/StateManager.Script.txt" as StateMgr
+#Include "Libs/Nadeo/TMxSM/Race/StateManager.Script.txt" as StateMgr
 #Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/ScoresTable_Server.Script.txt" as UIModules_ScoresTable
 #Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/PauseMenuOnline_Server.Script.txt" as UIModules_PauseMenu_Online
 #Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/Checkpoint_Server.Script.txt" as UIModules_Checkpoint
 #Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/BigMessage_Server.Script.txt" as UIModules_BigMessage
 #Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/Chrono_Server.Script.txt" as UIModules_Chrono
 
+// For the ML
+#Include "Libs/Nadeo/ModeLibs/TrackMania/MV_Utils.Script.txt" as MV_Utils
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Settings
@@ -54,7 +56,7 @@
 #Const Description _("$zIn $<$t$6F9RoyalRounds$z$z$> mode, the goal is to win a maximum number of $<$t$6F9points.\n\n$z$>The rounds mode consists of $<$t$6F9a series of races$z$>.\nWhen you finish a race in a good $<$t$6F9position$z$>, you get $<$t$6F9points$z$>, added to your total.\n\nThe $<$t$6F9winner$z$> is the first player whose total reaches the $<$t$6F9point limit$z$> (30 for example).")
 
 #Const C_HudModulePath "" //< Path to the hud module
-#Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/TMNext/TrackMania/Rounds/Rounds.Script.txt" //< Url of the mania app
+#Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/TMNext/TrackMania/TimeAttack/TimeAttack.Script.txt" //< Url of the mania app
 
 #Const C_FakeUsersNb 0
 
@@ -158,6 +160,8 @@ UIManager.UIAll.OverlayHideSpectatorControllers = True;
 UIManager.UIAll.OverlayHideSpectatorInfos = True;
 UIManager.UIAll.OverlayHideChrono = True; 
 UIManager.UIAll.OverlayHideCountdown = True;
+
+SetML(Null);
 ***
 
 ***Match_Yield***
@@ -276,7 +280,8 @@ if (Map_Starts.count > 0) {
 // the first step without the second.
 declare Integer WaitingScreenDuration = S_RoundWaitingScreenDuration;
 if (WaitingScreenDuration >= 0) {
-	ModeUtils::PushAndApplyUISequence(UIManager.UIAll, CUIConfig::EUISequence::RollingBackgroundIntro);
+	//ModeUtils::PushAndApplyUISequence(UIManager.UIAll, CUIConfig::EUISequence::RollingBackgroundIntro); <-- Block Cam 7 during the waiting
+	ModeUtils::PushAndApplyUISequence(UIManager.UIAll, CUIConfig::EUISequence::Playing); // <-- Allow Cam 7 during the waiting
 	
 	// Wait for the connection of the first valid player to start the countdown
 	while (MB_MapIsRunning() && AllPlayers.count <= 0) {
@@ -325,6 +330,8 @@ MB_WarmUp(S_WarmUpNb, S_WarmUpDuration * 1000, S_WarmUpTimeout * 1000);
 declare Boolean Round_ForceEndRound = False;
 declare Boolean Round_SkipPauseRound = False; //< Skip the current round after the pause
 declare Boolean Round_Skipped = True; //< Round skipped for another reason
+
+declare Integer[Text] CustomTimes for This = [];
 ***
 
 ***Match_StartRound***
@@ -370,6 +377,8 @@ StateMgr::ForcePlayersStates([StateMgr::C_State_Playing]);
 foreach (Player in Players) {
 	declare Integer CurrentSegment for Player.Score = 1;
 	CurrentSegment = 1;
+	declare Integer RealTime for Player.Score = 0;
+	RealTime = 0;
 	Player.LandmarkOrderSelector_Race = CurrentSegment;
 	declare Boolean ModeRounds_CanSpawn for Player.Score = Rounds_Settings_CanSpawnDefault;
 	ModeRounds_CanSpawn = False;
@@ -432,9 +441,10 @@ foreach (Event in RacePendingEvents) {
 						declare Boolean ModeRounds_CanSpawn for Event.Player.Score = Rounds_Settings_CanSpawnDefault;
 						ModeRounds_CanSpawn = True;
 					} else {
-						Scores::UpdatePlayerBestRaceIfBetter(Event.Player);
+						declare Integer RealTime for Event.Player.Score = 0;
+						RealTime = Event.Player.StartTime - StartTime + Event.RaceTime;
 						Scores::UpdatePlayerPrevRace(Event.Player);
-						ComputeLatestRaceScores();
+						UpdateCustomRanking(Event.Player);
 						Race::SortScores(Race::C_Sort_TotalPoints);
 						if (EndTime <=  0) {
 							EndTime = GetFinishTimeout(S_FinishTimeout);
@@ -523,7 +533,7 @@ if (Round_ForceEndRound || Round_SkipPauseRound || Round_Skipped) {
 } else {
 	Map_ValidRoundsNb += 1;
 	// Get the last round points
-	ComputeLatestRaceScores();
+	UpdateCustomRanking(Null);
 	Race::SortScores(Race::C_Sort_TotalPoints);
 	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
@@ -540,6 +550,7 @@ if (Round_ForceEndRound || Round_SkipPauseRound || Round_Skipped) {
 		MB_StopMap();
 	}
 }
+CustomTimes.clear();
 ***
 
 ***Match_EndMap***
@@ -617,30 +628,43 @@ Integer GetFinishTimeout(Integer _FinishTimeout) {
 	return Now + FinishTimeout;
 }
 
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
-/// Compute the latest race scores
-Void ComputeLatestRaceScores() {
-	Race::SortScores(Race::C_Sort_PrevRaceTime);
-	
-	// Points distributed between all players
-	declare Integer I = 0;
+Void SetCustomTimes(Integer[Text] _CustomTimes) {
+	declare netwrite Integer[Text] Net_Rounds_SmallScoresTable_CustomTimes for Teams[0];
+	declare netwrite Integer Net_Rounds_SmallScoresTable_CustomTimesUpdate for Teams[0];
+	Net_Rounds_SmallScoresTable_CustomTimes = _CustomTimes;
+	Net_Rounds_SmallScoresTable_CustomTimesUpdate = Now;
+}
+
+/** Update the Scores Table with Real Time
+ *
+ *	@param	_Player						The Player who end the round
+ */
+ Void UpdateCustomRanking(CSmPlayer _Player) {
+	declare Integer[Text] CustomTimes for This;
 	declare Integer[] PointsRepartition = PointsRepartition::GetPointsRepartition();
-	foreach (Score in Scores) {
-		if (Scores::GetPlayerPrevRaceTime(Score) > 0) {
+
+	if (_Player != Null) {
+		declare Integer RealTime for _Player.Score;
+		CustomTimes[_Player.User.WebServicesUserId] = RealTime;
+	}
+
+	if (PointsRepartition.count > 0) {
+		CustomTimes = CustomTimes.sort();
+		declare Integer I = 0;
+		foreach (ID => Time in CustomTimes) {
+			declare CSmPlayer Player = ModeUtils::GetPlayerFromAccountId(ID);
+			if (Player == Null) continue;
 			declare Integer Points = 0;
-			if (PointsRepartition.count > 0) {
-				if (PointsRepartition.existskey(I)) {
-					Points = PointsRepartition[I];
-				} else {
-					Points = PointsRepartition[PointsRepartition.count - 1];
-				}
+			if (PointsRepartition.existskey(I)) {
+				Points = PointsRepartition[I];
+			} else {
+				Points = PointsRepartition[PointsRepartition.count - 1];
 			}
-			Scores::SetPlayerRoundPoints(Score, Points);
+			Scores::SetPlayerRoundPoints(Player.Score, Points);
 			I += 1;
-		} else {
-			Scores::SetPlayerRoundPoints(Score, 0);
 		}
 	}
+	SetCustomTimes(CustomTimes);
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -750,4 +774,259 @@ Void ForcedEndRoundSequence() {
 	UIManager.UIAll.BigMessageSound = PrevBigMessageSound;
 	UIManager.UIAll.BigMessage = PrevBigMessage;
 	UIManager.UIAll.UISequence = PrevUISequence;
+}
+
+/** Set the UI
+ *
+ *	@param	_Player									Malus Index
+ */
+ Void SetML(CSmPlayer _Player) {
+	declare TotalWidth = 44.5;
+
+    declare Text MLText = """
+    <manialink name="RoyalRounds_Small_Scoreboard" version="3">
+        <script><!--
+		// [ Extracted from ManiaApps/Nadeo/TMNext/TrackMania/Rounds/UIModules/SmallScoresTable_Client.Script.txt
+		#Include "TextLib" as TL
+		#Include "TextLib" as {{{MV_Utils::P}}}TL
+		#Include "MathLib" as ML
+		#Include "ColorLib" as CL
+
+		declare CMlFrame[] G_Frames_Player;
+		// SmallScoresTable_Client.Script.txt ]
+
+		// Extracted from Libs/Nadeo/ModeLibs/TrackMania/MV_Utils.Script.txt // <-- Edited to add the class  "MV_Utils::"
+		CSmPlayer {{{MV_Utils::P}}}GetOwner() { 
+			if (GUIPlayer != Null) return GUIPlayer;
+			return InputPlayer;
+		}
+
+		// Use to re scale UI modules in splitscreen
+		Void {{{MV_Utils::P}}}AutoScaleSplitScreen(CMlFrame _Frame_Global, Real _VerticalScale, Real _HorizontalScale) {
+			declare CTitleControl::ESplitScreenLayout SplitScreenLayout for System;
+			if (SplitScreenLayout == CTitleControl::ESplitScreenLayout::Vertical) { 
+				_Frame_Global.RelativeScale = _VerticalScale;
+			} else if (SplitScreenLayout == CTitleControl::ESplitScreenLayout::Horizontal) { 
+				_Frame_Global.RelativeScale = _HorizontalScale;
+			} else if (SplitScreenLayout == CTitleControl::ESplitScreenLayout::Four) { 
+				_Frame_Global.RelativeScale = 0.5;
+			}
+		}
+		// MV_Utils.Script.txt ]
+
+		// [ Extracted from ManiaApps/Nadeo/TMNext/TrackMania/Rounds/UIModules/SmallScoresTable_Client.Script.txt
+		Void UpdateSlot(Integer _SlotNb, CSmScore _Score) {
+			if (!G_Frames_Player.existskey(_SlotNb)) return;
+			declare Frame_Player <=> G_Frames_Player[_SlotNb];
+			declare Label_Time <=> (Frame_Player.GetFirstChild("label-time") as CMlLabel);
+			declare Label_RoundPoints <=> (Frame_Player.GetFirstChild("label-roundpoints") as CMlLabel);
+			declare Label_Name <=> (Frame_Player.GetFirstChild("label-name") as CMlLabel);
+			declare Label_Rank <=> (Frame_Player.GetFirstChild("label-rank") as CMlLabel);
+
+			declare netread Integer[Text] Net_Rounds_SmallScoresTable_CustomTimes for Teams[0];// [Beu] Add netread variable
+			
+			if (_Score != Null) {
+				if (!Frame_Player.Visible) Frame_Player.Visible = True;
+				Label_Rank.Value = ""^(_SlotNb+1);
+		
+				if (Net_Rounds_SmallScoresTable_CustomTimes.existskey(_Score.User.WebServicesUserId)) { // [Beu] If customtimes, use it
+					Label_Time.Value = TL::TimeToText(Net_Rounds_SmallScoresTable_CustomTimes[_Score.User.WebServicesUserId], True, True);
+				} else {
+					if (_Score.PrevRaceTimes.count > 0 ) Label_Time.Value = TL::TimeToText(_Score.PrevRaceTimes[_Score.PrevRaceTimes.count -1], True, True);  
+				}
+		
+				if (_Score.RoundPoints > 0) Label_RoundPoints.Value = "+"^_Score.RoundPoints;
+				else if (_Score.RoundPoints == 0) Label_RoundPoints.Value = "";
+				else Label_RoundPoints.Value = TL::ToText(_Score.RoundPoints);
+		
+				Label_Name.Value = "$<"^_Score.User.Name^"$>";
+		
+				declare Owner <=> {{{MV_Utils::P}}}GetOwner();
+				if (Owner != Null && Owner.Score != Null && Owner.Score == _Score) {
+					Label_Time.TextColor = CL::HexToRgb("F9DC25");
+					Label_RoundPoints.TextColor = CL::HexToRgb("F9DC25");
+				} else {
+					Label_Time.TextColor = CL::HexToRgb("6EFAA0");
+					Label_RoundPoints.TextColor = CL::HexToRgb("ffffff");
+				}
+			} else {
+					if (Frame_Player.Visible) Frame_Player.Visible = False;
+			}
+		}
+		
+		Void UpdateSmallScoresTable() {
+			declare Integer[CSmScore] FinishSort;
+			declare netread Integer[Text] Net_Rounds_SmallScoresTable_CustomTimes for Teams[0]; // [Beu] Add netread variable
+
+			foreach (Score in Scores) {
+				log("Net_Rounds_SmallScoresTable_CustomTimes.count" ^ Net_Rounds_SmallScoresTable_CustomTimes.count);
+				if (Net_Rounds_SmallScoresTable_CustomTimes.count >= 1) { // [Beu] If customtimes, use it
+					if (Net_Rounds_SmallScoresTable_CustomTimes.existskey(Score.User.WebServicesUserId)) {
+						log("FinishSort for " ^ Score.User.Name ^ ": " ^ Net_Rounds_SmallScoresTable_CustomTimes[Score.User.WebServicesUserId]);
+						FinishSort[Score] = Net_Rounds_SmallScoresTable_CustomTimes[Score.User.WebServicesUserId];
+					}
+				} else {
+					if (Score.PrevRaceTimes.count > 0 && Score.PrevRaceTimes[Score.PrevRaceTimes.count -1] >= 0) {
+						FinishSort[Score] = Score.PrevRaceTimes[Score.PrevRaceTimes.count - 1];
+					}
+				}
+			}
+			FinishSort = FinishSort.sort();
+			
+			declare I = 0;
+			foreach (Score => Time in FinishSort) {
+				UpdateSlot(I, Score);
+				I += 1;
+				if (I > G_Frames_Player.count - 1) break;
+			}
+			for (J, I, G_Frames_Player.count - 1) {
+				UpdateSlot(J, Null);
+			}
+		}
+
+		// SmallScoresTable_Client.Script.txt ]
+
+		// [ Extracted from Libs/Nadeo/MenuLibs/Common/Manialink/ManiaView2.Script.txt
+		main() {
+			// [ Extracted from ManiaApps/Nadeo/TMNext/TrackMania/Rounds/UIModules/SmallScoresTable_Client.Script.txt (MainInit)
+			declare CMlFrame Frame_Global;
+			declare CMlFrame Frame_SmallScoresTable;
+			declare CMlFrame Frame_PlayersList;
+			
+			// Need to do this to work in splitcreen
+			declare Integer SmallScoresTable_Update for Teams[0]; 
+			declare Integer Update;
+			
+			declare Boolean DisplayModule;
+
+			// [Beu] Add variables
+			declare netread Integer[Text] Net_Rounds_SmallScoresTable_CustomTimes for Teams[0];
+			declare netread Integer Net_Rounds_SmallScoresTable_CustomTimesUpdate for Teams[0];
+			declare Integer CustomTimesUpdate;
+
+			// SmallScoresTable_Client.Script.txt (MainInit) ]
+
+			// [ Extracted from ManiaApps/Nadeo/TMNext/TrackMania/Rounds/UIModules/SmallScoresTable_Client.Script.txt (MainStart)
+			Frame_Global <=> (Page.GetFirstChild("frame-global") as CMlFrame);
+			Frame_SmallScoresTable <=> (Page.GetFirstChild("frame-small-scores-table") as CMlFrame);
+			Frame_PlayersList <=> (Page.GetFirstChild("frame-players-list") as CMlFrame);
+			foreach (Control in Frame_PlayersList.Controls) {
+				G_Frames_Player.add((Control as CMlFrame));
+			}
+			
+			DisplayModule = Frame_Global.Visible;
+			SmallScoresTable_Update = 0;
+			Update = 0;
+			
+			if (SplitScreenCount > 1) {{{MV_Utils::P}}}AutoScaleSplitScreen(Frame_Global, 0.5, 1.);
+			// SmallScoresTable_Client.Script.txt (MainStart) ]
+
+			while (True) {
+				yield;
+
+				// [ Extracted from ManiaApps/Nadeo/TMNext/TrackMania/Rounds/UIModules/SmallScoresTable_Client.Script.txt (MainLoop)
+				if (PageIsVisible) {
+					sleep(250);
+				
+					declare Owner <=> {{{MV_Utils::P}}}GetOwner();
+					if (Owner != Null) {
+						declare netread Boolean Net_Rounds_SmallScoresTable_IsVisible for Owner = True; // [Beu] True for compatibility
+						if (DisplayModule != Net_Rounds_SmallScoresTable_IsVisible) {
+							DisplayModule = Net_Rounds_SmallScoresTable_IsVisible;
+							Frame_Global.Visible = Net_Rounds_SmallScoresTable_IsVisible;
+						}
+					}
+				
+					if (Owner == Null && DisplayModule) {
+						DisplayModule = False;
+						Frame_Global.Visible = DisplayModule;
+					}
+				
+					if (Owner != Null) {
+						declare OneFinish = False;
+
+						if (CustomTimesUpdate != Net_Rounds_SmallScoresTable_CustomTimesUpdate) { // [Beu] Update scoreboard
+							CustomTimesUpdate = Net_Rounds_SmallScoresTable_CustomTimesUpdate;
+							SmallScoresTable_Update += 1;
+						}
+				
+						foreach (Player in Players) {
+							if (Player.Score == Null) continue;
+				
+							declare SmallScoresTable_PrevRaceTime for Player = -1;
+							declare SmallScoresTable_RoundPoints for Player = -1;	
+							declare SmallScoresTable_PrevTeamNum for Player = -1;
+				
+							if (Player.Score.PrevRaceTimes.count > 0 && SmallScoresTable_PrevRaceTime != Player.Score.PrevRaceTimes[Player.Score.PrevRaceTimes.count -1]) {
+								SmallScoresTable_PrevRaceTime = Player.Score.PrevRaceTimes[Player.Score.PrevRaceTimes.count -1];
+								SmallScoresTable_Update += 1;
+							}
+							
+							if (SmallScoresTable_RoundPoints != Player.Score.RoundPoints) {
+								SmallScoresTable_RoundPoints = Player.Score.RoundPoints;
+								SmallScoresTable_Update += 1;
+							}
+				
+							if (SmallScoresTable_PrevTeamNum != Player.Score.TeamNum){
+								SmallScoresTable_PrevTeamNum = Player.Score.TeamNum;
+								SmallScoresTable_Update += 1;
+							}
+							
+							if (Player.Score.PrevRaceTimes.count > 0 && Player.Score.PrevRaceTimes[Player.Score.PrevRaceTimes.count -1] >= 0) OneFinish = True; 
+						}
+				
+						if (Update != SmallScoresTable_Update) {
+							Update = SmallScoresTable_Update;		
+							UpdateSmallScoresTable();
+						}
+				
+						if (OneFinish && !Frame_SmallScoresTable.Visible) Frame_SmallScoresTable.Visible = True;
+						else if	(!OneFinish && Frame_SmallScoresTable.Visible) Frame_SmallScoresTable.Visible = False;
+					}
+				}
+				// SmallScoresTable_Client.Script.txt (MainLoop) ]
+			}
+			+++MainEnd+++
+		}
+		// ManiaView2.Script.txt]
+
+        --></script>
+		<!--  [ Extracted from ManiaApps/Nadeo/TMNext/TrackMania/Rounds/UIModules/SmallScoresTable_Client.Script.txt (Completly modified by me, nothing changed here) -->
+		<stylesheet>
+			<style class="text-default" textsize="3" textfont="GameFontSemiBold"/>
+		</stylesheet>
+		<framemodel id="framemodel-player">
+			<label id="label-rank" pos="1 0" size="3.5 4" valign="center2" halign="center" textsize="1" textfont="GameFontBlack"/>
+			<label id="label-name" pos="5 0" size="18 4" valign="center2" textsize="1" textprefix="$t$i" class="text-default"/>
+			<label id="label-roundpoints" pos="25 0" size="6 4" valign="center2" textsize="1" textprefix="$i" class="text-default"/>
+			<label id="label-time" pos="47 0" size="13 4" halign="right" valign="center2" textcolor="6EFAA0" textsize="1" textprefix="$i" class="text-default"/>
+		</framemodel>
+		<frame hidden="1" id="frame-global">
+			<frame id="RoyalRounds_Small_Scoreboard" pos="-158.5 40" scale="1" hidden="false">
+				<frame id="frame-small-scores-table">
+					<label pos="23.5 -6.5" z-index="2" size="46 5" halign="center" valign="center2" textprefix="$t$i" textfont="GameFontBlack" text="RACE RANKING" textsize="2"/>
+					<quad pos="-2 -2" z-index="1" size="50 46" opacity="0.4" bgcolor="000514"/>
+					<frame pos="0 -12" z-index="2" id="frame-players-list">
+						<frameinstance pos="0 0" modelid="framemodel-player" />
+						<frameinstance pos="0 -4.5" modelid="framemodel-player" />
+						<frameinstance pos="0 -9" modelid="framemodel-player" />
+						<frameinstance pos="0 -13,5" modelid="framemodel-player" />
+						<frameinstance pos="0 -18" modelid="framemodel-player" />
+						<frameinstance pos="0 -22,5" modelid="framemodel-player" />
+						<frameinstance pos="0 -27" modelid="framemodel-player" />
+						<frameinstance pos="0 -31,5" modelid="framemodel-player" />
+					</frame>
+				</frame>
+			</frame>
+		</frame>
+		<!--  SmallScoresTable_Client.Script.txt ] -->
+    </manialink>
+""";
+	Layers::Create("RoyalRounds_Small_Scoreboard", MLText);
+	Layers::SetType("RoyalRounds_Small_Scoreboard", CUILayer::EUILayerType::Normal);
+	if (_Player == Null) {
+		Layers::Attach("RoyalRounds_Small_Scoreboard");
+	} else {
+		Layers::Attach("RoyalRounds_Small_Scoreboard", _Player);
+	}
 }
