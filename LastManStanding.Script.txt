@@ -119,7 +119,6 @@ ClientManiaAppUrl = C_ManiaAppUrl;
 Race::SortScores(Race::C_Sort_TotalPoints);
 UIModules_PauseMenu_Online::SetHelp(Description);
 UIManager.UIAll.OverlayHideSpectatorControllers = True;
-UIManager.UIAll.OverlayHideCountdown = True;
 UIManager.UIAll.OverlayHideSpectatorInfos = True;
 UIManager.UIAll.OverlayHideChrono = True; 
 UIManager.UIAll.OverlayHideCountdown = True;
@@ -496,7 +495,7 @@ if (Round_ForceEndRound || Round_SkipPauseRound) {
 	declare Text Message = _("|Match|Draw");
 	declare CSmScore WinnerScore <=> Scores::GetBestPlayer(Race::C_Sort_RoundPoints);
 	if (WinnerScore != Null) {
-		Message = TL::Compose(_("$<%1$> wins the match!"), Tools::GetNameWithClubTag(WinnerScore.User));
+		Message = TL::Compose(_("$<%1$> wins the match!"), Tools::GetNameWithClubTag(WinnerScore.User)); // TODO CHeck why display draw when someone leave
 	}
 	
 	UIManager.UIAll.BigMessage = Message;

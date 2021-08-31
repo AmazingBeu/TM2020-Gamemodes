@@ -1,7 +1,7 @@
 /**
 *	Royal Rounds mode
 */
-#Extends "Libs/Nadeo/TMNext/TrackMania/Modes/TMNextBase.Script.txt"
+#Extends "Libs/Nadeo/TMNext/TrackMania/Modes/TMNextRoundsBase.Script.txt"
 
 #Const CompatibleMapTypes			"TrackMania\\TM_Royal,TM_Royal"
 #Const Version						"2021-08-21"
@@ -13,12 +13,6 @@
 #Include "TextLib" as TL
 #Include "MathLib" as ML
 #Include "Libs/Nadeo/CommonLibs/Common/Semver.Script.txt" as Semver
-
-#Include "Libs/Nadeo/TMxSM/Race/PointsRepartition.Script.txt" as PointsRepartition
-#Include "Libs/Nadeo/TMxSM/Race/Pause.Script.txt" as RacePause
-#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/TimeGap_Server.Script.txt" as UIModules_TimeGap
-#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/PauseMenuOnline_Server.Script.txt" as UIModules_PauseMenuOnline
-#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/SpectatorBase_Server.Script.txt" as UIModules_SpectatorBase
 
 #Include "Libs/Nadeo/ModeLibs/Common/Utils.Script.txt" as ModeUtils
 #Include "Libs/Nadeo/TMNext/TrackMania/Menu/Constants.Script.txt" as MenuConsts
@@ -42,7 +36,6 @@
 #Setting S_UseTieBreak True as _("Use tie-break")	///< Continue to play the map until the tie is broken
 #Setting S_SegmentsPerRound 5 as "Number of segment to end the round"
 #Setting S_RoundWaitingScreenDuration 20 as _("Round waiting screen duration") //< Maximum time spent waiting for players at the beginning of each round
-#Setting S_PointsRepartition "" as _("Custom points distribution") //< comma separated points distribution. eg: "10,6,4,3,2,1"
 
 /*#Setting S_WarmUpNb 0	as _("Number of warm up") // (Impossible at the moment https://forum.nadeo.com/viewtopic.php?f=51&p=8745#p8745)
 #Setting S_WarmUpDuration 0 as _("Duration of one warm up")
@@ -60,9 +53,6 @@
 
 #Const C_FakeUsersNb 0
 
-#Const C_PointsRepartition [10, 6, 4, 3, 2, 1]	///< Default points repartition in rounds based modes. Can be overrided by S_PointsRepartition.
-#Const C_Method_ForceEndRound "Trackmania.ForceEndRound"
-
 #Const C_PointsLimit_NotReached 0
 #Const C_PointsLimit_Reached 1
 #Const C_PointsLimit_Tie 2
@@ -75,8 +65,6 @@
 
 #Const C_DisableSkipOutro True //< Prevent the players from pressing respawn/give up to cut the finish outro and respawn faster
 
-declare Boolean Rounds_Settings_CanSpawnDefault;
-
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Extends
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -86,36 +74,7 @@ Log::RegisterScript(ScriptName, Version);
 Log::RegisterScript(Semver::ScriptName, Semver::Version);
 Log::RegisterScript(ModeUtils::ScriptName, ModeUtils::Version);
 Log::RegisterScript(StateMgr::ScriptName, StateMgr::Version);
-Log::RegisterScript(PointsRepartition::ScriptName, PointsRepartition::Version);
-Log::RegisterScript(RacePause::ScriptName, RacePause::Version);
 Log::RegisterScript(UIModules_Checkpoint::ScriptName, UIModules_Checkpoint::Version);
-***
-
-***Match_LoadLibraries***
-***
-XmlRpc::RegisterMethod(C_Method_ForceEndRound, """
-* Name: {{{C_Method_ForceEndRound}}}
-* Type: TriggerModeScriptEventArray
-* Description: Stop the current round. Only available in Cup, Rounds and Team modes.
-* Data:
-		- Version >=2.0.0:
-		```
-		[]
-		```
-""");
-
-StateMgr::Load();
-PointsRepartition::Load();
-RacePause::Load();
-***
-
-***Match_UnloadLibraries***
-***
-StateMgr::Unload();
-RacePause::Unload();
-PointsRepartition::Unload();
-
-XmlRpc::UnregisterMethod(C_Method_ForceEndRound);
 ***
 
 ***Match_Settings***
@@ -123,11 +82,6 @@ XmlRpc::UnregisterMethod(C_Method_ForceEndRound);
 MB_Settings_UseDefaultHud = (C_HudModulePath == "");
 MB_Settings_UseDefaultPodiumSequence = False;
 MB_Settings_UseDefaultIntroSequence = False;
-
-MB_Settings_UseDefaultTimer = False;
-Race_Settings_ResetPlayerRaceBetweenRounds = True;
-
-Rounds_Settings_CanSpawnDefault = True;
 ***
 
 ***Match_Rules***
@@ -145,15 +99,13 @@ if (C_HudModulePath != "") Hud_Load(C_HudModulePath);
 
 ***Match_AfterLoadHud***
 ***
-UIModules_TimeGap::SetTimeGapMode(UIModules_TimeGap::C_TimeGapMode_Hidden);
-UIModules_PauseMenuOnline::SetAllowPrevReplay(True);
-
 ClientManiaAppUrl = C_ManiaAppUrl;
 Race::SortScores(Race::C_Sort_TotalPoints);
 UIModules_ScoresTable::SetScoreMode(UIModules_ScoresTable::C_Mode_Points);
 UIModules_Checkpoint::SetVisibilityTimeDiff(False);
 UIModules_Checkpoint::SetRankMode(UIModules_Checkpoint::C_RankMode_CurrentRace);
 UIModules_Checkpoint::SetAutoUISequenceFinish(False);
+UIModules_TimeGap::SetTimeGapMode(UIModules_TimeGap::C_TimeGapMode_Hidden);
 UIModules_PauseMenu_Online::SetHelp(Description);
 // Hide SM Overlay
 UIManager.UIAll.OverlayHideSpectatorControllers = True;
@@ -166,33 +118,6 @@ SetML(Null);
 
 ***Match_Yield***
 ***
-foreach (Event in XmlRpc.PendingEvents) {
-	if (Event.Type == CXmlRpcEvent::EType::CallbackArray) {
-			switch (Event.ParamArray1) {
-					case PointsRepartition::C_Method_SetPointsRepartition: {
-							declare Integer[] Rounds_PointsRepartitionBackUp for This;
-							Rounds_PointsRepartitionBackUp = PointsRepartition::GetPointsRepartition();
-					}
-			}
-	}
-}
-
-declare Rounds_PointsRepartitionSetting for This = S_PointsRepartition;
-if (Rounds_PointsRepartitionSetting != S_PointsRepartition) {
-	Rounds_PointsRepartitionSetting = S_PointsRepartition;
-
-	declare PointsRepartition = C_PointsRepartition;
-	if (S_PointsRepartition != "") {
-			declare NewPointsRepartition = PointsRepartition::ConvertPointsRepartition(S_PointsRepartition);
-			if (NewPointsRepartition.count > 0) {
-					PointsRepartition = NewPointsRepartition;
-			}
-	}
-	PointsRepartition::SetPointsRepartition(PointsRepartition);
-	declare Integer[] Rounds_PointsRepartitionBackUp for This;
-	Rounds_PointsRepartitionBackUp = PointsRepartition::GetPointsRepartition();
-}
-
 foreach (Event in PendingEvents) {
 	switch (Event.Type) {
 		// Initialize players when they join the server
@@ -203,7 +128,6 @@ foreach (Event in PendingEvents) {
 	}
 }
 
-PointsRepartition::Yield();
 StateMgr::Yield();
 ***
 
@@ -217,25 +141,6 @@ declare Integer Server_SegmentsPerRound;
 
 ***Match_StartServer***
 ***
-declare Integer[] Rounds_PointsRepartitionBackUp for This;
-// Reload XmlRpc or load default values
-if (Rounds_PointsRepartitionBackUp.count > 0) {
-		PointsRepartition::SetPointsRepartition(Rounds_PointsRepartitionBackUp);
-} else {
-		declare PointsRepartition = C_PointsRepartition;
-		if (S_PointsRepartition != "") {
-				declare NewPointsRepartition = PointsRepartition::ConvertPointsRepartition(S_PointsRepartition);
-				if (NewPointsRepartition.count > 0) {
-						PointsRepartition = NewPointsRepartition;
-				}
-		}
-		PointsRepartition::SetPointsRepartition(PointsRepartition);
-		Rounds_PointsRepartitionBackUp = PointsRepartition::GetPointsRepartition();
-}
-
-// Enable the pause system
-Pause::SetAvailability(True);
-
 // Initialize mode
 Clans::SetClansNb(0);
 Scores::SaveInScore(Scores::C_Points_Match);
@@ -325,66 +230,48 @@ MB_WarmUp(S_WarmUpNb, S_WarmUpDuration * 1000, S_WarmUpTimeout * 1000);
 */
 ***
 
+***Rounds_SpawnPlayer***
+***
+declare Integer CurrentSegment for Player.Score = 1;
+declare Integer Index;
+if (CurrentSegment > Map_Starts.count) {
+	Index = Map_Starts.count - 1;
+} else {
+	Index = CurrentSegment - 1;
+}
+Player.LandmarkOrderSelector_Race = Index + 1;
+declare Integer SpecificStartTime = Now + Race::C_SpawnDuration;
+if (IsStartRound) SpecificStartTime = StartTime;
+Race::Start(Player, Map_Starts[Index] , SpecificStartTime);
+***
+
+***Rounds_PlayerSpawned***
+***
+declare Integer SpecificOffset = Player.StartTime - StartTime;
+if (IsStartRound) SpecificOffset = 0;
+UIModules_Chrono::SetTimeOffset(Player, SpecificOffset);
+***
+
 ***Match_InitRound***
 ***
-declare Boolean Round_ForceEndRound = False;
-declare Boolean Round_SkipPauseRound = False; //< Skip the current round after the pause
-declare Boolean Round_Skipped = True; //< Round skipped for another reason
-
 declare Integer[Text] CustomTimes for This = [];
-***
+declare Boolean IsStartRound = True;
 
-***Match_StartRound***
-***
-// Initialize round
-StartTime = Now + Race::C_SpawnDuration;
-EndTime = -1;
-Round_ForceEndRound = False;
-Round_SkipPauseRound = False;
-
-// Initialize scores
-foreach (Score in Scores) {
-		if (Score.PrevRaceTimes.count > 0) {
-				Score_ClearPrevRace(Score);
-		}
-		Scores::SetPlayerRoundPoints(Score, 0);
-}
-
-// Setup pause
-if (Pause::IsActive()) {
-		StartTime = Now;
-		+++Rounds_StartPause+++
-		while (RacePause::Loop(Pause::IsActive())) {
-				MB_Yield();
-				+++Rounds_PauseLoop+++
-		}
-		StartTime = -1;
-		+++Rounds_EndPause+++
-
-		Round_SkipPauseRound = True;
-		MB_StopRound();
-}
-
-+++Rounds_WaitForPlayers+++
-
-MB_Yield(); //< Yield to wait for everyone to be ready
-StartTime = Now + Race::C_SpawnDuration;
-
-UpdateScoresTableFooter(S_PointsLimit, S_RoundsPerMap, S_MapsPerMatch, Map_ValidRoundsNb, S_SegmentsPerRound);
-StateMgr::ForcePlayersStates([StateMgr::C_State_Playing]);
-
-// Spawn players for the race
+// Reset players for the race
 foreach (Player in Players) {
 	declare Integer CurrentSegment for Player.Score = 1;
 	CurrentSegment = 1;
 	declare Integer RealTime for Player.Score = 0;
 	RealTime = 0;
-	Player.LandmarkOrderSelector_Race = CurrentSegment;
-	declare Boolean ModeRounds_CanSpawn for Player.Score = Rounds_Settings_CanSpawnDefault;
-	ModeRounds_CanSpawn = False;
-	Race::Start(Player, Map_Starts[0] , StartTime);
-	UIModules_Chrono::SetTimeOffset(Player, 0);
 }
+***
+
+***Match_StartRound***
+***
+UpdateScoresTableFooter(S_PointsLimit, S_RoundsPerMap, S_MapsPerMatch, Map_ValidRoundsNb, S_SegmentsPerRound);
+StateMgr::ForcePlayersStates([StateMgr::C_State_Playing]);
+
+IsStartRound = False;
 ***
 
 ***Rounds_PlayerSpawned***
@@ -394,52 +281,28 @@ CarRank::ThrottleUpdate(CarRank::C_SortCriteria_CurrentRace);
 
 ***Match_PlayLoop***
 ***
-// Manage XmlRpc events
-foreach (Event in XmlRpc.PendingEvents) {
-	if (Event.Type == CXmlRpcEvent::EType::CallbackArray) {
-			switch (Event.ParamArray1) {
-					case C_Method_ForceEndRound: {
-							Round_ForceEndRound = True;
-					}
-			}
-	}
-}
-
-// Pause activation
-if (Pause::IsActive()) {
-		Round_ForceEndRound = True;
-}
-
-// If time limit is reached
-if (EndTime > 0 && Now >= EndTime) {
-		MB_StopRound();
-		Round_Skipped = False;
-}
-// If forced end round or round skipped after pause
-if (Round_ForceEndRound || Round_SkipPauseRound) {
-		MB_StopRound();
-		Round_Skipped = False;
-}
-
 // Manage race events
 declare RacePendingEvents = Race::GetPendingEvents();
 foreach (Event in RacePendingEvents) {
+	Log::Log("""[RacePendingEvents] Event.Type: {{{Event.Type}}} / """);
+
 	if (Event.Type == Events::C_Type_SkipOutro && C_DisableSkipOutro) {
+		Log::Log("""[RacePendingEvents] Event invalid """);
 		Race::InvalidEvent(Event);
 	} else {
+		Log::Log("""[RacePendingEvents] Event valid """);
 		Race::ValidEvent(Event);
 
 	   // Waypoint
-	   if (Event.Type == Events::C_Type_Waypoint) {
+	 	if (Event.Type == Events::C_Type_Waypoint) {
 		   CarRank::ThrottleUpdate(CarRank::C_SortCriteria_CurrentRace);
-		   if (Event.Player != Null) {
-			   if (Event.IsEndRace) {
+			if (Event.Player != Null) {
+				if (Event.IsEndRace) {
 					declare Integer CurrentSegment for Event.Player.Score = 1;
 					if (CurrentSegment  < S_SegmentsPerRound) { // TODO Try to keep CP diff a the bottom of the screen
 						CurrentSegment = CurrentSegment + 1;
 						Race::StopSkipScoresTable(Event.Player);
-						declare Boolean ModeRounds_CanSpawn for Event.Player.Score = Rounds_Settings_CanSpawnDefault;
-						ModeRounds_CanSpawn = True;
+						---Rounds_CanSpawn---
 					} else {
 						declare Integer RealTime for Event.Player.Score = 0;
 						RealTime = Event.Player.StartTime - StartTime + Event.RaceTime;
@@ -452,12 +315,8 @@ foreach (Event in RacePendingEvents) {
 					}
 			   }
 		   }
-		} else if (Event.Type == Events::C_Type_GiveUp) {
-			if (Event.Player != Null) {
-				UIModules_SpectatorBase::SetCamModeAndFocus(Event.Player, UIModules_SpectatorBase::C_CamModes_Follow); 
-			} 
-	   }
-   }
+		}
+	}
 }
 
 // Manage mode events
@@ -467,7 +326,7 @@ foreach (Event in PendingEvents) {
 }
 
  // Spawn players
-if (Players.count > 0 && PlayersNbDead >= 1) { //< Check for unspawned players only if at least one player is unspawned
+/*if (Players.count > 0 && PlayersNbDead >= 1) { //< Check for unspawned players only if at least one player is unspawned
 	declare Boolean NoOneCanPlay = True;
 	foreach (Player in Players) {
 		declare Boolean ModeRounds_CanSpawn for Player.Score = Rounds_Settings_CanSpawnDefault;
@@ -492,7 +351,7 @@ if (Players.count > 0 && PlayersNbDead >= 1) { //< Check for unspawned players o
 		MB_StopRound();
 		Round_Skipped = False;
 	}
-}
+}*/
 
 // Server info change
 if (
@@ -757,23 +616,6 @@ Boolean MapIsOver(Boolean _UseTieBreak, Integer _PointsLimit, Integer _ValidRoun
 
 	// In all other cases continue to play
 	return False;
-}
-
-// Display a message if the round was skipped
-Void ForcedEndRoundSequence() {
-	declare PrevUISequence = UIManager.UIAll.UISequence;
-	declare PrevBigMessage = UIManager.UIAll.BigMessage;
-	declare PrevBigMessageSound = UIManager.UIAll.BigMessageSound;
-	declare PrevBigMessageSoundVariant = UIManager.UIAll.BigMessageSoundVariant;
-	UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
-	UIManager.UIAll.BigMessage = _("Round skipped");
-	UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::EndRound;
-	UIManager.UIAll.BigMessageSoundVariant = 0;
-	MB_Sleep(3000);
-	UIManager.UIAll.BigMessageSoundVariant = PrevBigMessageSoundVariant;
-	UIManager.UIAll.BigMessageSound = PrevBigMessageSound;
-	UIManager.UIAll.BigMessage = PrevBigMessage;
-	UIManager.UIAll.UISequence = PrevUISequence;
 }
 
 /** Set the UI
