@@ -859,10 +859,8 @@ Void ForcedEndRoundSequence() {
 			declare netread Integer[Text] Net_Rounds_SmallScoresTable_CustomTimes for Teams[0]; // [Beu] Add netread variable
 
 			foreach (Score in Scores) {
-				log("Net_Rounds_SmallScoresTable_CustomTimes.count" ^ Net_Rounds_SmallScoresTable_CustomTimes.count);
 				if (Net_Rounds_SmallScoresTable_CustomTimes.count >= 1) { // [Beu] If customtimes, use it
 					if (Net_Rounds_SmallScoresTable_CustomTimes.existskey(Score.User.WebServicesUserId)) {
-						log("FinishSort for " ^ Score.User.Name ^ ": " ^ Net_Rounds_SmallScoresTable_CustomTimes[Score.User.WebServicesUserId]);
 						FinishSort[Score] = Net_Rounds_SmallScoresTable_CustomTimes[Score.User.WebServicesUserId];
 					}
 				} else {
