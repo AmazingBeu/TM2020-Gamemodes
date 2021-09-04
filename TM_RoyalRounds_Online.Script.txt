@@ -325,34 +325,6 @@ foreach (Event in PendingEvents) {
 	Events::Invalid(Event);
 }
 
- // Spawn players
-/*if (Players.count > 0 && PlayersNbDead >= 1) { //< Check for unspawned players only if at least one player is unspawned
-	declare Boolean NoOneCanPlay = True;
-	foreach (Player in Players) {
-		declare Boolean ModeRounds_CanSpawn for Player.Score = Rounds_Settings_CanSpawnDefault;
-		if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned && ModeRounds_CanSpawn) {
-			NoOneCanPlay = False;
-			if (Race::IsReadyToStart(Player)) {
-				ModeRounds_CanSpawn = False;
-				declare Integer CurrentSegment for Player.Score = 1;
-				declare Integer Index;
-				if (CurrentSegment > Map_Starts.count) {
-					Index = Map_Starts.count - 1;
-				} else {
-					Index = CurrentSegment - 1;
-				}
-				Player.LandmarkOrderSelector_Race = Index + 1;
-				Race::Start(Player, Map_Starts[Index] , Now + Race::C_SpawnDuration);
-				UIModules_Chrono::SetTimeOffset(Player, Player.StartTime - StartTime);
-			}
-		}
-	}
-	if (NoOneCanPlay && PlayersNbAlive <= 0) {
-		MB_StopRound();
-		Round_Skipped = False;
-	}
-}*/
-
 // Server info change
 if (
 	Server_PointsLimit != S_PointsLimit ||
@@ -366,6 +338,36 @@ if (
 	Server_SegmentsPerRound = S_SegmentsPerRound;
 	
 	UpdateScoresTableFooter(S_PointsLimit, S_RoundsPerMap, S_MapsPerMatch, Map_ValidRoundsNb, S_SegmentsPerRound);
+}
+***
+
+***Rounds_CheckStopRound***
+***
+// End the round 
+// If All players finished
+if (Players.count > 0 && PlayersNbAlive <= 0) {
+	declare Boolean NoOneCanPlay = True;
+	foreach (Player in Players) {
+		declare Boolean ModeRounds_CanSpawn for Player.Score = Rounds_Settings_CanSpawnDefault;
+		if (ModeRounds_CanSpawn) {
+			NoOneCanPlay = False;
+			break;
+		}
+	}
+	if (NoOneCanPlay) {
+		MB_StopRound();
+		Round_Skipped = False;
+	}
+}
+// If time limit is reached
+if (EndTime > 0 && Now >= EndTime) {
+	MB_StopRound();
+	Round_Skipped = False;
+}
+// If forced end round or round skipped after pause
+if (Round_ForceEndRound || Round_SkipPauseRound) {
+	MB_StopRound();
+	Round_Skipped = False;
 }
 ***
 
