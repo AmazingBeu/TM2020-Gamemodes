@@ -131,7 +131,6 @@ foreach (Event in PendingEvents) {
 		// Initialize players when they join the server
 		case CSmModeEvent::EType::OnPlayerAdded: {
 			StateMgr::InitializePlayer(Event.Player);
-			CarRank::InitializePlayer(Event.Player);
 		}
 	}
 }
@@ -155,6 +154,7 @@ Scores::SaveInScore(Scores::C_Points_Match);
 StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
 UsePvECollisions = True; //< Synchronize obstacles between all players
 WarmUp::SetAvailability(False); // (Impossible at the moment https://forum.nadeo.com/viewtopic.php?f=51&p=8745#p8745)
+Race::UseAutomaticDossardColor(False);
 
 Server_PointsLimit = S_PointsLimit - 1;
 Server_RoundsPerMap = S_RoundsPerMap - 1;
@@ -230,8 +230,6 @@ Map_Skipped = True;
 
 StartTime = Now + Race::C_SpawnDuration;
 
-CarRank::Reset();
-
 // Warm up (Impossible at the moment https://forum.nadeo.com/viewtopic.php?f=51&p=8745#p8745)
 /*UIModules_ScoresTable::SetFooterInfo(_("Warm up"));
 MB_WarmUp(S_WarmUpNb, S_WarmUpDuration * 1000, S_WarmUpTimeout * 1000);
@@ -246,6 +244,13 @@ if (CurrentSegment > Map_Starts.count) {
 	Index = Map_Starts.count - 1;
 } else {
 	Index = CurrentSegment - 1;
+}
+switch (CurrentSegment) {
+	case 1: Player.Dossard_Color = Race::C_DossardColor_Default; // White
+	case 2: Player.Dossard_Color = <0.063, 0.816, 0.125>; // Green
+	case 3: Player.Dossard_Color = <0.125, 0.251, 0.753>; // Blue
+	case 4: Player.Dossard_Color = <0.8, 0.2, 0.2>; // Red
+	default: Player.Dossard_Color = <0.2, 0.2, 0.2>;  // Black
 }
 Player.LandmarkOrderSelector_Race = Index + 1;
 declare Integer SpecificStartTime = Now + Race::C_SpawnDuration;
@@ -281,11 +286,6 @@ StateMgr::ForcePlayersStates([StateMgr::C_State_Playing]);
 IsStartRound = False;
 ***
 
-***Rounds_PlayerSpawned***
-***
-CarRank::ThrottleUpdate(CarRank::C_SortCriteria_CurrentRace);
-***
-
 ***Match_PlayLoop***
 ***
 // Manage race events
@@ -302,13 +302,12 @@ foreach (Event in RacePendingEvents) {
 
 	   // Waypoint
 	 	if (Event.Type == Events::C_Type_Waypoint) {
-		   CarRank::ThrottleUpdate(CarRank::C_SortCriteria_CurrentRace);
 			if (Event.Player != Null) {
 				if (Event.IsEndRace) {
 					declare Integer CurrentSegment for Event.Player.Score = 1;
 					if (CurrentRanking.existskey(CurrentSegment-1)) CurrentRanking[CurrentSegment-1].removekey(Event.Player.User.WebServicesUserId)	;
 					if (!CurrentRanking.existskey(CurrentSegment)) CurrentRanking[CurrentSegment] = Integer[Text];
-					CurrentRanking[CurrentSegment][Event.Player.User.WebServicesUserId] = Event.Player.StartTime - StartTime + Event.RaceTime;
+					CurrentRanking[CurrentSegment][Event.Player.User.WebServicesUserId] = Event.Player.StartTime - StartTime + Event.RaceTime;			
 					if (CurrentSegment  < S_SegmentsPerRound) { // TODO Try to keep CP diff a the bottom of the screen
 						CurrentSegment = CurrentSegment + 1;
 						Race::StopSkipScoresTable(Event.Player);
@@ -384,7 +383,6 @@ if (Round_ForceEndRound || Round_SkipPauseRound) {
 Race::StopSkipOutroAll();
 EndTime = -1;
 StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
-CarRank::Update(CarRank::C_SortCriteria_CurrentRace);
 
 if (Semver::Compare(XmlRpc::GetApiVersion(), ">=", "2.1.1")) {
 	Scores::XmlRpc_SendScores(Scores::C_Section_PreEndRound, "");
