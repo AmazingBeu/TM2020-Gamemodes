@@ -238,7 +238,16 @@ MB_WarmUp(S_WarmUpNb, S_WarmUpDuration * 1000, S_WarmUpTimeout * 1000);
 
 ***Rounds_SpawnPlayer***
 ***
-declare Integer CurrentSegment for Player.Score = 1;
+declare Integer CurrentSegment for Player.Score = -1;
+
+// Init player if newly connected
+if (CurrentSegment == -1)  {
+	CurrentSegment = 1;
+	CurrentRanking[0][Player.User.WebServicesUserId] = 0;
+	if (!UpdateRankingSegments.exists(0)) UpdateRankingSegments.add(0);
+	if (UpdateRankingTimer == 0) UpdateRankingTimer = Now + 1000;
+}
+
 declare Integer Index;
 if (CurrentSegment > Map_Starts.count) {
 	Index = Map_Starts.count - 1;
@@ -269,13 +278,19 @@ UIModules_Chrono::SetTimeOffset(Player, SpecificOffset);
 ***
 declare Integer[Text] CustomTimes for This = [];
 declare Integer[Text][Integer] CurrentRanking for This = [];  // CurrentRanking[Segment][AccountId][Time]
+CurrentRanking[0] = Integer[Text]; // Init white section
 declare Boolean IsStartRound = True;
 
 // Reset players for the race
 foreach (Player in Players) {
-	declare Integer CurrentSegment for Player.Score = 1;
+	declare Integer CurrentSegment for Player.Score = -1;
 	CurrentSegment = 1;
+	CurrentRanking[0][Player.User.WebServicesUserId] = 0;
 }
+
+declare Integer UpdateRankingTimer = 1;
+declare Integer[] UpdateRankingSegments;
+UpdateRankingSegments.add(0);
 ***
 
 ***Match_StartRound***
@@ -291,27 +306,37 @@ IsStartRound = False;
 // Manage race events
 declare RacePendingEvents = Race::GetPendingEvents();
 foreach (Event in RacePendingEvents) {
-	Log::Log("""[RacePendingEvents] Event.Type: {{{Event.Type}}} / """);
-
 	if (Event.Type == Events::C_Type_SkipOutro && C_DisableSkipOutro) {
-		Log::Log("""[RacePendingEvents] Event invalid """);
 		Race::InvalidEvent(Event);
 	} else {
-		Log::Log("""[RacePendingEvents] Event valid """);
 		Race::ValidEvent(Event);
 
 	   // Waypoint
 	 	if (Event.Type == Events::C_Type_Waypoint) {
 			if (Event.Player != Null) {
 				if (Event.IsEndRace) {
-					declare Integer CurrentSegment for Event.Player.Score = 1;
+					declare Integer CurrentSegment for Event.Player.Score = -1;
+					Log::Log("""[RacePendingEvents] Player {{{Event.Player.User.Name }}} end the segment {{{CurrentSegment}}} at {{{Event.Player.StartTime - StartTime + Event.RaceTime}}}""");
 					if (CurrentRanking.existskey(CurrentSegment-1)) CurrentRanking[CurrentSegment-1].removekey(Event.Player.User.WebServicesUserId)	;
 					if (!CurrentRanking.existskey(CurrentSegment)) CurrentRanking[CurrentSegment] = Integer[Text];
-					CurrentRanking[CurrentSegment][Event.Player.User.WebServicesUserId] = Event.Player.StartTime - StartTime + Event.RaceTime;			
+					CurrentRanking[CurrentSegment][Event.Player.User.WebServicesUserId] = Event.Player.StartTime - StartTime + Event.RaceTime;
+
 					if (CurrentSegment  < S_SegmentsPerRound) { // TODO Try to keep CP diff a the bottom of the screen
+						declare ModeRounds_CanSpawn for Event.Player.Score = Rounds_Settings_CanSpawnDefault;
+						ModeRounds_CanSpawn = True;
+
+						// Update Ranking of the current players
+						declare Integer Rank = 1;
+						declare Integer I = 1;
+						Rank = CurrentRanking[CurrentSegment].count;
+						while (CurrentRanking.existskey(CurrentSegment + I)) {
+							Rank = Rank + CurrentRanking[CurrentSegment + I].count;
+							I = I + 1;
+						}
+						Event.Player.Dossard_Number = TL::FormatInteger(ML::Clamp(Rank, 0, 99), 2);
+
 						CurrentSegment = CurrentSegment + 1;
 						Race::StopSkipScoresTable(Event.Player);
-						---Rounds_CanSpawn---
 					} else {
 						Scores::UpdatePlayerPrevRace(Event.Player);
 						UpdateCustomRanking(Event.Player);
@@ -320,8 +345,24 @@ foreach (Event in RacePendingEvents) {
 							EndTime = GetFinishTimeout(S_FinishTimeout);
 						}	
 					}
+
+					// Add to trigger UpdateRanking for all players affected
+					if (!UpdateRankingSegments.exists(CurrentSegment-1)) UpdateRankingSegments.add(CurrentSegment-1);
+					if (UpdateRankingTimer == 0) UpdateRankingTimer = Now + 1000;
 			   }
 		    }
+		} else if (Event.Type == Events::C_Type_GiveUp) {
+			Log::Log("""[RacePendingEvents] Player {{{Event.Player.User.Name }}} give-up""");
+			if (Event.Player != Null) {
+				declare Integer CurrentSegment for Event.Player.Score = -1;
+				if (CurrentRanking.existskey(CurrentSegment-1)) CurrentRanking[CurrentSegment-1].removekey(Event.Player.User.WebServicesUserId);
+				while (CurrentSegment >= 1) {
+					if (!UpdateRankingSegments.exists(CurrentSegment-1)) UpdateRankingSegments.add(CurrentSegment-1);
+					CurrentSegment = CurrentSegment - 1;
+				}
+				if (UpdateRankingTimer == 0) UpdateRankingTimer = Now + 1000;
+				declare Boolean ModeRounds_CanSpawn for Event.Player.Score = Rounds_Settings_CanSpawnDefault;
+			}
 		}
 	}
 }
@@ -330,6 +371,31 @@ foreach (Event in RacePendingEvents) {
 foreach (Event in PendingEvents) {
 	if (Event.HasBeenPassed || Event.HasBeenDiscarded) continue;
 	Events::Invalid(Event);
+}
+
+if (UpdateRankingTimer > 0 && Now > UpdateRankingTimer) {
+	UpdateRankingSegments = UpdateRankingSegments.sortreverse();
+
+	foreach (Segment in UpdateRankingSegments) {
+		Log::Log("[UpdateRanking] Updating ranking of players of the segment " ^ Segment);
+		declare Integer I = 1;
+		declare Integer Rank = 1;
+		while (CurrentRanking.existskey(Segment + I)) {
+			Rank = Rank + CurrentRanking[Segment + I].count;
+			I = I + 1;
+		}
+
+		if (CurrentRanking.existskey(Segment)) {
+			if (Segment == 0) Rank =  Rank + CurrentRanking[0].count - 1;
+			foreach (ID => Time in CurrentRanking[Segment]) {
+				declare CSmPlayer Player = ModeUtils::GetPlayerFromAccountId(ID);
+				Player.Dossard_Number = TL::FormatInteger(ML::Clamp(Rank, 0, 99), 2);
+				if (Segment != 0) Rank = Rank + 1;
+			}
+		}
+	}
+	UpdateRankingTimer = 0;
+	UpdateRankingSegments.clear();
 }
 
 // Server info change
@@ -518,6 +584,7 @@ Integer GetFinishTimeout(Integer _FinishTimeout) {
 			declare Integer LastTimeFromThePreviousSegment = 0;
 			declare Integer LastTime = 0;
 			foreach (Segment => DummyVar in CurrentRanking) {
+				if (Segment == 0) break;
 				if (CustomTimes.count > 0) LastTimeFromThePreviousSegment = LastTime;
 				foreach (ID => Time in CurrentRanking[Segment]) {
 					CustomTimes[ID] = Time + LastTimeFromThePreviousSegment;
