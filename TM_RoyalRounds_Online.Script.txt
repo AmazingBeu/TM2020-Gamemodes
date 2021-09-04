@@ -33,6 +33,7 @@
 #Setting S_MapsPerMatch -1 as _("Number of maps per match") ///< Number of maps to play before finishing the match
 #Setting S_UseTieBreak True as _("Use tie-break")	///< Continue to play the map until the tie is broken
 #Setting S_SegmentsPerRound 5 as "Number of segment to end the round"
+#Setting S_StrictPointDistribution False as "Give points only to players who complete all segments"
 #Setting S_RoundWaitingScreenDuration 20 as _("Round waiting screen duration") //< Maximum time spent waiting for players at the beginning of each round
 
 /*#Setting S_WarmUpNb 0	as _("Number of warm up") // (Impossible at the moment https://forum.nadeo.com/viewtopic.php?f=51&p=8745#p8745)
@@ -262,14 +263,13 @@ UIModules_Chrono::SetTimeOffset(Player, SpecificOffset);
 ***Match_InitRound***
 ***
 declare Integer[Text] CustomTimes for This = [];
+declare Integer[Text][Integer] CurrentRanking for This = [];  // CurrentRanking[Segment][AccountId][Time]
 declare Boolean IsStartRound = True;
 
 // Reset players for the race
 foreach (Player in Players) {
 	declare Integer CurrentSegment for Player.Score = 1;
 	CurrentSegment = 1;
-	declare Integer RealTime for Player.Score = 0;
-	RealTime = 0;
 }
 ***
 
@@ -306,13 +306,14 @@ foreach (Event in RacePendingEvents) {
 			if (Event.Player != Null) {
 				if (Event.IsEndRace) {
 					declare Integer CurrentSegment for Event.Player.Score = 1;
+					if (CurrentRanking.existskey(CurrentSegment-1)) CurrentRanking[CurrentSegment-1].removekey(Event.Player.User.WebServicesUserId)	;
+					if (!CurrentRanking.existskey(CurrentSegment)) CurrentRanking[CurrentSegment] = Integer[Text];
+					CurrentRanking[CurrentSegment][Event.Player.User.WebServicesUserId] = Event.Player.StartTime - StartTime + Event.RaceTime;
 					if (CurrentSegment  < S_SegmentsPerRound) { // TODO Try to keep CP diff a the bottom of the screen
 						CurrentSegment = CurrentSegment + 1;
 						Race::StopSkipScoresTable(Event.Player);
 						---Rounds_CanSpawn---
 					} else {
-						declare Integer RealTime for Event.Player.Score = 0;
-						RealTime = Event.Player.StartTime - StartTime + Event.RaceTime;
 						Scores::UpdatePlayerPrevRace(Event.Player);
 						UpdateCustomRanking(Event.Player);
 						Race::SortScores(Race::C_Sort_TotalPoints);
@@ -419,7 +420,9 @@ if (Round_ForceEndRound || Round_SkipPauseRound || Round_Skipped) {
 	}
 }
 CustomTimes.clear();
+CurrentRanking.clear();
 UIModules_SmallScoresTable::ResetCustomTimes();
+UIModules_SmallScoresTable::ResetCustomResults();
 ***
 
 ***Match_EndMap***
@@ -503,11 +506,28 @@ Integer GetFinishTimeout(Integer _FinishTimeout) {
  */
  Void UpdateCustomRanking(CSmPlayer _Player) {
 	declare Integer[Text] CustomTimes for This;
+	declare Text[Text] CustomResult;
+	declare Integer[Text][Integer] CurrentRanking for This = [];
 	declare Integer[] PointsRepartition = PointsRepartition::GetPointsRepartition();
 
 	if (_Player != Null) {
-		declare Integer RealTime for _Player.Score;
-		CustomTimes[_Player.User.WebServicesUserId] = RealTime;
+		declare Integer CurrentSegment for _Player.Score;
+		CustomTimes[_Player.User.WebServicesUserId] = CurrentRanking[CurrentSegment][_Player.User.WebServicesUserId];
+	} else {
+		if (!S_StrictPointDistribution) {
+			CustomTimes.clear();
+			CurrentRanking = CurrentRanking.sortkeyreverse();
+			declare Integer LastTimeFromThePreviousSegment = 0;
+			declare Integer LastTime = 0;
+			foreach (Segment => DummyVar in CurrentRanking) {
+				if (CustomTimes.count > 0) LastTimeFromThePreviousSegment = LastTime;
+				foreach (ID => Time in CurrentRanking[Segment]) {
+					CustomTimes[ID] = Time + LastTimeFromThePreviousSegment;
+					LastTime = Time + LastTimeFromThePreviousSegment;
+					if (LastTimeFromThePreviousSegment > 0) CustomResult[ID] = """({{{Segment - S_SegmentsPerRound}}}) {{{TL::TimeToText(Time, True, True)}}}""";
+				}
+			}
+		}
 	}
 
 	if (PointsRepartition.count > 0) {
@@ -527,6 +547,7 @@ Integer GetFinishTimeout(Integer _FinishTimeout) {
 		}
 	}
 	UIModules_SmallScoresTable::SetCustomTimes(CustomTimes);
+	UIModules_SmallScoresTable::SetCustomResults(CustomResult);
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
