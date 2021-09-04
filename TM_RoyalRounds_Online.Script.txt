@@ -34,6 +34,7 @@
 #Setting S_UseTieBreak True as _("Use tie-break")	///< Continue to play the map until the tie is broken
 #Setting S_SegmentsPerRound 5 as "Number of segment to end the round"
 #Setting S_StrictPointDistribution False as "Give points only to players who complete all segments"
+#Setting S_AllowCam7DuringWaitingScreen False as ""
 #Setting S_RoundWaitingScreenDuration 20 as _("Round waiting screen duration") //< Maximum time spent waiting for players at the beginning of each round
 
 /*#Setting S_WarmUpNb 0	as _("Number of warm up") // (Impossible at the moment https://forum.nadeo.com/viewtopic.php?f=51&p=8745#p8745)
@@ -193,8 +194,8 @@ if (Map_Starts.count > 0) {
 // the first step without the second.
 declare Integer WaitingScreenDuration = S_RoundWaitingScreenDuration;
 if (WaitingScreenDuration >= 0) {
-	//ModeUtils::PushAndApplyUISequence(UIManager.UIAll, CUIConfig::EUISequence::RollingBackgroundIntro); <-- Block Cam 7 during the waiting
-	ModeUtils::PushAndApplyUISequence(UIManager.UIAll, CUIConfig::EUISequence::Playing); // <-- Allow Cam 7 during the waiting
+	if (S_AllowCam7DuringWaitingScreen) ModeUtils::PushAndApplyUISequence(UIManager.UIAll, CUIConfig::EUISequence::Playing);
+	else ModeUtils::PushAndApplyUISequence(UIManager.UIAll, CUIConfig::EUISequence::RollingBackgroundIntro);
 	
 	// Wait for the connection of the first valid player to start the countdown
 	while (MB_MapIsRunning() && AllPlayers.count <= 0) {
