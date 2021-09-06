@@ -186,6 +186,11 @@ foreach (Start in SortedStarts) {
 
 if (Map_Starts.count > 0) {
 	Map::SetDefaultStart(Map_Starts[0]);
+} else {
+	StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
+    UIManager.UIAll.QueueMessage(3000, 1, CUIConfig::EMessageDisplay::Big, _("This map is not valid"));
+    MB_Sleep(3000);
+    MB_StopMap();
 }
 
 // We use `>= 0` and not `> 0` here because the waiting screen
