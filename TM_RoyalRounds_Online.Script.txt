@@ -113,9 +113,7 @@ if (C_HudModulePath != "") Hud_Load(C_HudModulePath);
 ClientManiaAppUrl = C_ManiaAppUrl;
 Race::SortScores(Race::C_Sort_TotalPoints);
 UIModules_ScoresTable::SetScoreMode(UIModules_ScoresTable::C_Mode_Points);
-UIModules_Checkpoint::SetVisibilityTimeDiff(False);
-UIModules_Checkpoint::SetRankMode(UIModules_Checkpoint::C_RankMode_CurrentRace);
-UIModules_Checkpoint::SetAutoUISequenceFinish(False);
+UIModules_Checkpoint::SetVisibleFor(UIModules_Checkpoint::C_Target_None);
 UIModules_TimeGap::SetTimeGapMode(UIModules_TimeGap::C_TimeGapMode_Hidden);
 UIModules_PauseMenu_Online::SetHelp(Description);
 // Hide SM Overlay
@@ -123,6 +121,8 @@ UIManager.UIAll.OverlayHideSpectatorControllers = True;
 UIManager.UIAll.OverlayHideSpectatorInfos = True;
 UIManager.UIAll.OverlayHideChrono = True; 
 UIManager.UIAll.OverlayHideCountdown = True;
+
+SetML();
 ***
 
 ***Match_Yield***
@@ -327,20 +327,28 @@ foreach (Event in RacePendingEvents) {
 					if (!CurrentRanking.existskey(CurrentSegment)) CurrentRanking[CurrentSegment] = Integer[Text];
 					CurrentRanking[CurrentSegment][Event.Player.User.WebServicesUserId] = Event.Player.StartTime - StartTime + Event.RaceTime;
 
+					// Update Ranking of the current players
+					declare Integer Rank = 1;
+					declare Integer I = 1;
+					Rank = CurrentRanking[CurrentSegment].count;
+					while (CurrentRanking.existskey(CurrentSegment + I)) {
+						Rank = Rank + CurrentRanking[CurrentSegment + I].count;
+						I = I + 1;
+					}
+					Event.Player.Dossard_Number = TL::FormatInteger(ML::Clamp(Rank, 0, 99), 2);
+
+					// Send Rank to Checkpoint UI
+					declare UI <=> UIManager.GetUI(Event.Player);
+					if (UI != Null) {
+						declare netwrite Integer Net_RoyalRounds_CheckpointUI_Rank for UI;
+						Net_RoyalRounds_CheckpointUI_Rank = Rank;
+						declare netwrite Integer Net_RoyalRounds_CheckpointUI_Update for UI;
+						Net_RoyalRounds_CheckpointUI_Update += 1;
+					}
+
 					if (CurrentSegment  < S_SegmentsPerRound) { // TODO Try to keep CP diff a the bottom of the screen
 						declare ModeRounds_CanSpawn for Event.Player.Score = Rounds_Settings_CanSpawnDefault;
 						ModeRounds_CanSpawn = True;
-
-						// Update Ranking of the current players
-						declare Integer Rank = 1;
-						declare Integer I = 1;
-						Rank = CurrentRanking[CurrentSegment].count;
-						while (CurrentRanking.existskey(CurrentSegment + I)) {
-							Rank = Rank + CurrentRanking[CurrentSegment + I].count;
-							I = I + 1;
-						}
-						Event.Player.Dossard_Number = TL::FormatInteger(ML::Clamp(Rank, 0, 99), 2);
-
 						CurrentSegment = CurrentSegment + 1;
 						Race::StopSkipScoresTable(Event.Player);
 					} else {
@@ -711,4 +719,69 @@ Boolean MapIsOver(Boolean _UseTieBreak, Integer _PointsLimit, Integer _ValidRoun
 
 	// In all other cases continue to play
 	return False;
+}
+
+/** 
+ * Set the UI
+ */
+ Void SetML() {
+	declare TotalWidth = 44.5;
+
+    declare Text MLText = """
+    <manialink name="LMS_UI" version="3">
+        <script><!--
+        #Include "TextLib" as TL
+
+        main() {
+			declare netread Integer Net_RoyalRounds_CheckpointUI_Rank for UI;
+			declare netread Integer Net_RoyalRounds_CheckpointUI_Update for UI;
+
+			declare Integer TimeToDisplay = 0;
+			declare Integer LastUpdate = 0;
+
+			declare Quad_UI <=> (Page.GetFirstChild("quad-ui") as CMlQuad);
+            declare Label_Rank <=> (Page.GetFirstChild("label-rank") as CMlLabel);
+			declare Label_Time <=> (Page.GetFirstChild("label-time") as CMlLabel);
+
+            while(True) {
+				yield;
+
+				if (LastUpdate != Net_RoyalRounds_CheckpointUI_Update) {
+					LastUpdate = Net_RoyalRounds_CheckpointUI_Update;
+					Label_Rank.Value = TL::FormatRank(Net_RoyalRounds_CheckpointUI_Rank, False);
+					Label_Time.Value = TL::TimeToText(GUIPlayer.RaceWaypointTimes[0], True, True);// PrevRace
+					Quad_UI.Visible = True;
+					TimeToDisplay = Now + 3000;
+				}
+
+				if (TimeToDisplay != 0 && TimeToDisplay < Now) {
+					Quad_UI.Visible = False;
+					TimeToDisplay = 0;
+				}
+            }
+        }
+        --></script>
+		<stylesheet>
+			<style class="text-default" textfont="Oswald" textcolor="ffffff" textsize="3" />
+			<style class="text-number" textfont="OswaldMono" textcolor="ffffff" textsize="4" />
+		</stylesheet>
+		<frame z-index="-2" hidden="1" id="quad-ui" pos="-10 45">
+			<frame id="frame-checkpoint">
+				<frame pos="0 -12" id="frame-race">
+					<frame pos="0 5" id="frame-race-time" scale="0.9">
+						<quad z-index="0" size="20 8" valign="center" bgcolor="000000" opacity="0.6" />
+						<label pos="19 0" z-index="1" size="18 10"  halign="right" valign="center2" class="text-number" id="label-time" />
+					</frame>
+					<frame pos="0 5" id="frame-race-rank" scale="0.9">
+						<quad z-index="0" size="10 8" halign="right" valign="center" bgcolor="000000" opacity="0.6" id="quad-race-rank" />
+						<label pos="-0.5 0" z-index="1" size="8.5 10" halign="right" valign="center2" textsize="3" textemboss="1" class="text-default" id="label-rank" />
+					</frame>
+				</frame>
+			</frame>
+		</frame>
+    </manialink>
+""";
+	Layers::Create("ML_RoyalRounds_CheckpointUI", MLText);
+	Layers::SetType("ML_RoyalRounds_CheckpointUI", CUILayer::EUILayerType::Normal);
+	Layers::Attach("ML_RoyalRounds_CheckpointUI");
 }
