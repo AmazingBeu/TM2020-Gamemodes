@@ -188,9 +188,9 @@ if (Map_Starts.count > 0) {
 	Map::SetDefaultStart(Map_Starts[0]);
 } else {
 	StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
-    UIManager.UIAll.QueueMessage(3000, 1, CUIConfig::EMessageDisplay::Big, _("This map is not valid"));
-    MB_Sleep(3000);
-    MB_StopMap();
+	UIManager.UIAll.QueueMessage(3000, 1, CUIConfig::EMessageDisplay::Big, _("This map is not valid"));
+	MB_Sleep(3000);
+	MB_StopMap();
 }
 
 // We use `>= 0` and not `> 0` here because the waiting screen
@@ -364,7 +364,7 @@ foreach (Event in RacePendingEvents) {
 					if (!UpdateRankingSegments.exists(CurrentSegment-1)) UpdateRankingSegments.add(CurrentSegment-1);
 					if (UpdateRankingTimer == 0) UpdateRankingTimer = Now + 1000;
 			   }
-		    }
+			}
 		} else if (Event.Type == Events::C_Type_GiveUp) {
 			Log::Log("""[RacePendingEvents] Player {{{Event.Player.User.Name }}} give-up""");
 			if (Event.Player != Null) {
@@ -727,12 +727,12 @@ Boolean MapIsOver(Boolean _UseTieBreak, Integer _PointsLimit, Integer _ValidRoun
  Void SetML() {
 	declare TotalWidth = 44.5;
 
-    declare Text MLText = """
-    <manialink name="LMS_UI" version="3">
-        <script><!--
-        #Include "TextLib" as TL
+	declare Text MLText = """
+	<manialink name="ML_RoyalRounds_CheckpointUI" version="3">
+		<script><!--
+		#Include "TextLib" as TL
 
-        main() {
+		main() {
 			declare netread Integer Net_RoyalRounds_CheckpointUI_Rank for UI;
 			declare netread Integer Net_RoyalRounds_CheckpointUI_Update for UI;
 
@@ -740,10 +740,10 @@ Boolean MapIsOver(Boolean _UseTieBreak, Integer _PointsLimit, Integer _ValidRoun
 			declare Integer LastUpdate = 0;
 
 			declare Quad_UI <=> (Page.GetFirstChild("quad-ui") as CMlQuad);
-            declare Label_Rank <=> (Page.GetFirstChild("label-rank") as CMlLabel);
+			declare Label_Rank <=> (Page.GetFirstChild("label-rank") as CMlLabel);
 			declare Label_Time <=> (Page.GetFirstChild("label-time") as CMlLabel);
 
-            while(True) {
+			while(True) {
 				yield;
 
 				if (LastUpdate != Net_RoyalRounds_CheckpointUI_Update) {
@@ -758,9 +758,9 @@ Boolean MapIsOver(Boolean _UseTieBreak, Integer _PointsLimit, Integer _ValidRoun
 					Quad_UI.Visible = False;
 					TimeToDisplay = 0;
 				}
-            }
-        }
-        --></script>
+			}
+		}
+		--></script>
 		<stylesheet>
 			<style class="text-default" textfont="Oswald" textcolor="ffffff" textsize="3" />
 			<style class="text-number" textfont="OswaldMono" textcolor="ffffff" textsize="4" />
@@ -779,7 +779,7 @@ Boolean MapIsOver(Boolean _UseTieBreak, Integer _PointsLimit, Integer _ValidRoun
 				</frame>
 			</frame>
 		</frame>
-    </manialink>
+	</manialink>
 """;
 	Layers::Create("ML_RoyalRounds_CheckpointUI", MLText);
 	Layers::SetType("ML_RoyalRounds_CheckpointUI", CUILayer::EUILayerType::Normal);
