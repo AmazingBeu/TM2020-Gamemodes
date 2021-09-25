@@ -1,7 +1,6 @@
 #Extends "Modes/TrackMania/TM_TimeAttack_Online.Script.txt"
 
 #Setting S_TrustClientSimu False
-#Setting S_UseCrudeExtrapolation False
 #Setting S_AdminPlayers "" as "Comma separated admin to manage all players physics"
 #Setting S_ForcePlayersToBeControledBySpectators False as "Force Players to be controlled by Spectators"
 #Setting S_AllowPlayersToBeControledBySpectators True as "Allow Players to be controlled by Spectators"
@@ -27,7 +26,6 @@
 
 ***Match_StartServer***
 ***
-UsePvPCollisions = True;
 UIModules_Record::Reset();
 UIModules_Record::SetSpecialVisibility(False);
 ***
@@ -112,6 +110,11 @@ foreach (Event in RacePendingEvents) {
 	Log::Log("[RacePendingEvents] Event.Type: " ^ Event.Type);
 	if (Event.Type == Events::C_Type_StartLine || Event.Type == Events::C_Type_GiveUp || (Event.Type == Events::C_Type_Waypoint && Event.IsEndRace)) {
 		declare netwrite K_PlayerPhysics Net_PlayerPhysics for Event.Player = InitPlayerPhysicsVariable();
+		ApplyPhysicsAtRespawn(Event.Player, Net_PlayerPhysics);
+	} else if (Event.Type == Events::C_Type_Respawn) {
+		declare netwrite K_PlayerPhysics Net_PlayerPhysics for Event.Player = InitPlayerPhysicsVariable();
+		while (Event.Player.SpawnStatus != CSmPlayer::ESpawnStatus::Spawned) MB_Yield();
+		SetPhysicsChange("Reset", "", Event.Player);
 		ApplyPhysicsAtRespawn(Event.Player, Net_PlayerPhysics);
 	}
 }
