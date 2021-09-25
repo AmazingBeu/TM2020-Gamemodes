@@ -71,7 +71,7 @@ foreach (Event in UIManager.PendingEvents) { // TODO: Add Secure token to admins
 		declare Text Value = Event.CustomEventData[1];
 		if (Target == "all") {
 			AllPlayersPhysics = GetUpdatedPlayerPhysicsVariable(EventName, Value, AllPlayersPhysics);
-			foreach (Player in Players) {   
+			foreach (Player in Players) {
 				SetPhysicsChange(EventName, Value, Player);
 				declare netwrite K_PlayerPhysics Net_PlayerPhysics for Player = InitPlayerPhysicsVariable();
 				Net_PlayerPhysics = AllPlayersPhysics;
@@ -247,6 +247,7 @@ Void SetML() {
 		<script><!--
 		#Include "TextLib" as TL
 		#Include "MathLib" as ML
+		#Include "Libs/Nadeo/CommonLibs/Common/Log.Script.txt" as Log
 
 		#Struct K_PlayerPhysics {
 			Real AccelCoef;
@@ -468,8 +469,7 @@ Void SetML() {
 					// Events
 					foreach(Event in PendingEvents) {
 						if (Owner != Null && Owner.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned) {
-							if (Event.Type == CMlScriptEvent::Type::MouseClick && TL::Find("_EffectButton" Event.ControlId, True, True)) {
-								
+							if (Event.Type == CMlScriptEvent::Type::MouseClick && TL::Find("_EffectButton", Event.ControlId, True, True)) {
 								declare Text Effect = TL::Replace(Event.ControlId, "_EffectButton", "");
 								declare Text Target;
 								if (Net_PlayerIsAdmin && Last_ControledByAdmins) Target = "all";
@@ -522,10 +522,10 @@ Void SetML() {
 			<style class="quad-effects" halign="center" valign="center" />
 		</stylesheet>
 		<frame pos="-160 40">
-			<quad id="quad-bg" pos="0 0" z-index="-1" size="60 74" bgcolor="000" opacity="0.5" /> <!-- 85 for regular,  74 without spec control-->
+			<quad id="quad-bg" pos="0 0" z-index="-1" size="60 74" bgcolor="000" opacity="0.5" /> <!-- 85 for regular, 74 without spec control-->
 			<quad id="quad-fg" pos="0 0" z-index="5" size="60 74" bgcolor="000" opacity="0.5" hidden=1 scriptevents="1" />
 			<label id="label-warning" class="text-suffix" hidden=1 z-index="6" pos="30 -35" textsize="2.5" size="50 10" autonewline="1"/>
-			<label class="text-suffix" pos="30 -5"  textsize="3" z-index="0" size="50 10" text="Physics Control"/>
+			<label class="text-suffix" pos="30 -5" textsize="3" z-index="0" size="50 10" text="Physics Control"/>
 			<frame pos="0.5 -6">
 				<frame pos="30 0">
 					<quad class="quad-effects" pos="-3 -7.5" z-index="1" size="3 3'" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/Reset.dds" />
@@ -534,11 +534,11 @@ Void SetML() {
 				</frame>
 				<frame pos="0 -9">
 					<frame pos="0 0">
-						<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ReactorBoost.dds" rot=180  />
+						<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ReactorBoost.dds" rot=180 />
 						<quad id="BoostUp_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
 					</frame>
 					<frame pos="11 0">
-						<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ReactorBoost2.dds" rot=180  />
+						<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ReactorBoost2.dds" rot=180 />
 						<quad id="Boost2Up_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
 					</frame>
 					<frame pos="22 0">
@@ -580,44 +580,44 @@ Void SetML() {
 			<frame pos="2 -42">
 				<frame pos="0 0">
 					<label class="text-label" pos="0 0" z-index="0" size="22 5" text="Cruise" />
-					<slider id="Cruise_Slider" class="slider" pos="34 -0.3" value="0." range="-999 999" size="21 5" z-index="1"  scriptevents="1" tooltip="test"/>
-					<label id="Cruise_Label" class="text-value" pos="53 0" z-index="0" size="10 5"  text="0" />
-					<label class="text-suffix" pos="55 0" z-index="0" size="4 4"  text="kph" />
+					<slider id="Cruise_Slider" class="slider" pos="34 -0.3" value="0." range="-999 999" size="21 5" z-index="1" scriptevents="1" tooltip="test"/>
+					<label id="Cruise_Label" class="text-value" pos="53 0" z-index="0" size="10 5" text="0" />
+					<label class="text-suffix" pos="55 0" z-index="0" size="4 4" text="kph" />
 				</frame>
 				<frame pos="0 -7">
 					<label class="text-label" pos="0 0" z-index="0" size="22 5" text="Acceleration" />
-					<slider id="AccelCoef_Slider" class="slider" pos="34 -0.3" value="1." range="0.01 1." size="21 5" z-index="1"  scriptevents="1" tooltip="test"/>
+					<slider id="AccelCoef_Slider" class="slider" pos="34 -0.3" value="1." range="0.01 1." size="21 5" z-index="1" scriptevents="1" tooltip="test"/>
 					<label id="AccelCoef_Label" class="text-value" pos="53 0" z-index="0" size="10 5" text="100" />
 					<label class="text-suffix" pos="55 0" z-index="0" size="4 4" text="%" />
 				</frame>
 				<frame pos="0 -14">
 					<label class="text-label" pos="0 0" z-index="0" size="22 5" text="Adherence" />
-					<slider id="AdherenceCoef_Slider" class="slider" pos="34 -0.3" value="1." range="0.01 1." size="21 5" z-index="1"  scriptevents="1" tooltip="test"/>
+					<slider id="AdherenceCoef_Slider" class="slider" pos="34 -0.3" value="1." range="0.01 1." size="21 5" z-index="1" scriptevents="1" tooltip="test"/>
 					<label id="AdherenceCoef_Label" class="text-value" pos="53 0" z-index="0" size="10 5" text="100" />
 					<label class="text-suffix" pos="55 0" z-index="0" size="10 5" text="%" />
 				</frame>
 				<frame pos="0 -21">
 					<label class="text-label" pos="0 0" z-index="0" size="22 5" text="Control" />
-					<slider id="ControlCoef_Slider" class="slider" pos="34 -0.3" value="1." range="0.01 1." size="21 5" z-index="1"  scriptevents="1" tooltip="test"/>
+					<slider id="ControlCoef_Slider" class="slider" pos="34 -0.3" value="1." range="0.01 1." size="21 5" z-index="1" scriptevents="1" tooltip="test"/>
 					<label id="ControlCoef_Label" class="text-value" pos="53 0" z-index="0" size="10 5" text="100" />
 					<label class="text-suffix" pos="55 0" z-index="0" size="10 5" text="%" />
 				</frame>
 				<frame pos="0 -28">
 					<label class="text-label" pos="0 0" z-index="0" size="22 5" text="Gravity" />
-					<slider id="GravityCoef_Slider" class="slider" pos="34 -0.3" value="1." range="0.01 1." size="21 5" z-index="1"  scriptevents="1" tooltip="test"/>
+					<slider id="GravityCoef_Slider" class="slider" pos="34 -0.3" value="1." range="0.01 1." size="21 5" z-index="1" scriptevents="1" tooltip="test"/>
 					<label id="GravityCoef_Label" class="text-value" pos="53 0" z-index="0" size="10 5" text="100" />
 					<label class="text-suffix" pos="55 0" z-index="0" size="10 5" text="%" />
 				</frame>
 			</frame>
 			<frame id="AllowSpectatorsControl_Frame" hidden=1 pos="5 -79">
-				<quad id="AllowSpectatorsControl_SettingButton" pos="0 0.5" z-index="1" size="5  5" bgcolor="FFF" halign="center" valign="center" style="UICommon64_1" substyle="CheckboxCircle_light"  scriptevents="1" opacity="0.7" styleselected="1"/>
-				<label class="text-label" halign="left"  pos="5 0.5" z-index="1" size="50 10" textprefix="$i" text="Allow a spectator to control your physics"  autonewline="1"/>
+				<quad id="AllowSpectatorsControl_SettingButton" pos="0 0.5" z-index="1" size="5 5" bgcolor="FFF" halign="center" valign="center" style="UICommon64_1" substyle="CheckboxCircle_light" scriptevents="1" opacity="0.7" styleselected="1"/>
+				<label class="text-label" halign="left" pos="5 0.5" z-index="1" size="50 10" textprefix="$i" text="Allow a spectator to control your physics" autonewline="1"/>
 			</frame>
 			<frame id="Admin_Frame" hidden=1 pos="0 -88">
 				<quad pos="0 0" z-index="-1" size="60 10" bgcolor="000" opacity="0.5"/>
 				<frame pos="5 -5.5">
-					<quad id="ControledByAdmins_SettingButton" pos="0 0.5" z-index="1" size="5  5" bgcolor="FFF" halign="center" valign="center" style="UICommon64_1" substyle="CheckboxCircle_light" scriptevents="1" opacity="0.7" />
-					<label class="text-label" halign="left"  pos="5 0.5" z-index="1" size="50 10" textprefix="$i" text="Control all players physics (admin only)"  autonewline="1"/>
+					<quad id="ControledByAdmins_SettingButton" pos="0 0.5" z-index="1" size="5 5" bgcolor="FFF" halign="center" valign="center" style="UICommon64_1" substyle="CheckboxCircle_light" scriptevents="1" opacity="0.7" />
+					<label class="text-label" halign="left" pos="5 0.5" z-index="1" size="50 10" textprefix="$i" text="Control all players physics (admin only)" autonewline="1"/>
 				</frame>
 			</frame>
 		</frame>
