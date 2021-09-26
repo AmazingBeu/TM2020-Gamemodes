@@ -521,7 +521,7 @@ Void SetML() {
 						Quad_Bg.Size = <60., 74.>;
 						Quad_Fg.Size = <60., 74.>;
 						Frame_AllowSpectatorsControl.Visible = False;
-					} else if (!Last_UIAllowToBeControledBySpectators && Net_ServerAllowPlayersToBeControledBySpectators && !Net_ServerForcePlayersToBeControledBySpectators && Last_PlayerIsSpectator) {
+					} else if (!Last_UIAllowToBeControledBySpectators && Net_ServerAllowPlayersToBeControledBySpectators && !Net_ServerForcePlayersToBeControledBySpectators && !Last_PlayerIsSpectator) {
 						Last_UIAllowToBeControledBySpectators = True;
 						Quad_Bg.Size = <60., 85.>;
 						Quad_Fg.Size = <60., 85.>;
