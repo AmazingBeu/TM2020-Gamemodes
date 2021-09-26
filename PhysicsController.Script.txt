@@ -435,6 +435,7 @@ Void SetML() {
 
 		main() {
 			DevLog("[main] Starting main loop");
+			declare Frame_Global <=> (Page.GetFirstChild("frame-global") as CMlFrame);
 			declare Quad_Bg <=> (Page.GetFirstChild("quad-bg") as CMlQuad);
 			declare Quad_Fg <=> (Page.GetFirstChild("quad-fg") as CMlQuad);
 			declare Label_Warning <=> (Page.GetFirstChild("label-warning") as CMlLabel);
@@ -445,15 +446,19 @@ Void SetML() {
 			declare Frame_Admin <=> (Page.GetFirstChild("Admin_Frame") as CMlFrame);
 
 			declare K_PlayerPhysics Last_PlayerPhysics = InitPlayerPhysicsVariable();
+
+			declare Boolean Last_UIisVisible = False;
 			
-			declare netread Boolean Net_ServerForcePlayersToBeControledBySpectators for Teams[0] = True;
+			declare netread Boolean Net_ServerForcePlayersToBeControledBySpectators for Teams[0] = False;
 			declare netread Boolean Net_ServerAllowPlayersToBeControledBySpectators for Teams[0] = True;
 			declare netread Boolean Net_ControledByAdmins for Teams[0];
 			declare Boolean Last_ControledByAdmins = False;
 
 			declare Boolean Last_PlayerIsAdmin = False;
+			declare Boolean Last_PlayerIsSpectator = False;
 
 			declare Boolean Last_ServerForcePlayersToBeControledBySpectators = False;
+			declare Boolean Last_ServerAllowPlayersToBeControledBySpectators = True;
 			declare Boolean Last_PlayerAllowToBeControledBySpectators = True;
 			declare Boolean Last_UIAllowToBeControledBySpectators = False;
 
@@ -478,20 +483,32 @@ Void SetML() {
 					declare netread Boolean Net_PlayerIsAdmin for InputPlayer;
 					declare netread K_PlayerPhysics Net_PlayerPhysics for Owner = InitPlayerPhysicsVariable();
 
-					if (Last_ControledByAdmins != Net_ControledByAdmins || Last_PlayerAllowToBeControledBySpectators != Net_PlayerAllowToBeControledBySpectators || Last_ServerForcePlayersToBeControledBySpectators != Net_ServerForcePlayersToBeControledBySpectators) {
+					if (Last_ControledByAdmins != Net_ControledByAdmins || 
+							Last_PlayerIsAdmin != Net_PlayerIsAdmin ||
+							Last_PlayerIsSpectator != InputPlayerIsSpectator() ||
+							Last_PlayerAllowToBeControledBySpectators != Net_PlayerAllowToBeControledBySpectators || 
+							Last_ServerForcePlayersToBeControledBySpectators != Net_ServerForcePlayersToBeControledBySpectators ||
+							Last_ServerAllowPlayersToBeControledBySpectators != Net_ServerAllowPlayersToBeControledBySpectators
+						) {
+						DevLog("[main] Update Last_PlayerIsAdmin to " ^ Net_PlayerIsAdmin);
+						Last_PlayerIsAdmin = Net_PlayerIsAdmin;
+						Frame_Admin.Visible = Last_PlayerIsAdmin;
+						Last_PlayerIsSpectator = InputPlayerIsSpectator();
 						DevLog("[main] Update Warning page");
 						Last_ControledByAdmins = Net_ControledByAdmins;
 						Quad_ControledByAdmins.StyleSelected = Last_ControledByAdmins;
 						Last_PlayerAllowToBeControledBySpectators = Net_PlayerAllowToBeControledBySpectators;
 						Quad_AllowSpectatorsControl.StyleSelected = Last_PlayerAllowToBeControledBySpectators;
 						Last_ServerForcePlayersToBeControledBySpectators = Net_ServerForcePlayersToBeControledBySpectators;
+						Last_ServerAllowPlayersToBeControledBySpectators = Net_ServerAllowPlayersToBeControledBySpectators;
 
-						if ((!Net_PlayerIsAdmin && Last_ControledByAdmins) || (Last_ServerForcePlayersToBeControledBySpectators && !InputPlayerIsSpectator()) || (!Last_PlayerAllowToBeControledBySpectators && InputPlayerIsSpectator())) {
+						if (!Net_PlayerIsAdmin && (Last_ControledByAdmins || (Last_ServerForcePlayersToBeControledBySpectators && !Last_PlayerIsSpectator) || (!Last_ServerForcePlayersToBeControledBySpectators && (!Last_ServerAllowPlayersToBeControledBySpectators || !Last_PlayerAllowToBeControledBySpectators) && Last_PlayerIsSpectator))) {
 							Label_Warning.Visible = True;
 							Quad_Fg.Visible = True;
 
 							if (Last_ControledByAdmins)	Label_Warning.Value = "Managed by an Admin";
 							else if (Last_ServerForcePlayersToBeControledBySpectators) Label_Warning.Value = "Can only be controlled by a spectator";
+							else if (!Last_ServerAllowPlayersToBeControledBySpectators) Label_Warning.Value = "Can only be controlled by the player";
 							else Label_Warning.Value = "Player refuses to be managed by a spectator";
 						} else {
 							Label_Warning.Visible = False;
@@ -499,22 +516,16 @@ Void SetML() {
 						}
 					}
 
-					if (Last_UIAllowToBeControledBySpectators && (!Net_ServerAllowPlayersToBeControledBySpectators || Net_ServerForcePlayersToBeControledBySpectators || InputPlayerIsSpectator())) {
+					if (Last_UIAllowToBeControledBySpectators && (!Net_ServerAllowPlayersToBeControledBySpectators || Net_ServerForcePlayersToBeControledBySpectators || Last_PlayerIsSpectator)) {
 						Last_UIAllowToBeControledBySpectators = False;
 						Quad_Bg.Size = <60., 74.>;
 						Quad_Fg.Size = <60., 74.>;
 						Frame_AllowSpectatorsControl.Visible = False;
-					} else if (!Last_UIAllowToBeControledBySpectators && Net_ServerAllowPlayersToBeControledBySpectators && !Net_ServerForcePlayersToBeControledBySpectators && !InputPlayerIsSpectator()) {
+					} else if (!Last_UIAllowToBeControledBySpectators && Net_ServerAllowPlayersToBeControledBySpectators && !Net_ServerForcePlayersToBeControledBySpectators && Last_PlayerIsSpectator) {
 						Last_UIAllowToBeControledBySpectators = True;
 						Quad_Bg.Size = <60., 85.>;
 						Quad_Fg.Size = <60., 85.>;
 						Frame_AllowSpectatorsControl.Visible = True;
-					}
-
-					if (Last_PlayerIsAdmin != Net_PlayerIsAdmin) {
-						DevLog("[main] Update Last_PlayerIsAdmin to " ^ Net_PlayerIsAdmin);
-						Last_PlayerIsAdmin = Net_PlayerIsAdmin;
-						Frame_Admin.Visible = Last_PlayerIsAdmin;
 					}
 
 					if (Last_PlayerPhysics != Net_PlayerPhysics) {
@@ -522,6 +533,14 @@ Void SetML() {
 						Last_PlayerPhysics = Net_PlayerPhysics;
 						UpdateUIButtons(Last_PlayerPhysics);
 						UpdateUISlider(Last_PlayerPhysics);
+					}
+
+					if (!Last_UIisVisible && (GUIPlayer != Null || Last_PlayerIsAdmin || Last_ControledByAdmins)) {
+						Last_UIisVisible = True;
+						Frame_Global.Visible = True;
+					} else if (Last_UIisVisible && GUIPlayer == Null && !Last_PlayerIsAdmin && !Last_ControledByAdmins) {
+						Last_UIisVisible = False;
+						Frame_Global.Visible = False;
 					}
 
 					// Events
@@ -588,7 +607,7 @@ Void SetML() {
 			<style class="text-suffix" textfont="GameFontBlack" textcolor="ffffff" textsize="0.7" halign="center" valign="center" textprefix="$i$t"/>
 			<style class="quad-effects" halign="center" valign="center" />
 		</stylesheet>
-		<frame id="frame-global" pos="-160 40">
+		<frame id="frame-global" hidden=1 pos="-160 40">
 			<frame pos="58 -2.5" id="frame-toggle">
 				<quad id="Toggle_SettingButton" pos="0 0" size="4 4" class="quad-base" z-index="3" opacity="0.9" scriptevents="1" halign="center" valign="center" image="file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds" colorize="fff"/>
 			</frame>
