@@ -296,6 +296,30 @@ Void SetML() {
 			return True;
 		}
 
+		Void ToggleUI() {
+			declare CMlFrame Frame_Global <=> (Page.GetFirstChild("frame-global") as CMlFrame);
+			declare CMlFrame Frame_UI <=> (Page.GetFirstChild("frame-UI") as CMlFrame);
+			declare CMlQuad Quad_Toggle <=> (Page.GetFirstChild("Toggle_SettingButton") as CMlQuad);
+
+			AnimMgr.Flush(Frame_Global);
+			AnimMgr.Flush(Frame_UI);
+
+			declare Real GlobalEndPosX;
+			if (Frame_UI.Visible) {
+				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_RIGHT_OBLIQUE.dds");
+				Quad_Toggle.RelativePosition_V3.X = 5.;
+				GlobalEndPosX = -220.;
+				AnimMgr.Add(Frame_UI, "<frame hidden=\"1\" />", Now, 250, CAnimManager::EAnimManagerEasing::Linear);
+			} else {
+				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds");
+				Quad_Toggle.RelativePosition_V3.X = 0.;
+				GlobalEndPosX = -160.;
+				Frame_UI.Visible = True;
+			}
+			AnimMgr.Add(Frame_Global, "<frame pos=\"" ^GlobalEndPosX^" "^Frame_Global.RelativePosition_V3.Y^ "\" />", Now, 250, CAnimManager::EAnimManagerEasing::Linear);
+		}
+		
+
 		Void UpdateSliderValues() {
 			declare Slider_Cruise <=> (Page.GetFirstChild("Cruise_Slider") as CMlSlider);
 			declare Slider_AccelCoef <=> (Page.GetFirstChild("AccelCoef_Slider") as CMlSlider);
@@ -495,33 +519,39 @@ Void SetML() {
 					foreach(Event in PendingEvents) {
 						DevLog("[PendingEvents] Event.Type: " ^ Event.Type);
 						if (Owner != Null /*&& Owner.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned*/) {
-							if (Event.Type == CMlScriptEvent::Type::MouseClick && TL::Find("_EffectButton", Event.ControlId, True, True)) {
-								declare Text Effect = TL::Replace(Event.ControlId, "_EffectButton", "");
-								declare Text Target;
-								if (Net_PlayerIsAdmin && Last_ControledByAdmins) Target = "all";
-								else Target = Owner.User.Login;
-								DevLog("[PendingEvents] Request of " ^ Effect ^ " to " ^ Target);
-								if (GetValueOfAnEffect(Last_PlayerPhysics, Effect) == "1") SendCustomEvent("Request.PlayerPhysics." ^ Effect, [Target, "0"]);
-								else SendCustomEvent("Request.PlayerPhysics." ^ Effect, [Target, "1"]);
+							log("[DEBUG] GUIPlayer.SpawnStatus: " ^ GUIPlayer.SpawnStatus ^ " / InputPlayer.SpawnStatus: " ^ InputPlayer.SpawnStatus);
+							if (Event.Type == CMlScriptEvent::Type::MouseClick ) {
+								if (TL::Find("_EffectButton", Event.ControlId, True, True)) {
+									declare Text Effect = TL::Replace(Event.ControlId, "_EffectButton", "");
+									declare Text Target;
+									if (Net_PlayerIsAdmin && Last_ControledByAdmins) Target = "all";
+									else Target = Owner.User.Login;
+									DevLog("[PendingEvents] Request of " ^ Effect ^ " to " ^ Target);
+									if (GetValueOfAnEffect(Last_PlayerPhysics, Effect) == "1") SendCustomEvent("Request.PlayerPhysics." ^ Effect, [Target, "0"]);
+									else SendCustomEvent("Request.PlayerPhysics." ^ Effect, [Target, "1"]);
+								} else if (Event.Type == CMlScriptEvent::Type::MouseClick && TL::Find("_Slider", Event.ControlId, True, True)) {
+									Timer_NeedToSendCommandSlider = Now + 100;
+									Last_SliderValueToSend = Event.ControlId;
+									UpdateSliderValues();
+								} else if (Event.ControlId == "AllowSpectatorsControl_SettingButton") {
+									DevLog("[PendingEvents] Request ControlBySpectators " ^ !Last_PlayerAllowToBeControledBySpectators ^ " to " ^ Owner.User.Login);
+									if (Last_PlayerAllowToBeControledBySpectators) SendCustomEvent("Request.ControlBySpectators", [Owner.User.Login, "0"]);
+									else SendCustomEvent("Request.ControlBySpectators", [Owner.User.Login, "1"]);
+								} else if (Event.ControlId == "ControledByAdmins_SettingButton") {
+									DevLog("[PendingEvents] Request ControledByAdmins " ^ !Last_ControledByAdmins ^ " by " ^ Owner.User.Login);
+									if (Last_ControledByAdmins) SendCustomEvent("Request.AdminLock", ["", "0"]); // TODO: Secure with a token
+									else SendCustomEvent("Request.AdminLock", ["", "1"]);
+								} else if (Event.ControlId == "Toggle_SettingButton") {
+									DevLog("[PendingEvents] Toggle UI by " ^ Owner.User.Login);
+									ToggleUI();
+								}
 							} else if (Event.Type == CMlScriptEvent::Type::MouseOver && TL::Find("_EffectButton", Event.ControlId, True, True)) {
 								declare Quad <=> (Page.GetFirstChild(Event.ControlId) as CMlQuad);
 								Quad.Opacity = 0.7;
 							} else if (Event.Type == CMlScriptEvent::Type::MouseOut && TL::Find("_EffectButton", Event.ControlId, True, True)) {
 								declare Quad <=> (Page.GetFirstChild(Event.ControlId) as CMlQuad);
 								Quad.Opacity = 0.5;
-							} else if (Event.Type == CMlScriptEvent::Type::MouseClick && TL::Find("_Slider", Event.ControlId, True, True)) {
-								Timer_NeedToSendCommandSlider = Now + 100;
-								Last_SliderValueToSend = Event.ControlId;
-								UpdateSliderValues();
-							} else if (Event.Type == CMlScriptEvent::Type::MouseClick && Event.ControlId == "AllowSpectatorsControl_SettingButton") {
-								DevLog("[PendingEvents] Request ControlBySpectators " ^ !Last_PlayerAllowToBeControledBySpectators ^ " to " ^ Owner.User.Login);
-								if (Last_PlayerAllowToBeControledBySpectators) SendCustomEvent("Request.ControlBySpectators", [Owner.User.Login, "0"]);
-								else SendCustomEvent("Request.ControlBySpectators", [Owner.User.Login, "1"]);
-							} else if (Event.Type == CMlScriptEvent::Type::MouseClick && Event.ControlId == "ControledByAdmins_SettingButton") {
-								DevLog("[PendingEvents] Request ControledByAdmins " ^ !Last_ControledByAdmins ^ " by " ^ Owner.User.Login);
-								if (Last_ControledByAdmins) SendCustomEvent("Request.AdminLock", ["", "0"]); // TODO: Secure with a token
-								else SendCustomEvent("Request.AdminLock", ["", "1"]);
-							}
+							} 
 						} else {
 							UpdateUISlider(Last_PlayerPhysics); // To update Slider Right Value
 						}
@@ -547,103 +577,108 @@ Void SetML() {
 			<style class="text-suffix" textfont="GameFontBlack" textcolor="ffffff" textsize="0.7" halign="center" valign="center" textprefix="$i$t"/>
 			<style class="quad-effects" halign="center" valign="center" />
 		</stylesheet>
-		<frame pos="-160 40">
-			<quad id="quad-bg" pos="0 0" z-index="-1" size="60 74" bgcolor="000" opacity="0.5" /> <!-- 85 for regular, 74 without spec control-->
-			<quad id="quad-fg" pos="0 0" z-index="5" size="60 74" bgcolor="000" opacity="0.5" hidden=1 scriptevents="1" />
-			<label id="label-warning" class="text-suffix" hidden=1 z-index="6" pos="30 -35" textsize="2.5" size="50 10" autonewline="1"/>
-			<label class="text-suffix" pos="30 -5" textsize="3" z-index="0" size="50 10" text="Physics Control"/>
-			<frame pos="0.5 -6">
-				<frame pos="30 0">
-					<quad class="quad-effects" pos="-3 -7.5" z-index="1" size="3 3'" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/Reset.dds" />
-					<label class="text-suffix" pos="3 -7.2" z-index="0" size="20 5" text="RESET"/>
-					<quad id="Reset_EffectButton" class="quad-effects" pos="0 -7.5" z-index="0" size="52.5 5" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+		<frame id="frame-global" pos="-160 40">
+			<frame pos="58 -2.5" id="frame-toggle">
+				<quad id="Toggle_SettingButton" pos="0 0" size="4 4" class="quad-base" z-index="3" opacity="0.9" scriptevents="1" halign="center" valign="center" image="file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds" colorize="fff"/>
+			</frame>
+			<frame id="frame-UI">
+				<quad id="quad-bg" pos="0 0" z-index="-1" size="60 74" bgcolor="000" opacity="0.5" /> <!-- 85 for regular, 74 without spec control-->
+				<quad id="quad-fg" pos="0 0" z-index="5" size="60 74" bgcolor="000" opacity="0.5" hidden=1 scriptevents="1" />
+				<label id="label-warning" class="text-suffix" hidden=1 z-index="6" pos="30 -35" textsize="2.5" size="50 10" autonewline="1"/>
+				<label class="text-suffix" pos="30 -5" textsize="3" z-index="0" size="50 10" text="Physics Control"/>
+				<frame pos="0.5 -6">
+					<frame pos="30 0">
+						<quad class="quad-effects" pos="-3 -7.5" z-index="1" size="3 3'" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/Reset.dds" />
+						<label class="text-suffix" pos="3 -7.2" z-index="0" size="20 5" text="RESET"/>
+						<quad id="Reset_EffectButton" class="quad-effects" pos="0 -7.5" z-index="0" size="52.5 5" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+					</frame>
+					<frame pos="0 -9">
+						<frame pos="0 0">
+							<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ReactorBoost.dds" rot=180 />
+							<quad id="BoostUp_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+						</frame>
+						<frame pos="11 0">
+							<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ReactorBoost2.dds" rot=180 />
+							<quad id="Boost2Up_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+						</frame>
+						<frame pos="22 0">
+							<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/NoBrakes.dds" rot=180 />
+							<quad id="NoBrakes_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+						</frame>
+						<frame pos="33 0">
+							<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/FreeWheeling.dds" />
+							<quad id="NoEngine_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+						</frame>
+						<frame pos="44 0">
+							<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ForceAcceleration.dds"/>
+							<quad id="ForceEngine_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+						</frame>
+					</frame>
+					<frame pos="0 -20">
+						<frame pos="0 0">
+							<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ReactorBoost.dds"/>
+							<quad id="BoostDown_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+						</frame>
+						<frame pos="11 0">
+							<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ReactorBoost2.dds" />
+							<quad id="Boost2Down_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+						</frame>
+						<frame pos="22 0">
+							<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/NoSteering.dds" />
+							<quad id="NoSteer_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+						</frame>
+						<frame pos="33 0">
+							<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/SlowMotion.dds" />
+							<quad id="SlowMotion_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+						</frame>
+						<frame pos="44 0">
+							<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/Fragile.dds" />
+							<quad id="Fragile_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+						</frame>
+					</frame>
 				</frame>
-				<frame pos="0 -9">
+				<frame pos="2 -42">
 					<frame pos="0 0">
-						<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ReactorBoost.dds" rot=180 />
-						<quad id="BoostUp_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+						<label class="text-label" pos="0 0" z-index="0" size="22 5" text="Cruise" />
+						<slider id="Cruise_Slider" class="slider" pos="34 -0.3" value="0." range="-999 999" size="21 5" z-index="1" scriptevents="1" tooltip="test"/>
+						<label id="Cruise_Label" class="text-value" pos="53 0" z-index="0" size="10 5" text="0" />
+						<label class="text-suffix" pos="55 0" z-index="0" size="4 4" text="kph" />
 					</frame>
-					<frame pos="11 0">
-						<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ReactorBoost2.dds" rot=180 />
-						<quad id="Boost2Up_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+					<frame pos="0 -7">
+						<label class="text-label" pos="0 0" z-index="0" size="22 5" text="Acceleration" />
+						<slider id="AccelCoef_Slider" class="slider" pos="34 -0.3" value="1." range="0.01 1." size="21 5" z-index="1" scriptevents="1" tooltip="test"/>
+						<label id="AccelCoef_Label" class="text-value" pos="53 0" z-index="0" size="10 5" text="100" />
+						<label class="text-suffix" pos="55 0" z-index="0" size="4 4" text="%" />
 					</frame>
-					<frame pos="22 0">
-						<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/NoBrakes.dds" rot=180 />
-						<quad id="NoBrakes_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+					<frame pos="0 -14">
+						<label class="text-label" pos="0 0" z-index="0" size="22 5" text="Adherence" />
+						<slider id="AdherenceCoef_Slider" class="slider" pos="34 -0.3" value="1." range="0.01 1." size="21 5" z-index="1" scriptevents="1" tooltip="test"/>
+						<label id="AdherenceCoef_Label" class="text-value" pos="53 0" z-index="0" size="10 5" text="100" />
+						<label class="text-suffix" pos="55 0" z-index="0" size="10 5" text="%" />
 					</frame>
-					<frame pos="33 0">
-						<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/FreeWheeling.dds" />
-						<quad id="NoEngine_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+					<frame pos="0 -21">
+						<label class="text-label" pos="0 0" z-index="0" size="22 5" text="Control" />
+						<slider id="ControlCoef_Slider" class="slider" pos="34 -0.3" value="1." range="0.01 1." size="21 5" z-index="1" scriptevents="1" tooltip="test"/>
+						<label id="ControlCoef_Label" class="text-value" pos="53 0" z-index="0" size="10 5" text="100" />
+						<label class="text-suffix" pos="55 0" z-index="0" size="10 5" text="%" />
 					</frame>
-					<frame pos="44 0">
-						<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ForceAcceleration.dds"/>
-						<quad id="ForceEngine_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
-					</frame>
-				</frame>
-				<frame pos="0 -20">
-					<frame pos="0 0">
-						<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ReactorBoost.dds"/>
-						<quad id="BoostDown_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
-					</frame>
-					<frame pos="11 0">
-						<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ReactorBoost2.dds" />
-						<quad id="Boost2Down_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
-					</frame>
-					<frame pos="22 0">
-						<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/NoSteering.dds" />
-						<quad id="NoSteer_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
-					</frame>
-					<frame pos="33 0">
-						<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/SlowMotion.dds" />
-						<quad id="SlowMotion_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
-					</frame>
-					<frame pos="44 0">
-						<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/Fragile.dds" />
-						<quad id="Fragile_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+					<frame pos="0 -28">
+						<label class="text-label" pos="0 0" z-index="0" size="22 5" text="Gravity" />
+						<slider id="GravityCoef_Slider" class="slider" pos="34 -0.3" value="1." range="0.01 1." size="21 5" z-index="1" scriptevents="1" tooltip="test"/>
+						<label id="GravityCoef_Label" class="text-value" pos="53 0" z-index="0" size="10 5" text="100" />
+						<label class="text-suffix" pos="55 0" z-index="0" size="10 5" text="%" />
 					</frame>
 				</frame>
-			</frame>
-			<frame pos="2 -42">
-				<frame pos="0 0">
-					<label class="text-label" pos="0 0" z-index="0" size="22 5" text="Cruise" />
-					<slider id="Cruise_Slider" class="slider" pos="34 -0.3" value="0." range="-999 999" size="21 5" z-index="1" scriptevents="1" tooltip="test"/>
-					<label id="Cruise_Label" class="text-value" pos="53 0" z-index="0" size="10 5" text="0" />
-					<label class="text-suffix" pos="55 0" z-index="0" size="4 4" text="kph" />
+				<frame id="AllowSpectatorsControl_Frame" hidden=1 pos="5 -79">
+					<quad id="AllowSpectatorsControl_SettingButton" pos="0 0.5" z-index="1" size="5 5" bgcolor="FFF" halign="center" valign="center" style="UICommon64_1" substyle="CheckboxCircle_light" scriptevents="1" opacity="0.7" styleselected="1"/>
+					<label class="text-label" halign="left" pos="5 0.5" z-index="1" size="50 10" textprefix="$i" text="Allow a spectator to control your physics" autonewline="1"/>
 				</frame>
-				<frame pos="0 -7">
-					<label class="text-label" pos="0 0" z-index="0" size="22 5" text="Acceleration" />
-					<slider id="AccelCoef_Slider" class="slider" pos="34 -0.3" value="1." range="0.01 1." size="21 5" z-index="1" scriptevents="1" tooltip="test"/>
-					<label id="AccelCoef_Label" class="text-value" pos="53 0" z-index="0" size="10 5" text="100" />
-					<label class="text-suffix" pos="55 0" z-index="0" size="4 4" text="%" />
-				</frame>
-				<frame pos="0 -14">
-					<label class="text-label" pos="0 0" z-index="0" size="22 5" text="Adherence" />
-					<slider id="AdherenceCoef_Slider" class="slider" pos="34 -0.3" value="1." range="0.01 1." size="21 5" z-index="1" scriptevents="1" tooltip="test"/>
-					<label id="AdherenceCoef_Label" class="text-value" pos="53 0" z-index="0" size="10 5" text="100" />
-					<label class="text-suffix" pos="55 0" z-index="0" size="10 5" text="%" />
-				</frame>
-				<frame pos="0 -21">
-					<label class="text-label" pos="0 0" z-index="0" size="22 5" text="Control" />
-					<slider id="ControlCoef_Slider" class="slider" pos="34 -0.3" value="1." range="0.01 1." size="21 5" z-index="1" scriptevents="1" tooltip="test"/>
-					<label id="ControlCoef_Label" class="text-value" pos="53 0" z-index="0" size="10 5" text="100" />
-					<label class="text-suffix" pos="55 0" z-index="0" size="10 5" text="%" />
-				</frame>
-				<frame pos="0 -28">
-					<label class="text-label" pos="0 0" z-index="0" size="22 5" text="Gravity" />
-					<slider id="GravityCoef_Slider" class="slider" pos="34 -0.3" value="1." range="0.01 1." size="21 5" z-index="1" scriptevents="1" tooltip="test"/>
-					<label id="GravityCoef_Label" class="text-value" pos="53 0" z-index="0" size="10 5" text="100" />
-					<label class="text-suffix" pos="55 0" z-index="0" size="10 5" text="%" />
-				</frame>
-			</frame>
-			<frame id="AllowSpectatorsControl_Frame" hidden=1 pos="5 -79">
-				<quad id="AllowSpectatorsControl_SettingButton" pos="0 0.5" z-index="1" size="5 5" bgcolor="FFF" halign="center" valign="center" style="UICommon64_1" substyle="CheckboxCircle_light" scriptevents="1" opacity="0.7" styleselected="1"/>
-				<label class="text-label" halign="left" pos="5 0.5" z-index="1" size="50 10" textprefix="$i" text="Allow a spectator to control your physics" autonewline="1"/>
-			</frame>
-			<frame id="Admin_Frame" hidden=1 pos="0 -88">
-				<quad pos="0 0" z-index="-1" size="60 10" bgcolor="000" opacity="0.5"/>
-				<frame pos="5 -5.5">
-					<quad id="ControledByAdmins_SettingButton" pos="0 0.5" z-index="1" size="5 5" bgcolor="FFF" halign="center" valign="center" style="UICommon64_1" substyle="CheckboxCircle_light" scriptevents="1" opacity="0.7" />
-					<label class="text-label" halign="left" pos="5 0.5" z-index="1" size="50 10" textprefix="$i" text="Control all players physics (admin only)" autonewline="1"/>
+				<frame id="Admin_Frame" hidden=1 pos="0 -88">
+					<quad pos="0 0" z-index="-1" size="60 10" bgcolor="000" opacity="0.5"/>
+					<frame pos="5 -5.5">
+						<quad id="ControledByAdmins_SettingButton" pos="0 0.5" z-index="1" size="5 5" bgcolor="FFF" halign="center" valign="center" style="UICommon64_1" substyle="CheckboxCircle_light" scriptevents="1" opacity="0.7" />
+						<label class="text-label" halign="left" pos="5 0.5" z-index="1" size="50 10" textprefix="$i" text="Control all players physics (admin only)" autonewline="1"/>
+					</frame>
 				</frame>
 			</frame>
 		</frame>
