@@ -1,6 +1,5 @@
 #Extends "Modes/TrackMania/TM_TimeAttack_Online.Script.txt"
 
-#Setting S_TrustClientSimu False
 #Setting S_AdminPlayers "" as "Comma separated admin to manage all players physics"
 #Setting S_ForcePlayersToBeControledBySpectators False as "Force Players to be controlled by Spectators"
 #Setting S_AllowPlayersToBeControledBySpectators True as "Allow Players to be controlled by Spectators"
@@ -40,6 +39,7 @@ SetML();
 declare K_PlayerPhysics AllPlayersPhysics = InitPlayerPhysicsVariable();
 declare Text Last_AdminPlayers;
 
+declare netwrite Text Net_ScriptEnvironment for Teams[0] = S_ScriptEnvironment;
 declare netwrite Boolean Net_ServerForcePlayersToBeControledBySpectators for Teams[0] = S_ForcePlayersToBeControledBySpectators;
 declare netwrite Boolean Net_ServerAllowPlayersToBeControledBySpectators for Teams[0] = S_AllowPlayersToBeControledBySpectators;
 ***
@@ -126,6 +126,10 @@ if (Last_AdminPlayers != S_AdminPlayers) {
 		declare netwrite Boolean Net_PlayerIsAdmin for Player = False;
 		Net_PlayerIsAdmin = Admin.exists(Player.User.Login);
 	}
+}
+
+if (Net_ScriptEnvironment != S_ScriptEnvironment) {
+	Net_ScriptEnvironment = S_ScriptEnvironment;
 }
 
 if (Net_ServerForcePlayersToBeControledBySpectators != S_ForcePlayersToBeControledBySpectators) {
@@ -270,6 +274,11 @@ Void SetML() {
 			Boolean SlowMotion;
 		}
 
+		Void DevLog(Text _LogText) {
+			declare netread Text Net_ScriptEnvironment for Teams[0] = "production";
+			if (Net_ScriptEnvironment == "development") log(_LogText);
+		}
+
 		Void Sleep(Integer _Duration) {
 			declare EndTime = Now + _Duration;
 			while (Now < EndTime) {
@@ -280,6 +289,11 @@ Void SetML() {
 		Text BooleanToText(Boolean _Value) {
 			if (_Value) return "1";
 			return "0";
+		}
+
+		Boolean InputPlayerIsSpectator() {
+			if (GUIPlayer != Null && InputPlayer != Null && GUIPlayer.User.Login == InputPlayer.User.Login) return False;
+			return True;
 		}
 
 		Void UpdateSliderValues() {
@@ -387,6 +401,7 @@ Void SetML() {
 		}
 
 		main() {
+			DevLog("[main] Starting main loop");
 			declare Quad_Bg <=> (Page.GetFirstChild("quad-bg") as CMlQuad);
 			declare Quad_Fg <=> (Page.GetFirstChild("quad-fg") as CMlQuad);
 			declare Label_Warning <=> (Page.GetFirstChild("label-warning") as CMlLabel);
@@ -398,12 +413,14 @@ Void SetML() {
 
 			declare K_PlayerPhysics Last_PlayerPhysics = InitPlayerPhysicsVariable();
 			
+			declare netread Boolean Net_ServerForcePlayersToBeControledBySpectators for Teams[0] = True;
 			declare netread Boolean Net_ServerAllowPlayersToBeControledBySpectators for Teams[0] = True;
 			declare netread Boolean Net_ControledByAdmins for Teams[0];
 			declare Boolean Last_ControledByAdmins = False;
 
 			declare Boolean Last_PlayerIsAdmin = False;
 
+			declare Boolean Last_ServerForcePlayersToBeControledBySpectators = False;
 			declare Boolean Last_PlayerAllowToBeControledBySpectators = True;
 			declare Boolean Last_UIAllowToBeControledBySpectators = False;
 
@@ -428,17 +445,20 @@ Void SetML() {
 					declare netread Boolean Net_PlayerIsAdmin for InputPlayer;
 					declare netread K_PlayerPhysics Net_PlayerPhysics for Owner = InitPlayerPhysicsVariable();
 
-					if (Last_ControledByAdmins != Net_ControledByAdmins || Last_PlayerAllowToBeControledBySpectators != Net_PlayerAllowToBeControledBySpectators) {
+					if (Last_ControledByAdmins != Net_ControledByAdmins || Last_PlayerAllowToBeControledBySpectators != Net_PlayerAllowToBeControledBySpectators || Last_ServerForcePlayersToBeControledBySpectators != Net_ServerForcePlayersToBeControledBySpectators) {
+						DevLog("[main] Update Warning page");
 						Last_ControledByAdmins = Net_ControledByAdmins;
 						Quad_ControledByAdmins.StyleSelected = Last_ControledByAdmins;
 						Last_PlayerAllowToBeControledBySpectators = Net_PlayerAllowToBeControledBySpectators;
 						Quad_AllowSpectatorsControl.StyleSelected = Last_PlayerAllowToBeControledBySpectators;
+						Last_ServerForcePlayersToBeControledBySpectators = Net_ServerForcePlayersToBeControledBySpectators;
 
-						if ((!Net_PlayerIsAdmin && Last_ControledByAdmins) || (!Last_PlayerAllowToBeControledBySpectators && InputPlayer != Null && InputPlayer.User.Login != Owner.User.Login)) {
+						if ((!Net_PlayerIsAdmin && Last_ControledByAdmins) || (Last_ServerForcePlayersToBeControledBySpectators && !InputPlayerIsSpectator()) || (!Last_PlayerAllowToBeControledBySpectators && InputPlayerIsSpectator())) {
 							Label_Warning.Visible = True;
 							Quad_Fg.Visible = True;
 
 							if (Last_ControledByAdmins)	Label_Warning.Value = "Managed by an Admin";
+							else if (Last_ServerForcePlayersToBeControledBySpectators) Label_Warning.Value = "Can only be controlled by a spectator";
 							else Label_Warning.Value = "Player refuses to be managed by a spectator";
 						} else {
 							Label_Warning.Visible = False;
@@ -446,12 +466,12 @@ Void SetML() {
 						}
 					}
 
-					if (Last_UIAllowToBeControledBySpectators && (!Net_ServerAllowPlayersToBeControledBySpectators || GUIPlayer == Null || (InputPlayer != Null && InputPlayer.User.Login != Owner.User.Login))) {
+					if (Last_UIAllowToBeControledBySpectators && (!Net_ServerAllowPlayersToBeControledBySpectators || Net_ServerForcePlayersToBeControledBySpectators || InputPlayerIsSpectator())) {
 						Last_UIAllowToBeControledBySpectators = False;
 						Quad_Bg.Size = <60., 74.>;
 						Quad_Fg.Size = <60., 74.>;
 						Frame_AllowSpectatorsControl.Visible = False;
-					} else if (!Last_UIAllowToBeControledBySpectators && Net_ServerAllowPlayersToBeControledBySpectators && GUIPlayer != Null && InputPlayer != Null && InputPlayer.User.Login == Owner.User.Login) {
+					} else if (!Last_UIAllowToBeControledBySpectators && Net_ServerAllowPlayersToBeControledBySpectators && !Net_ServerForcePlayersToBeControledBySpectators && !InputPlayerIsSpectator()) {
 						Last_UIAllowToBeControledBySpectators = True;
 						Quad_Bg.Size = <60., 85.>;
 						Quad_Fg.Size = <60., 85.>;
@@ -459,11 +479,13 @@ Void SetML() {
 					}
 
 					if (Last_PlayerIsAdmin != Net_PlayerIsAdmin) {
+						DevLog("[main] Update Last_PlayerIsAdmin to " ^ Net_PlayerIsAdmin);
 						Last_PlayerIsAdmin = Net_PlayerIsAdmin;
 						Frame_Admin.Visible = Last_PlayerIsAdmin;
 					}
 
 					if (Last_PlayerPhysics != Net_PlayerPhysics) {
+						DevLog("[main] Update Last_PlayerPhysics UI to " ^ Net_PlayerPhysics);
 						Last_PlayerPhysics = Net_PlayerPhysics;
 						UpdateUIButtons(Last_PlayerPhysics);
 						UpdateUISlider(Last_PlayerPhysics);
@@ -471,13 +493,14 @@ Void SetML() {
 
 					// Events
 					foreach(Event in PendingEvents) {
-						if (Owner != Null && Owner.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned) {
+						DevLog("[PendingEvents] Event.Type: " ^ Event.Type);
+						if (Owner != Null /*&& Owner.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned*/) {
 							if (Event.Type == CMlScriptEvent::Type::MouseClick && TL::Find("_EffectButton", Event.ControlId, True, True)) {
 								declare Text Effect = TL::Replace(Event.ControlId, "_EffectButton", "");
 								declare Text Target;
 								if (Net_PlayerIsAdmin && Last_ControledByAdmins) Target = "all";
 								else Target = Owner.User.Login;
-								Log::Log("[main] Request of " ^ Effect ^ " to " ^ Target);
+								DevLog("[PendingEvents] Request of " ^ Effect ^ " to " ^ Target);
 								if (GetValueOfAnEffect(Last_PlayerPhysics, Effect) == "1") SendCustomEvent("Request.PlayerPhysics." ^ Effect, [Target, "0"]);
 								else SendCustomEvent("Request.PlayerPhysics." ^ Effect, [Target, "1"]);
 							} else if (Event.Type == CMlScriptEvent::Type::MouseOver && TL::Find("_EffectButton", Event.ControlId, True, True)) {
@@ -491,21 +514,21 @@ Void SetML() {
 								Last_SliderValueToSend = Event.ControlId;
 								UpdateSliderValues();
 							} else if (Event.Type == CMlScriptEvent::Type::MouseClick && Event.ControlId == "AllowSpectatorsControl_SettingButton") {
-								Log::Log("[main] Request ControlBySpectators " ^ !Last_PlayerAllowToBeControledBySpectators ^ " to " ^ Owner.User.Login);
+								DevLog("[PendingEvents] Request ControlBySpectators " ^ !Last_PlayerAllowToBeControledBySpectators ^ " to " ^ Owner.User.Login);
 								if (Last_PlayerAllowToBeControledBySpectators) SendCustomEvent("Request.ControlBySpectators", [Owner.User.Login, "0"]);
 								else SendCustomEvent("Request.ControlBySpectators", [Owner.User.Login, "1"]);
 							} else if (Event.Type == CMlScriptEvent::Type::MouseClick && Event.ControlId == "ControledByAdmins_SettingButton") {
-								Log::Log("[main] Request ControledByAdmins " ^ !Last_ControledByAdmins ^ " by " ^ Owner.User.Login);
+								DevLog("[PendingEvents] Request ControledByAdmins " ^ !Last_ControledByAdmins ^ " by " ^ Owner.User.Login);
 								if (Last_ControledByAdmins) SendCustomEvent("Request.AdminLock", ["", "0"]); // TODO: Secure with a token
 								else SendCustomEvent("Request.AdminLock", ["", "1"]);
 							}
 						} else {
-							UpdateUISlider(Last_PlayerPhysics); // Can't disable control
+							UpdateUISlider(Last_PlayerPhysics); // To update Slider Right Value
 						}
 					}
 
 					if (Timer_NeedToSendCommandSlider > 0 && Now > Timer_NeedToSendCommandSlider ) {
-						Log::Log("[main] Value of the slider " ^ Last_SliderValueToSend ^ " sent");
+						DevLog("[main] Value of the slider " ^ Last_SliderValueToSend ^ " sent");
 						Timer_NeedToSendCommandSlider = 0;
 						declare Slider <=> (Page.GetFirstChild(Last_SliderValueToSend) as CMlSlider);
 						declare Text Target;
