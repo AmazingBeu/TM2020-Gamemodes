@@ -528,8 +528,8 @@ Void SetML() {
 					foreach(Event in PendingEvents) {
 						DevLog("[PendingEvents] Event.Type: " ^ Event.Type);
 						if (Owner != Null) {
-							if (Event.Type == CMlScriptEvent::Type::MouseClick ) {
-								if (TL::Find("_EffectButton", Event.ControlId, True, True)) {
+							if (Event.Type == CMlScriptEvent::Type::MouseClick) {
+								if (TL::Find("_EffectButton", Event.ControlId, True, True) && (GUIPlayer != Null || Last_ControledByAdmins)) {
 									declare Text Effect = TL::Replace(Event.ControlId, "_EffectButton", "");
 									declare Text Target;
 									if (Net_PlayerIsAdmin && Last_ControledByAdmins) Target = "all";
@@ -537,11 +537,11 @@ Void SetML() {
 									DevLog("[PendingEvents] Request of " ^ Effect ^ " to " ^ Target);
 									if (GetValueOfAnEffect(Last_PlayerPhysics, Effect) == "1") SendCustomEvent("Request.PlayerPhysics." ^ Effect, [Target, "0"]);
 									else SendCustomEvent("Request.PlayerPhysics." ^ Effect, [Target, "1"]);
-								} else if (Event.Type == CMlScriptEvent::Type::MouseClick && TL::Find("_Slider", Event.ControlId, True, True)) {
+								} else if (TL::Find("_Slider", Event.ControlId, True, True) && (GUIPlayer != Null || Last_ControledByAdmins)) {
 									Timer_NeedToSendCommandSlider = Now + 100;
 									Last_SliderValueToSend = Event.ControlId;
 									UpdateSliderValues();
-								} else if (Event.ControlId == "AllowSpectatorsControl_SettingButton") {
+								} else if (Event.ControlId == "AllowSpectatorsControl_SettingButton" && (GUIPlayer != Null || Last_ControledByAdmins)) {
 									DevLog("[PendingEvents] Request ControlBySpectators " ^ !Last_PlayerAllowToBeControledBySpectators ^ " to " ^ Owner.User.Login);
 									if (Last_PlayerAllowToBeControledBySpectators) SendCustomEvent("Request.ControlBySpectators", [Owner.User.Login, "0"]);
 									else SendCustomEvent("Request.ControlBySpectators", [Owner.User.Login, "1"]);
@@ -552,6 +552,8 @@ Void SetML() {
 								} else if (Event.ControlId == "Toggle_SettingButton") {
 									DevLog("[PendingEvents] Toggle UI by " ^ Owner.User.Login);
 									ToggleUI();
+								} else {
+									UpdateUISlider(Last_PlayerPhysics); // To update Slider Right Value
 								}
 							} else if (Event.Type == CMlScriptEvent::Type::MouseOver && TL::Find("_EffectButton", Event.ControlId, True, True)) {
 								declare Quad <=> (Page.GetFirstChild(Event.ControlId) as CMlQuad);
@@ -563,6 +565,7 @@ Void SetML() {
 						} else {
 							UpdateUISlider(Last_PlayerPhysics); // To update Slider Right Value
 						}
+						
 					}
 
 					if (Timer_NeedToSendCommandSlider > 0 && Now > Timer_NeedToSendCommandSlider ) {
