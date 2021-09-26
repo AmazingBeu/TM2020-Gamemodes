@@ -22,7 +22,6 @@
 	Boolean SlowMotion;
 }
 
-
 ***Match_StartServer***
 ***
 UIModules_Record::Reset();
@@ -38,6 +37,7 @@ SetML();
 ***
 declare K_PlayerPhysics AllPlayersPhysics = InitPlayerPhysicsVariable();
 declare Text Last_AdminPlayers;
+declare Boolean[CSmPlayer] ApplyPhysicsAtRespawn_Queue; // [CSmPlayer => ResetBeforeAppling]
 
 declare netwrite Text Net_ScriptEnvironment for Teams[0] = S_ScriptEnvironment;
 declare netwrite Boolean Net_ServerForcePlayersToBeControledBySpectators for Teams[0] = S_ForcePlayersToBeControledBySpectators;
@@ -61,22 +61,21 @@ foreach (Event in PendingEvents) {
 
 // Manage Custom UI Events
 foreach (Event in UIManager.PendingEvents) { // TODO: Add Secure token to admins
-	Log::Log("[UIManager] Event.Type: " ^ Event.Type);
+	Log::Log("[UIManager] Event.CustomEventType: " ^ Event.CustomEventType);
 	if (TL::StartsWith("Request.PlayerPhysics.", Event.CustomEventType)) {
-
 		declare Text EventName = TL::Split(".", Event.CustomEventType)[2];
 		declare Text Target = Event.CustomEventData[0];
 		declare Text Value = Event.CustomEventData[1];
 		if (Target == "all") {
 			AllPlayersPhysics = GetUpdatedPlayerPhysicsVariable(EventName, Value, AllPlayersPhysics);
-			foreach (Player in Players) {
+			foreach (Player in AllPlayers) {
 				SetPhysicsChange(EventName, Value, Player);
 				declare netwrite K_PlayerPhysics Net_PlayerPhysics for Player = InitPlayerPhysicsVariable();
 				Net_PlayerPhysics = AllPlayersPhysics;
 			}
 		} else {
 			declare CSmPlayer Player = GetPlayer(Target);
-			if (Player != Null && Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned) {
+			if (Player != Null && (Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned || Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning)) {
 				SetPhysicsChange(EventName, Value, Player);
 				declare netwrite K_PlayerPhysics Net_PlayerPhysics for Player = InitPlayerPhysicsVariable();
 				Net_PlayerPhysics = GetUpdatedPlayerPhysicsVariable(EventName, Value, Net_PlayerPhysics);
@@ -97,7 +96,7 @@ foreach (Event in UIManager.PendingEvents) { // TODO: Add Secure token to admins
 		Net_ControledByAdmins = Locked;
 		AllPlayersPhysics = InitPlayerPhysicsVariable();
 		if (Locked) {
-			foreach (Player in Players) {
+			foreach (Player in AllPlayers) {
 				SetPhysicsChange("Reset", "", Player);
 				declare netwrite K_PlayerPhysics Net_PlayerPhysics for Player = InitPlayerPhysicsVariable();
 				Net_PlayerPhysics = AllPlayersPhysics;
@@ -108,21 +107,29 @@ foreach (Event in UIManager.PendingEvents) { // TODO: Add Secure token to admins
 
 foreach (Event in RacePendingEvents) {
 	Log::Log("[RacePendingEvents] Event.Type: " ^ Event.Type);
-	if (Event.Type == Events::C_Type_StartLine || Event.Type == Events::C_Type_GiveUp || (Event.Type == Events::C_Type_Waypoint && Event.IsEndRace)) {
-		declare netwrite K_PlayerPhysics Net_PlayerPhysics for Event.Player = InitPlayerPhysicsVariable();
-		ApplyPhysicsAtRespawn(Event.Player, Net_PlayerPhysics);
+	if (Event.Type == Events::C_Type_StartLine || Event.Type == Events::C_Type_GiveUp || Event.Type == Events::C_Type_SkipOutro) {
+		ApplyPhysicsAtRespawn_Queue[Event.Player] = False;
 	} else if (Event.Type == Events::C_Type_Respawn) {
 		declare netwrite K_PlayerPhysics Net_PlayerPhysics for Event.Player = InitPlayerPhysicsVariable();
-		while (Event.Player.SpawnStatus != CSmPlayer::ESpawnStatus::Spawned) MB_Yield();
-		SetPhysicsChange("Reset", "", Event.Player);
-		ApplyPhysicsAtRespawn(Event.Player, Net_PlayerPhysics);
+		ApplyPhysicsAtRespawn_Queue[Event.Player] = True;
+	}
+}
+
+if (Now % 100 == 0 && ApplyPhysicsAtRespawn_Queue.count > 0) {
+	foreach (Player => HaveToReset in ApplyPhysicsAtRespawn_Queue) {
+		Log::Log("[ApplyPhysicsAtRespawn] Player: " ^ Player.User.Name ^ " / Player.SpawnStatus: " ^ Player.SpawnStatus);
+		if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned || Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning) {
+			if (HaveToReset) SetPhysicsChange("Reset", "", Player);
+			ApplyPhysicsAtRespawn(Player);
+			ApplyPhysicsAtRespawn_Queue.removekey(Player);
+		}
 	}
 }
 
 if (Last_AdminPlayers != S_AdminPlayers) {
 	Last_AdminPlayers = S_AdminPlayers;
 	declare Text[] Admin = TL::Split(",", S_AdminPlayers);
-	foreach (Player in Players) {
+	foreach (Player in AllPlayers) {
 		declare netwrite Boolean Net_PlayerIsAdmin for Player = False;
 		Net_PlayerIsAdmin = Admin.exists(Player.User.Login);
 	}
@@ -152,7 +159,8 @@ K_PlayerPhysics InitPlayerPhysicsVariable() {
 }
 
 Boolean SetPhysicsChange(Text _EventName, Text _EventValue, CSmPlayer _Player) {
-	if (_Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned) {
+	Log::Log("[SetPhysicsChange] _EventName: " ^ _EventName ^" / _EventValue: "^ _EventValue ^ " / _Player: " ^ _Player.User.Name);
+	if (_Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned || _Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning) {
 		while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 		switch (_EventName) {
 			case "AccelCoef": SetPlayer_Delayed_AccelCoef(_Player, TL::ToReal(_EventValue));
@@ -227,25 +235,26 @@ K_PlayerPhysics GetUpdatedPlayerPhysicsVariable(Text _EventName, Text _EventValu
 	return NewPlayerPhysics;
 }
 
-Void ApplyPhysicsAtRespawn(CSmPlayer _Player, K_PlayerPhysics _PlayerPhysics) {
+Void ApplyPhysicsAtRespawn(CSmPlayer _Player) {
 	declare K_PlayerPhysics DefaultPlayerPhysics = InitPlayerPhysicsVariable();
-	while (_Player.SpawnStatus != CSmPlayer::ESpawnStatus::Spawned) MB_Yield();
+	declare netwrite K_PlayerPhysics Net_PlayerPhysics for _Player = InitPlayerPhysicsVariable();
 
-	if (DefaultPlayerPhysics.AccelCoef != _PlayerPhysics.AccelCoef) SetPhysicsChange("AccelCoef", TL::ToText(_PlayerPhysics.AccelCoef), _Player);
-	if (DefaultPlayerPhysics.AdherenceCoef != _PlayerPhysics.AdherenceCoef) SetPhysicsChange("AdherenceCoef", TL::ToText(_PlayerPhysics.AdherenceCoef), _Player);
-	if (DefaultPlayerPhysics.Boost2Down != _PlayerPhysics.Boost2Down) SetPhysicsChange("Boost2Down", "1", _Player);
-	if (DefaultPlayerPhysics.Boost2Up != _PlayerPhysics.Boost2Up) SetPhysicsChange("Boost2Up", "1", _Player);
-	if (DefaultPlayerPhysics.BoostDown != _PlayerPhysics.BoostDown) SetPhysicsChange("BoostDown", "1", _Player);
-	if (DefaultPlayerPhysics.BoostUp != _PlayerPhysics.BoostUp) SetPhysicsChange("BoostUp", "1", _Player);
-	if (DefaultPlayerPhysics.ControlCoef != _PlayerPhysics.ControlCoef) SetPhysicsChange("ControlCoef", TL::ToText(_PlayerPhysics.ControlCoef), _Player);
-	if (DefaultPlayerPhysics.Cruise != _PlayerPhysics.Cruise) SetPhysicsChange("Cruise", TL::ToText(_PlayerPhysics.Cruise), _Player);
-	if (DefaultPlayerPhysics.ForceEngine != _PlayerPhysics.ForceEngine) SetPhysicsChange("ForceEngine", "1", _Player);
-	if (DefaultPlayerPhysics.Fragile != _PlayerPhysics.Fragile) SetPhysicsChange("Fragile", "1", _Player);
-	if (DefaultPlayerPhysics.GravityCoef != _PlayerPhysics.GravityCoef) SetPhysicsChange("GravityCoef", TL::ToText(_PlayerPhysics.GravityCoef), _Player);
-	if (DefaultPlayerPhysics.NoBrakes != _PlayerPhysics.NoBrakes) SetPhysicsChange("NoBrakes", "1", _Player);
-	if (DefaultPlayerPhysics.NoEngine != _PlayerPhysics.NoEngine) SetPhysicsChange("NoEngine", "1", _Player);
-	if (DefaultPlayerPhysics.NoSteer != _PlayerPhysics.NoSteer) SetPhysicsChange("NoSteer", "1", _Player);
-	if (DefaultPlayerPhysics.SlowMotion != _PlayerPhysics.SlowMotion) SetPhysicsChange("SlowMotion", "1", _Player);
+	if (DefaultPlayerPhysics.AccelCoef != Net_PlayerPhysics.AccelCoef) SetPhysicsChange("AccelCoef", TL::ToText(Net_PlayerPhysics.AccelCoef), _Player);
+	if (DefaultPlayerPhysics.AdherenceCoef != Net_PlayerPhysics.AdherenceCoef) SetPhysicsChange("AdherenceCoef", TL::ToText(Net_PlayerPhysics.AdherenceCoef), _Player);
+	if (DefaultPlayerPhysics.Boost2Down != Net_PlayerPhysics.Boost2Down) SetPhysicsChange("Boost2Down", "1", _Player);
+	if (DefaultPlayerPhysics.Boost2Up != Net_PlayerPhysics.Boost2Up) SetPhysicsChange("Boost2Up", "1", _Player);
+	if (DefaultPlayerPhysics.BoostDown != Net_PlayerPhysics.BoostDown) SetPhysicsChange("BoostDown", "1", _Player);
+	if (DefaultPlayerPhysics.BoostUp != Net_PlayerPhysics.BoostUp) SetPhysicsChange("BoostUp", "1", _Player);
+	if (DefaultPlayerPhysics.ControlCoef != Net_PlayerPhysics.ControlCoef) SetPhysicsChange("ControlCoef", TL::ToText(Net_PlayerPhysics.ControlCoef), _Player);
+	if (DefaultPlayerPhysics.Cruise != Net_PlayerPhysics.Cruise) SetPhysicsChange("Cruise", TL::ToText(Net_PlayerPhysics.Cruise), _Player);
+	if (DefaultPlayerPhysics.ForceEngine != Net_PlayerPhysics.ForceEngine) SetPhysicsChange("ForceEngine", "1", _Player);
+	if (DefaultPlayerPhysics.Fragile != Net_PlayerPhysics.Fragile) SetPhysicsChange("Fragile", "1", _Player);
+	if (DefaultPlayerPhysics.GravityCoef != Net_PlayerPhysics.GravityCoef) SetPhysicsChange("GravityCoef", TL::ToText(Net_PlayerPhysics.GravityCoef), _Player);
+	if (DefaultPlayerPhysics.NoBrakes != Net_PlayerPhysics.NoBrakes) SetPhysicsChange("NoBrakes", "1", _Player);
+	if (DefaultPlayerPhysics.NoEngine != Net_PlayerPhysics.NoEngine) SetPhysicsChange("NoEngine", "1", _Player);
+	if (DefaultPlayerPhysics.NoSteer != Net_PlayerPhysics.NoSteer) SetPhysicsChange("NoSteer", "1", _Player);
+	if (DefaultPlayerPhysics.SlowMotion != Net_PlayerPhysics.SlowMotion) SetPhysicsChange("SlowMotion", "1", _Player);
+	log("[ApplyPhysicsAtRespawn] Now After SetPhysics: " ^ Now);
 }
 
 Void SetML() {
@@ -518,8 +527,7 @@ Void SetML() {
 					// Events
 					foreach(Event in PendingEvents) {
 						DevLog("[PendingEvents] Event.Type: " ^ Event.Type);
-						if (Owner != Null /*&& Owner.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned*/) {
-							log("[DEBUG] GUIPlayer.SpawnStatus: " ^ GUIPlayer.SpawnStatus ^ " / InputPlayer.SpawnStatus: " ^ InputPlayer.SpawnStatus);
+						if (Owner != Null) {
 							if (Event.Type == CMlScriptEvent::Type::MouseClick ) {
 								if (TL::Find("_EffectButton", Event.ControlId, True, True)) {
 									declare Text Effect = TL::Replace(Event.ControlId, "_EffectButton", "");
