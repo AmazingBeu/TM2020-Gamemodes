@@ -607,14 +607,14 @@ Void SetML() {
 			<style class="text-suffix" textfont="GameFontBlack" textcolor="ffffff" textsize="0.7" halign="center" valign="center" textprefix="$i$t"/>
 			<style class="quad-effects" halign="center" valign="center" />
 		</stylesheet>
-		<frame id="frame-global" hidden=1 pos="-160 40">
+		<frame id="frame-global" hidden="1" pos="-160 40">
 			<frame pos="58 -2.5" id="frame-toggle">
 				<quad id="Toggle_SettingButton" pos="0 0" size="4 4" class="quad-base" z-index="3" opacity="0.9" scriptevents="1" halign="center" valign="center" image="file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds" colorize="fff"/>
 			</frame>
 			<frame id="frame-UI">
 				<quad id="quad-bg" pos="0 0" z-index="-1" size="60 74" bgcolor="000" opacity="0.5" /> <!-- 85 for regular, 74 without spec control-->
-				<quad id="quad-fg" pos="0 0" z-index="5" size="60 74" bgcolor="000" opacity="0.5" hidden=1 scriptevents="1" />
-				<label id="label-warning" class="text-suffix" hidden=1 z-index="6" pos="30 -35" textsize="2.5" size="50 10" autonewline="1"/>
+				<quad id="quad-fg" pos="0 0" z-index="5" size="60 74" bgcolor="000" opacity="0.5" hidden="1" scriptevents="1" />
+				<label id="label-warning" class="text-suffix" hidden="1" z-index="6" pos="30 -35" textsize="2.5" size="50 10" autonewline="1"/>
 				<label class="text-suffix" pos="30 -5" textsize="3" z-index="0" size="50 10" text="Physics Control"/>
 				<frame pos="0.5 -6">
 					<frame pos="30 0">
@@ -624,46 +624,46 @@ Void SetML() {
 					</frame>
 					<frame pos="0 -9">
 						<frame pos="0 0">
-							<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ReactorBoost.dds" rot=180 />
-							<quad id="BoostUp_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+							<quad class="quad-effects" pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ReactorBoost.dds" rot="180" />
+							<quad id="BoostUp_EffectButton" class="quad-effects" pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
 						</frame>
 						<frame pos="11 0">
-							<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ReactorBoost2.dds" rot=180 />
-							<quad id="Boost2Up_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+							<quad class="quad-effects" pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ReactorBoost2.dds" rot="180" />
+							<quad id="Boost2Up_EffectButton" class="quad-effects" pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
 						</frame>
 						<frame pos="22 0">
-							<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/NoBrakes.dds" rot=180 />
-							<quad id="NoBrakes_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+							<quad class="quad-effects" pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/NoBrakes.dds" />
+							<quad id="NoBrakes_EffectButton" class="quad-effects" pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
 						</frame>
 						<frame pos="33 0">
-							<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/FreeWheeling.dds" />
-							<quad id="NoEngine_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+							<quad class="quad-effects" pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/FreeWheeling.dds" />
+							<quad id="NoEngine_EffectButton" class="quad-effects" pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
 						</frame>
 						<frame pos="44 0">
-							<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ForceAcceleration.dds"/>
-							<quad id="ForceEngine_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+							<quad class="quad-effects" pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ForceAcceleration.dds"/>
+							<quad id="ForceEngine_EffectButton" class="quad-effects" pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
 						</frame>
 					</frame>
 					<frame pos="0 -20">
 						<frame pos="0 0">
-							<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ReactorBoost.dds"/>
-							<quad id="BoostDown_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+							<quad class="quad-effects" pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ReactorBoost.dds"/>
+							<quad id="BoostDown_EffectButton" class="quad-effects" pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
 						</frame>
 						<frame pos="11 0">
-							<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ReactorBoost2.dds" />
-							<quad id="Boost2Down_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+							<quad class="quad-effects" pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ReactorBoost2.dds" />
+							<quad id="Boost2Down_EffectButton" class="quad-effects" pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
 						</frame>
 						<frame pos="22 0">
-							<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/NoSteering.dds" />
-							<quad id="NoSteer_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+							<quad class="quad-effects" pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/NoSteering.dds" />
+							<quad id="NoSteer_EffectButton" class="quad-effects" pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
 						</frame>
 						<frame pos="33 0">
-							<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/SlowMotion.dds" />
-							<quad id="SlowMotion_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+							<quad class="quad-effects" pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/SlowMotion.dds" />
+							<quad id="SlowMotion_EffectButton" class="quad-effects" pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
 						</frame>
 						<frame pos="44 0">
-							<quad class=quad-effects pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/Fragile.dds" />
-							<quad id="Fragile_EffectButton" class=quad-effects pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+							<quad class="quad-effects" pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/Fragile.dds" />
+							<quad id="Fragile_EffectButton" class="quad-effects" pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
 						</frame>
 					</frame>
 				</frame>
@@ -699,11 +699,11 @@ Void SetML() {
 						<label class="text-suffix" pos="55 0" z-index="0" size="10 5" text="%" />
 					</frame>
 				</frame>
-				<frame id="AllowSpectatorsControl_Frame" hidden=1 pos="5 -79">
+				<frame id="AllowSpectatorsControl_Frame" hidden="1" pos="5 -79">
 					<quad id="AllowSpectatorsControl_SettingButton" pos="0 0.5" z-index="1" size="5 5" bgcolor="FFF" halign="center" valign="center" style="UICommon64_1" substyle="CheckboxCircle_light" scriptevents="1" opacity="0.7" styleselected="1"/>
 					<label class="text-label" halign="left" pos="5 0.5" z-index="1" size="50 10" textprefix="$i" text="Allow a spectator to control your physics" autonewline="1"/>
 				</frame>
-				<frame id="Admin_Frame" hidden=1 pos="0 -88">
+				<frame id="Admin_Frame" hidden="1" pos="0 -88">
 					<quad pos="0 0" z-index="-1" size="60 10" bgcolor="000" opacity="0.5"/>
 					<frame pos="5 -5.5">
 						<quad id="ControledByAdmins_SettingButton" pos="0 0.5" z-index="1" size="5 5" bgcolor="FFF" halign="center" valign="center" style="UICommon64_1" substyle="CheckboxCircle_light" scriptevents="1" opacity="0.7" />
