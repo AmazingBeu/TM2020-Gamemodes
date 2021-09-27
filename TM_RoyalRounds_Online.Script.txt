@@ -282,6 +282,7 @@ UIModules_Chrono::SetTimeOffset(Player, SpecificOffset);
 
 ***Match_InitRound***
 ***
+declare netwrite Integer Net_RoyalRounds_CheckpointUI_TotalNbSegments for Teams[0];
 declare Integer[Text] CustomTimes for This = [];
 declare Integer[Text][Integer] CurrentRanking for This = [];  // CurrentRanking[Segment][AccountId][Time]
 CurrentRanking[0] = Integer[Text]; // Init white section
@@ -338,13 +339,12 @@ foreach (Event in RacePendingEvents) {
 					Event.Player.Dossard_Number = TL::FormatInteger(ML::Clamp(Rank, 0, 99), 2);
 
 					// Send Rank to Checkpoint UI
-					declare UI <=> UIManager.GetUI(Event.Player);
-					if (UI != Null) {
-						declare netwrite Integer Net_RoyalRounds_CheckpointUI_Rank for UI;
-						Net_RoyalRounds_CheckpointUI_Rank = Rank;
-						declare netwrite Integer Net_RoyalRounds_CheckpointUI_Update for UI;
-						Net_RoyalRounds_CheckpointUI_Update += 1;
-					}
+					declare netwrite Integer Net_RoyalRounds_CheckpointUI_Rank for Event.Player;
+					Net_RoyalRounds_CheckpointUI_Rank = Rank;
+					declare netwrite Integer Net_RoyalRounds_CheckpointUI_Update for Event.Player;
+					Net_RoyalRounds_CheckpointUI_Update += 1;
+					declare netwrite Integer Net_RoyalRounds_CheckpointUI_CurrentNbSegments for Event.Player;
+					Net_RoyalRounds_CheckpointUI_CurrentNbSegments = CurrentSegment;
 
 					if (CurrentSegment  < S_SegmentsPerRound) { // TODO Try to keep CP diff a the bottom of the screen
 						declare ModeRounds_CanSpawn for Event.Player.Score = Rounds_Settings_CanSpawnDefault;
@@ -425,6 +425,10 @@ if (
 	Server_SegmentsPerRound = S_SegmentsPerRound;
 	
 	UpdateScoresTableFooter(S_PointsLimit, S_RoundsPerMap, S_MapsPerMatch, Map_ValidRoundsNb, S_SegmentsPerRound);
+}
+
+if (Net_RoyalRounds_CheckpointUI_TotalNbSegments != S_SegmentsPerRound) {
+	Net_RoyalRounds_CheckpointUI_TotalNbSegments = S_SegmentsPerRound;
 }
 ***
 
@@ -733,28 +737,43 @@ Boolean MapIsOver(Boolean _UseTieBreak, Integer _PointsLimit, Integer _ValidRoun
 		#Include "TextLib" as TL
 
 		main() {
-			declare netread Integer Net_RoyalRounds_CheckpointUI_Rank for UI;
-			declare netread Integer Net_RoyalRounds_CheckpointUI_Update for UI;
-
 			declare Integer TimeToDisplay = 0;
 			declare Integer LastUpdate = 0;
 
 			declare Quad_UI <=> (Page.GetFirstChild("quad-ui") as CMlQuad);
 			declare Label_Rank <=> (Page.GetFirstChild("label-rank") as CMlLabel);
 			declare Label_Time <=> (Page.GetFirstChild("label-time") as CMlLabel);
+			declare Label_Segments <=> (Page.GetFirstChild("label-segments") as CMlLabel);
+
+			declare netread Integer Net_RoyalRounds_CheckpointUI_TotalNbSegments for Teams[0];
 
 			while(True) {
 				yield;
 
-				if (LastUpdate != Net_RoyalRounds_CheckpointUI_Update) {
-					LastUpdate = Net_RoyalRounds_CheckpointUI_Update;
-					Label_Rank.Value = TL::FormatRank(Net_RoyalRounds_CheckpointUI_Rank, False);
-					Label_Time.Value = TL::TimeToText(GUIPlayer.RaceWaypointTimes[0], True, True);// PrevRace
-					Quad_UI.Visible = True;
-					TimeToDisplay = Now + 3000;
-				}
-
-				if (TimeToDisplay != 0 && TimeToDisplay < Now) {
+				if (GUIPlayer != Null) {
+					declare netread Integer Net_RoyalRounds_CheckpointUI_Rank for GUIPlayer;
+					declare netread Integer Net_RoyalRounds_CheckpointUI_CurrentNbSegments for GUIPlayer;
+					declare netread Integer Net_RoyalRounds_CheckpointUI_Update for GUIPlayer;
+	
+					if (LastUpdate != Net_RoyalRounds_CheckpointUI_Update) {
+						if (GUIPlayer.RaceWaypointTimes.count <= 0) continue; // skip if there is any latency (useful for spectators)
+						LastUpdate = Net_RoyalRounds_CheckpointUI_Update;
+						if (Net_RoyalRounds_CheckpointUI_Rank > 0) {
+							Label_Time.Value = TL::TimeToText(GUIPlayer.RaceWaypointTimes[0], True, True);
+							Label_Rank.Value = TL::FormatRank(Net_RoyalRounds_CheckpointUI_Rank, False);
+							Label_Segments.Value = TL::Compose("Segment %1/%2", TL::ToText(Net_RoyalRounds_CheckpointUI_CurrentNbSegments), TL::ToText(Net_RoyalRounds_CheckpointUI_TotalNbSegments));
+							Quad_UI.Visible = True;
+							TimeToDisplay = Now + 3000;
+						} else {
+							TimeToDisplay = -1; // Force hide UI
+						}
+					}
+	
+					if (TimeToDisplay != 0 && TimeToDisplay < Now) {
+						Quad_UI.Visible = False;
+						TimeToDisplay = 0;
+					}
+				} else if (Quad_UI.Visible) {
 					Quad_UI.Visible = False;
 					TimeToDisplay = 0;
 				}
@@ -775,6 +794,10 @@ Boolean MapIsOver(Boolean _UseTieBreak, Integer _PointsLimit, Integer _ValidRoun
 					<frame pos="0 5" id="frame-race-rank" scale="0.9">
 						<quad z-index="0" size="10 8" halign="right" valign="center" bgcolor="000000" opacity="0.6" id="quad-race-rank" />
 						<label pos="-0.5 0" z-index="1" size="8.5 10" halign="right" valign="center2" textsize="3" textemboss="1" class="text-default" id="label-rank" />
+					</frame>
+					<frame pos="0 -2.25" id="frame-race-segment" scale="0.9">
+						<quad z-index="0" size="25 8" valign="center" bgcolor="000000" opacity="0.6" />
+						<label pos="24 0" z-index="1" size="23 10"  halign="right" valign="center2" class="text-default" id="label-segments" />
 					</frame>
 				</frame>
 			</frame>
