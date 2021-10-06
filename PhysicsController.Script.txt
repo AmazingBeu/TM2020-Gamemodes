@@ -24,7 +24,17 @@
 
 ***Match_StartServer***
 ***
-UIModules_Record::Reset();
+Race::SetupRecord(
+	MenuConsts::C_ScopeType_Season,
+	MenuConsts::C_ScopeType_PersonalBest,
+	MenuConsts::C_GameMode_TimeAttack,
+	"",
+	False, //C_UploadRecord
+	False, //C_DisplayRecordGhost
+	False, //C_DisplayRecordMedal
+	False, //C_CelebrateRecordGhost
+	False //C_CelebrateRecordMedal
+);
 UIModules_Record::SetSpecialVisibility(False);
 ***
 
@@ -263,7 +273,6 @@ Void SetML() {
 		<script><!--
 		#Include "TextLib" as TL
 		#Include "MathLib" as ML
-		#Include "Libs/Nadeo/CommonLibs/Common/Log.Script.txt" as Log
 
 		#Struct K_PlayerPhysics {
 			Real AccelCoef;
