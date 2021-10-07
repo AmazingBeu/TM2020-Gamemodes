@@ -345,17 +345,17 @@ Void SetML() {
 			declare Slider_ControlCoef <=> (Page.GetFirstChild("ControlCoef_Slider") as CMlSlider);
 			declare Slider_GravityCoef <=> (Page.GetFirstChild("GravityCoef_Slider") as CMlSlider);
 
-			declare Label_Cruise <=> (Page.GetFirstChild("Cruise_Label") as CMlLabel);
-			declare Label_AccelCoef <=> (Page.GetFirstChild("AccelCoef_Label") as CMlLabel);
-			declare Label_AdherenceCoef <=> (Page.GetFirstChild("AdherenceCoef_Label") as CMlLabel);
-			declare Label_ControlCoef <=> (Page.GetFirstChild("ControlCoef_Label") as CMlLabel);
-			declare Label_GravityCoef <=> (Page.GetFirstChild("GravityCoef_Label") as CMlLabel);
+			declare Entry_Cruise <=> (Page.GetFirstChild("Cruise_Entry") as CMlEntry);
+			declare Entry_AccelCoef <=> (Page.GetFirstChild("AccelCoef_Entry") as CMlEntry);
+			declare Entry_AdherenceCoef <=> (Page.GetFirstChild("AdherenceCoef_Entry") as CMlEntry);
+			declare Entry_ControlCoef <=> (Page.GetFirstChild("ControlCoef_Entry") as CMlEntry);
+			declare Entry_GravityCoef <=> (Page.GetFirstChild("GravityCoef_Entry") as CMlEntry);
 
-			Label_Cruise.Value = TL::ToText(ML::FloorInteger(Slider_Cruise.Value));
-			Label_AccelCoef.Value = TL::ToText(ML::FloorInteger(Slider_AccelCoef.Value * 100));
-			Label_AdherenceCoef.Value = TL::ToText(ML::FloorInteger(Slider_AdherenceCoef.Value * 100));
-			Label_ControlCoef.Value = TL::ToText(ML::FloorInteger(Slider_ControlCoef.Value * 100));
-			Label_GravityCoef.Value = TL::ToText(ML::FloorInteger(Slider_GravityCoef.Value * 100));
+			Entry_Cruise.Value = TL::ToText(ML::FloorInteger(Slider_Cruise.Value));
+			Entry_AccelCoef.Value = TL::ToText(ML::FloorInteger(Slider_AccelCoef.Value * 100));
+			Entry_AdherenceCoef.Value = TL::ToText(ML::FloorInteger(Slider_AdherenceCoef.Value * 100));
+			Entry_ControlCoef.Value = TL::ToText(ML::FloorInteger(Slider_ControlCoef.Value * 100));
+			Entry_GravityCoef.Value = TL::ToText(ML::FloorInteger(Slider_GravityCoef.Value * 100));
 		}
 
 		Void UpdateUIButtons(K_PlayerPhysics _PlayerPhysics) {
@@ -583,6 +583,34 @@ Void SetML() {
 								} else {
 									UpdateUISlider(Last_PlayerPhysics); // To update Slider Right Value
 								}
+							} else if (Event.Type == CMlScriptEvent::Type::EntrySubmit && TL::Find("_Entry", Event.ControlId, True, True)) {
+								declare Text Effect = TL::Replace(Event.ControlId, "_Entry", "");
+								declare CMlEntry Entry = (Page.GetFirstChild(Event.ControlId) as CMlEntry);
+								declare CMlSlider Slider = (Page.GetFirstChild(Effect ^ "_Slider") as CMlSlider);
+								declare Integer Value = TL::ToInteger(Entry.Value);
+
+								declare Text Target;
+								if (Net_PlayerIsAdmin && Last_ControledByAdmins) Target = "all";
+								else Target = Owner.User.Login;
+
+								if (Event.ControlId == "Cruise_Entry") {
+									if ((Value != -1 && Value > -1000 && Value < 1000) || Entry.Value == "-1") {
+										DevLog("[PendingEvents] Send Entry value for " ^ Effect ^ " with value " ^ Value ^ " to " ^ Target);
+										SendCustomEvent("Request.PlayerPhysics." ^ Effect, [Target, TL::ToText(Value)]);
+									} else {
+										DevLog("[PendingEvents] Invalid Value for Entry " ^ Effect);
+										Entry.Value = TL::ToText(ML::FloorInteger(Slider.Value));
+									}
+								} else {
+									if (Value != -1 && Value > 0 && Value <= 100) {
+										DevLog("[PendingEvents] Send Entry value for " ^ Effect ^ " with value " ^ Value ^ " to " ^ Target);
+										Slider.Value = ML::ToReal(Value)/100;
+										SendCustomEvent("Request.PlayerPhysics." ^ Effect, [Target, TL::ToText(ML::ToReal(Value)/100)]);
+									} else {
+										DevLog("[PendingEvents] Invalid Value for Entry " ^ Effect);
+										Entry.Value = TL::ToText(ML::FloorInteger(Slider.Value * 100));
+									}
+								}
 							} else if (Event.Type == CMlScriptEvent::Type::MouseOver && TL::Find("_EffectButton", Event.ControlId, True, True)) {
 								declare Quad <=> (Page.GetFirstChild(Event.ControlId) as CMlQuad);
 								Quad.Opacity = 0.7;
@@ -612,7 +640,7 @@ Void SetML() {
 		<stylesheet>
 			<style class="text-label" textfont="GameFontSemiBold" textcolor="ffffff" textsize="1.5" halign="left" valign="center" textprefix="$i$t"/>
 			<style class="slider" iconidbar="Slider_light" iconidcursor="SliderCursor_light" textcolor="ffffff" valign="center" />
-			<style class="text-value" textfont="GameFontBlack" textcolor="ffffff" textsize="1.5" halign="right" valign="center"/>
+			<style class="text-value" textfont="GameFontBlack" textcolor="ffffff" textsize="1.5" halign="right" valign="center" focusareacolor1="00000000" focusareacolor2="00000000"/>
 			<style class="text-suffix" textfont="GameFontBlack" textcolor="ffffff" textsize="0.7" halign="center" valign="center" textprefix="$i$t"/>
 			<style class="quad-effects" halign="center" valign="center" />
 		</stylesheet>
@@ -680,31 +708,31 @@ Void SetML() {
 					<frame pos="0 0">
 						<label class="text-label" pos="0 0" z-index="0" size="22 5" text="Cruise" />
 						<slider id="Cruise_Slider" class="slider" pos="34 -0.3" value="0." range="-999 999" size="21 5" z-index="1" scriptevents="1" tooltip="test"/>
-						<label id="Cruise_Label" class="text-value" pos="53 0" z-index="0" size="10 5" text="0" />
+						<entry id="Cruise_Entry" class="text-value" pos="53 0" z-index="0" size="8 5" default="0" focusareacolor1="00000000" focusareacolor2="00000000"/>
 						<label class="text-suffix" pos="55 0" z-index="0" size="4 4" text="kph" />
 					</frame>
 					<frame pos="0 -7">
 						<label class="text-label" pos="0 0" z-index="0" size="22 5" text="Acceleration" />
 						<slider id="AccelCoef_Slider" class="slider" pos="34 -0.3" value="1." range="0.01 1." size="21 5" z-index="1" scriptevents="1" tooltip="test"/>
-						<label id="AccelCoef_Label" class="text-value" pos="53 0" z-index="0" size="10 5" text="100" />
+						<entry id="AccelCoef_Entry" class="text-value" pos="53 0" z-index="0" size="8 5" default="100"/>
 						<label class="text-suffix" pos="55 0" z-index="0" size="4 4" text="%" />
 					</frame>
 					<frame pos="0 -14">
 						<label class="text-label" pos="0 0" z-index="0" size="22 5" text="Adherence" />
 						<slider id="AdherenceCoef_Slider" class="slider" pos="34 -0.3" value="1." range="0.01 1." size="21 5" z-index="1" scriptevents="1" tooltip="test"/>
-						<label id="AdherenceCoef_Label" class="text-value" pos="53 0" z-index="0" size="10 5" text="100" />
+						<entry id="AdherenceCoef_Entry" class="text-value" pos="53 0" z-index="0" size="8 5" default="100"/>
 						<label class="text-suffix" pos="55 0" z-index="0" size="10 5" text="%" />
 					</frame>
 					<frame pos="0 -21">
 						<label class="text-label" pos="0 0" z-index="0" size="22 5" text="Control" />
 						<slider id="ControlCoef_Slider" class="slider" pos="34 -0.3" value="1." range="0.01 1." size="21 5" z-index="1" scriptevents="1" tooltip="test"/>
-						<label id="ControlCoef_Label" class="text-value" pos="53 0" z-index="0" size="10 5" text="100" />
+						<entry id="ControlCoef_Entry" class="text-value" pos="53 0" z-index="0" size="8 5" default="100"/>
 						<label class="text-suffix" pos="55 0" z-index="0" size="10 5" text="%" />
 					</frame>
 					<frame pos="0 -28">
 						<label class="text-label" pos="0 0" z-index="0" size="22 5" text="Gravity" />
 						<slider id="GravityCoef_Slider" class="slider" pos="34 -0.3" value="1." range="0.01 1." size="21 5" z-index="1" scriptevents="1" tooltip="test"/>
-						<label id="GravityCoef_Label" class="text-value" pos="53 0" z-index="0" size="10 5" text="100" />
+						<entry id="GravityCoef_Entry" class="text-value" pos="53 0" z-index="0" size="8 5" default="100"/>
 						<label class="text-suffix" pos="55 0" z-index="0" size="10 5" text="%" />
 					</frame>
 				</frame>
