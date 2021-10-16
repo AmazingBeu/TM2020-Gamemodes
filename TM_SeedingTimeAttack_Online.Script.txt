@@ -31,8 +31,8 @@
 // Settings
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 #Setting S_UseTheWorstTimeForDNF True as "" 
-#Setting S_MalusTimeForDNF 0 as "Time to add (or substract) in ms for who DNF" 
-#Setting S_MapsPerMatch -1 as _("Number of maps per match") ///< Number of maps to play before finishing the match
+#Setting S_MalusTimeForDNF 10000 as "Time to add (or substract) in ms for who DNF" 
+#Setting S_MapsPerMatch 3 as _("Number of maps per match") ///< Number of maps to play before finishing the match
 #Setting S_TimeLimit 300 as _("Time limit") ///< Time limit before going to the next map
 #Setting S_WarmUpNb 0 as _("Number of warm up")
 #Setting S_WarmUpDuration 0 as _("Duration of one warm up")
@@ -124,8 +124,14 @@ foreach (Event in PendingEvents) {
             StateMgr::InitializePlayer(Event.Player);
             CarRank::InitializePlayer(Event.Player);
             if (Event.Player != Null) {
+                Log::Log("[Match_Yield][PendingEvents] New player added: " ^ Event.Player.Name);
                 declare Boolean Match_CanForceTrophyRankUpdate for This;
                 TrophyRanking::InitializeUser(Event.Player.User, Match_CanForceTrophyRankUpdate);
+                if (Scores::GetPlayerMatchPoints(Event.Player.Score) == 0) {
+                    declare Integer CumulateWorstTimeOfPreviousMaps for This;
+                    Log::Log("[Match_Yield][PendingEvents] New Player with : " ^ CumulateWorstTimeOfPreviousMaps ^ " points");
+                    Scores::SetPlayerMatchPoints(Event.Player.Score, CumulateWorstTimeOfPreviousMaps);
+                }
             }
         }
     }
@@ -229,9 +235,9 @@ Map_MalusTimeForDNF = S_MalusTimeForDNF;
 Map_UseTheWorstTimeForDNF = S_UseTheWorstTimeForDNF;
 UpdateScoresTableFooterAndTimeLimit(StartTime, S_TimeLimit, S_MapsPerMatch);
 
-declare Integer CumulateWorstTimeOfPreviousMaps for This;
 declare Integer WorstTime for This;
-if (MB_GetMapCount() > 1) CumulateWorstTimeOfPreviousMaps = CumulateWorstTimeOfPreviousMaps + WorstTime + Map_MalusTimeForDNF;
+declare Integer CumulateWorstTimeOfPreviousMaps for This;
+CumulateWorstTimeOfPreviousMaps = CumulateWorstTimeOfPreviousMaps + WorstTime + Map_MalusTimeForDNF;
 WorstTime = S_TimeLimit * 1000;
 
 UpdateCustomRanking(Null);
@@ -241,14 +247,10 @@ UpdateCustomRanking(Null);
 ***
 
 foreach (Event in PendingEvents) {
-	Log::Log("[PendingEvents] Event.Type: " ^ Event.Type);
+	Log::Log("[PlayLoop][PendingEvents] Event.Type: " ^ Event.Type);
 	if (Event.Type == CSmModeEvent::EType::OnPlayerAdded) {
 		if (Event.Player != Null) {
-            if (Scores::GetPlayerMatchPoints(Event.Player.Score) == 0) {
-                declare Integer CumulateWorstTimeOfPreviousMaps for This;
-                Log::Log("[PendingEvents] New Player with : " ^ CumulateWorstTimeOfPreviousMaps ^ " points");
-                Scores::SetPlayerMatchPoints(Event.Player.Score, CumulateWorstTimeOfPreviousMaps);
-            }
+            Log::Log("[PlayLoop][PendingEvents] New player added: " ^ Event.Player.Name);
             UpdateCustomRanking(Event.Player);
 		}
 	}
@@ -362,6 +364,10 @@ if (EndTime > 0 && Now >= EndTime) {
 ***Match_EndMap***
 ***
 EndTime = -1;
+
+declare Integer WorstTime for This;
+declare Integer CumulateWorstTimeOfPreviousMaps for This;
+CumulateWorstTimeOfPreviousMaps = CumulateWorstTimeOfPreviousMaps + WorstTime + S_MalusTimeForDNF;
 
 Match_MatchDuration = ML::Max(0, Now - Map_MapStartTime);
 StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
@@ -707,7 +713,7 @@ Void SetML() {
                                 DevLog("[PendingEvents] Toggle UI by " ^ InputPlayer.User.Login);
                                 ToggleUI();
                             }
-                        /*} else if (Event.Type == CMlScriptEvent::Type::MouseOver && TL::Find("bg-player-", Event.ControlId, True, True) && InputPlayerIsSpectator()) {
+                        } /*else if (Event.Type == CMlScriptEvent::Type::MouseOver && TL::Find("bg-player-", Event.ControlId, True, True) && InputPlayerIsSpectator()) {
                             declare Quad <=> (Page.GetFirstChild(Event.ControlId) as CMlQuad);
                             Quad.Opacity = 0.1;
                         } else if (Event.Type == CMlScriptEvent::Type::MouseOut && TL::Find("bg-player-", Event.ControlId, True, True)) {
@@ -777,7 +783,7 @@ Void SetML() {
                     }
                 }
 			}
-		}
+        }
 		--></script>
         <stylesheet>
             <style class="text" textfont="GameFontBlack" textcolor="fff" textsize="1.5" halign="left" valign="center2" textprefix="$i$t"  />
