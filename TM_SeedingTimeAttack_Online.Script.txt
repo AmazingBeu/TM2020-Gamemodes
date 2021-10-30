@@ -236,8 +236,6 @@ Map_UseTheWorstTimeForDNF = S_UseTheWorstTimeForDNF;
 UpdateScoresTableFooterAndTimeLimit(StartTime, S_TimeLimit, S_MapsPerMatch);
 
 declare Integer WorstTime for This;
-declare Integer CumulateWorstTimeOfPreviousMaps for This;
-CumulateWorstTimeOfPreviousMaps = CumulateWorstTimeOfPreviousMaps + WorstTime + Map_MalusTimeForDNF;
 WorstTime = S_TimeLimit * 1000;
 
 UpdateCustomRanking(Null);
