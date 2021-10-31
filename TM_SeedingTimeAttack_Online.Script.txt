@@ -757,11 +757,11 @@ Void SetML() {
                             PlayerNameColor = <0.431,0.98,0.627>; // Green
                         }
 
-                        if (Index < 8  || Index == 10 || GUIPlayer == Null || (GUIPlayerPassed && PlayerUID != GUIPlayer.User.WebServicesUserId) || (GUIPlayerPassed && PlayerUID == GUIPlayer.User.WebServicesUserId && Rank <= 8 )) {
+                        if (Index < 10  || Index == 12 || GUIPlayer == Null || (GUIPlayerPassed && PlayerUID != GUIPlayer.User.WebServicesUserId) || (GUIPlayerPassed && PlayerUID == GUIPlayer.User.WebServicesUserId && Rank <= 10 )) {
                             DevLog("[Update UI] Normal Entry");
                             SetPlayerEntry(Index,Rank,User.Name,PlayerNameColor,Net_RoundPoints[PlayerUID],Points);
                             Index = Index + 1;
-                        } else if (GUIPlayerPassed && PlayerUID == GUIPlayer.User.WebServicesUserId && Rank > 8 ) {
+                        } else if (GUIPlayerPassed && PlayerUID == GUIPlayer.User.WebServicesUserId && Rank > 10 ) {
                             DevLog("[Update UI] Last Entries");
                             if (Rank == PlayersMatchPoints.count) {
                                 SetPlayerEntry(Index,Rank-2,PreviousPreviousUser.Name,<1.,1.,1.>,Net_RoundPoints[PreviousPreviousUser.WebServicesUserId],PlayersMatchPoints[PreviousPreviousUser.WebServicesUserId]);
@@ -776,7 +776,7 @@ Void SetML() {
                             PreviousPreviousUser <=> PreviousUser;
                             PreviousUser <=> User;
                         }
-                        if (Index > 10) break;
+                        if (Index > 12) break;
                         Rank = Rank + 1;
                     }
                 }
@@ -791,7 +791,7 @@ Void SetML() {
             <frame pos="53 -2.5" id="frame-toggle">
                 <quad id="quad-toggle" pos="0 0" size="4 4" class="quad-base" z-index="3" opacity="0.9" scriptevents="1" halign="center" valign="center" image="file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds" colorize="fff"/>
             </frame>
-            <quad pos="0 0" z-index="0" size="55 70" bgcolor="000" opacity="0.5"/>
+            <quad pos="0 0" z-index="0" size="55 71" bgcolor="000" opacity="0.5"/>
             <frame id="frame-ui" z-index="1">
                 <label pos="27.5 -5" z-index="2" size="55 7" text="Match Ranking" textfont="GameFontBlack" textprefix="$i$t" valign="center2" halign="center" textcolor="fff"/>
                 <frame pos="0 -10" z-index="2">
@@ -880,6 +880,24 @@ Void SetML() {
                         <quad id="bg-player-10" pos="0 0" z-index="0" size="55 5" bgcolor="999" opacity="0" scriptevents="1"/>
                         <frame pos="0 -2.7">
                             <label id="player-pos" class="text" pos="1 0" z-index="0" size="5 6" text="10"/>
+                            <label id="player-name" class="text" pos="7 0" z-index="0" size="25 6" text=""/>
+                            <label id="player-maptime" class="text" pos="42 0" z-index="0" size="8 6" text="--:--.---" textcolor="aaa" textsize="0.5" halign="right"/>
+                            <label id="player-totaltimes" class="text" pos="54 0" z-index="0" size="10 6" text="--:--.---" halign="right"/>
+                        </frame>
+                    </frame>
+                    <frame hidden=1 id="player-11" pos="0 -45">
+                        <quad id="bg-player-11" pos="0 0" z-index="0" size="55 5" bgcolor="999" opacity="0" scriptevents="1"/>
+                        <frame pos="0 -2.7">
+                            <label id="player-pos" class="text" pos="1 0" z-index="0" size="5 6" text="11"/>
+                            <label id="player-name" class="text" pos="7 0" z-index="0" size="25 6" text=""/>
+                            <label id="player-maptime" class="text" pos="42 0" z-index="0" size="8 6" text="--:--.---" textcolor="aaa" textsize="0.5" halign="right"/>
+                            <label id="player-totaltimes" class="text" pos="54 0" z-index="0" size="10 6" text="--:--.---" halign="right"/>
+                        </frame>
+                    </frame>
+                    <frame hidden=1 id="player-12" pos="0 -45">
+                        <quad id="bg-player-12" pos="0 0" z-index="0" size="55 5" bgcolor="999" opacity="0" scriptevents="1"/>
+                        <frame pos="0 -2.7">
+                            <label id="player-pos" class="text" pos="1 0" z-index="0" size="5 6" text="12"/>
                             <label id="player-name" class="text" pos="7 0" z-index="0" size="25 6" text=""/>
                             <label id="player-maptime" class="text" pos="42 0" z-index="0" size="8 6" text="--:--.---" textcolor="aaa" textsize="0.5" halign="right"/>
                             <label id="player-totaltimes" class="text" pos="54 0" z-index="0" size="10 6" text="--:--.---" halign="right"/>
