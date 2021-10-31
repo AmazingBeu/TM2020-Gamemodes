@@ -710,10 +710,10 @@ Boolean SetMalus(CSmPlayer _Player, Integer _Type) {
 Void SetML(CSmPlayer _Player) {
 	declare TotalWidth = 44.5;
 
-    declare Text MLText = """
-    <manialink name="LMS_UI" version="3">
-        <script><!--
-        #Include "TextLib" as TL
+	declare Text MLText = """
+	<manialink name="LMS_UI" version="3">
+		<script><!--
+		#Include "TextLib" as TL
 
 		#Const C_Malus_Reset {{{C_Malus_Reset}}}
 		#Const C_Malus_ForceEngine {{{C_Malus_ForceEngine}}}
@@ -741,7 +741,7 @@ Void SetML(CSmPlayer _Player) {
 				 {{{C_Malus_AccelCoef25}}} => "25% AccelCoef", {{{C_Malus_AdherenceCoef25}}} => "25% Adherence", {{{C_Malus_ControlCoef25}}} => "25% Control",
 				 {{{C_Malus_GravityCoef25}}} => "25% Gravity", {{{C_Malus_Nightmare}}} => "NightMare"]
 
-        main() {
+		main() {
 			declare netread Integer Net_NBPlayers for Teams[0];
 			declare netread Integer Net_PlayersNbAlive for Teams[0];
 			declare netread Integer Net_NextMalus for Teams[0];
@@ -757,13 +757,13 @@ Void SetML(CSmPlayer _Player) {
 
 			declare Boolean NeedUpdateChrono = False;
 
-            declare Label_PlayersAlive <=> (Page.GetFirstChild("label-playersalive") as CMlLabel);
-            declare Label_NextMalus <=> (Page.GetFirstChild("label-nextmalus") as CMlLabel);
-            declare Label_TimeBeforeMalus <=> (Page.GetFirstChild("label-timebeforemalus") as CMlLabel);
+			declare Label_PlayersAlive <=> (Page.GetFirstChild("label-playersalive") as CMlLabel);
+			declare Label_NextMalus <=> (Page.GetFirstChild("label-nextmalus") as CMlLabel);
+			declare Label_TimeBeforeMalus <=> (Page.GetFirstChild("label-timebeforemalus") as CMlLabel);
 			declare Label_Info_RoundsPerMap <=> (Page.GetFirstChild("label-info-roundspermap") as CMlLabel);
 			declare Label_RoundsPerMap <=> (Page.GetFirstChild("label-roundspermap") as CMlLabel);
 
-            while(True) {
+			while(True) {
 				yield;
 
 				if (Last_CurrentRoundNb != Net_CurrentRoundNb) {
@@ -808,9 +808,9 @@ Void SetML(CSmPlayer _Player) {
 				} else {
 					Label_TimeBeforeMalus.Value = TL::TimeToText(Last_TimeBeforeMalus - ArenaNow , True);
 				}
-            }
-        }
-        --></script>
+			}
+		}
+		--></script>
 		<stylesheet>
 			<style class="text-ingame-text" textfont="GameFontBlack" textcolor="ffffff" textsize="1.5" valign="center2" textprefix="$i$t"/>
 			<style class="text-ingame-time" textfont="GameFontSemiBold" textcolor="ffffff" textsize="1.25" valign="center2" textprefix="$i$t"/>
@@ -829,7 +829,7 @@ Void SetML(CSmPlayer _Player) {
 			<label id="label-timebeforemalus" pos="{{{TotalWidth + 2}}} 0" size="{{{TotalWidth/2.}}} 10" class="text-ingame-time" halign="right" text="--:--.--"/>
 		</frame>
 
-    </manialink>
+	</manialink>
 """;
 	Layers::Create("LMS_UI", MLText);
 	Layers::SetType("LMS_UI", CUILayer::EUILayerType::Normal);

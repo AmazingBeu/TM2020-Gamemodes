@@ -118,23 +118,23 @@ SetML();
 ***Match_Yield***
 ***
 foreach (Event in PendingEvents) {
-    switch (Event.Type) {
-        // Initialize players when they join the server
-        case CSmModeEvent::EType::OnPlayerAdded: {
-            StateMgr::InitializePlayer(Event.Player);
-            CarRank::InitializePlayer(Event.Player);
-            if (Event.Player != Null) {
-                Log::Log("[Match_Yield][PendingEvents] New player added: " ^ Event.Player.Name);
-                declare Boolean Match_CanForceTrophyRankUpdate for This;
-                TrophyRanking::InitializeUser(Event.Player.User, Match_CanForceTrophyRankUpdate);
-                if (Scores::GetPlayerMatchPoints(Event.Player.Score) == 0) {
-                    declare Integer CumulateWorstTimeOfPreviousMaps for This;
-                    Log::Log("[Match_Yield][PendingEvents] New Player with : " ^ CumulateWorstTimeOfPreviousMaps ^ " points");
-                    Scores::SetPlayerMatchPoints(Event.Player.Score, CumulateWorstTimeOfPreviousMaps);
-                }
-            }
-        }
-    }
+	switch (Event.Type) {
+		// Initialize players when they join the server
+		case CSmModeEvent::EType::OnPlayerAdded: {
+			StateMgr::InitializePlayer(Event.Player);
+			CarRank::InitializePlayer(Event.Player);
+			if (Event.Player != Null) {
+				Log::Log("[Match_Yield][PendingEvents] New player added: " ^ Event.Player.Name);
+				declare Boolean Match_CanForceTrophyRankUpdate for This;
+				TrophyRanking::InitializeUser(Event.Player.User, Match_CanForceTrophyRankUpdate);
+				if (Scores::GetPlayerMatchPoints(Event.Player.Score) == 0) {
+					declare Integer CumulateWorstTimeOfPreviousMaps for This;
+					Log::Log("[Match_Yield][PendingEvents] New Player with : " ^ CumulateWorstTimeOfPreviousMaps ^ " points");
+					Scores::SetPlayerMatchPoints(Event.Player.Score, CumulateWorstTimeOfPreviousMaps);
+				}
+			}
+		}
+	}
 }
 StateMgr::Yield();
 TrophyRanking::Yield();
@@ -150,16 +150,16 @@ Race::SetRespawnBehaviour(Race::C_RespawnBehaviour_GiveUpBeforeFirstCheckpoint);
 StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
 WarmUp::SetAvailability(True);
 Race::SetupRecord(
-    MenuConsts::C_ScopeType_Season,
-    MenuConsts::C_ScopeType_PersonalBest,
-    MenuConsts::C_GameMode_TimeAttack,
-    "",
-    C_UploadRecord,
-    C_DisplayRecordGhost,
-    C_DisplayRecordMedal,
-    C_CelebrateRecordGhost,
-    C_CelebrateRecordMedal,
-    C_DisplayWorldTop
+	MenuConsts::C_ScopeType_Season,
+	MenuConsts::C_ScopeType_PersonalBest,
+	MenuConsts::C_GameMode_TimeAttack,
+	"",
+	C_UploadRecord,
+	C_DisplayRecordGhost,
+	C_DisplayRecordMedal,
+	C_CelebrateRecordGhost,
+	C_CelebrateRecordMedal,
+	C_DisplayWorldTop
 );
 CarRank::Reset();
 
@@ -216,7 +216,7 @@ StartTime = Now + Race::C_SpawnDuration;
 
 // Spawn players for the race
 foreach (Player in Players) {
-    Race::Start(Player, StartTime);
+	Race::Start(Player, StartTime);
 }
 
 StateMgr::ForcePlayersStates([StateMgr::C_State_Playing]);
@@ -248,8 +248,8 @@ foreach (Event in PendingEvents) {
 	Log::Log("[PlayLoop][PendingEvents] Event.Type: " ^ Event.Type);
 	if (Event.Type == CSmModeEvent::EType::OnPlayerAdded) {
 		if (Event.Player != Null) {
-            Log::Log("[PlayLoop][PendingEvents] New player added: " ^ Event.Player.Name);
-            UpdateCustomRanking(Event.Player);
+			Log::Log("[PlayLoop][PendingEvents] New player added: " ^ Event.Player.Name);
+			UpdateCustomRanking(Event.Player);
 		}
 	}
 }
@@ -257,97 +257,97 @@ foreach (Event in PendingEvents) {
 // Manage race events
 declare RacePendingEvents = Race::GetPendingEvents();
 foreach (Event in RacePendingEvents) {
-    Race::ValidEvent(Event);
-    // Waypoint
-    if (Event.Type == Events::C_Type_Waypoint) {
-        if (Event.Player != Null) {
-            declare Better = False;
-            declare OldRank = 0;
-            if (Event.IsEndRace) {
-                // Computes old rank before changing Score
-                foreach (Index => Score in Scores) {
-                    if (Score.Id == Event.Player.Score.Id) {
-                        if (Score.BestRaceTimes.count != 0) {
-                            OldRank = Index + 1;
-                        } else {
-                            OldRank = -123;
-                        }
-                        break;
-                    }
-                }
-                // Change Score
-                Better = Scores::UpdatePlayerBestRaceIfBetter(Event.Player);
-                declare BetterLap = Scores::UpdatePlayerBestLapIfBetter(Event.Player);
-                Scores::UpdatePlayerPrevRace(Event.Player);                
-            } else if (Event.IsEndLap) {
-                declare BetterLap = Scores::UpdatePlayerBestLapIfBetter(Event.Player);
-                if (Race::IsIndependentLaps()) {
-                    // Computes old rank before changing Score
-                    foreach (Index => Score in Scores) {
-                        if (Score.Id == Event.Player.Score.Id) {
-                            if (Score.BestLapTimes.count != 0) {
-                                OldRank = Index + 1;
-                            } else {
-                                OldRank = -123;
-                            }
-                            break;
-                        }
-                    }
-                    // Change Score
-                    Better = BetterLap;
-                    if (Better) Scores::UpdatePlayerBestRace(Event.Player);
-                    Scores::UpdatePlayerPrevLap(Event.Player);
-                }
-            }
-            if (Better) {
-                UpdateCustomRanking(Event.Player);
-                declare NewRank = 0;
-                foreach (Index => Score in Scores) {
-                    if (Score.Id == Event.Player.Score.Id) {
-                        NewRank = Index + 1;
-                        break;
-                    }
-                }
-                if (OldRank != NewRank) {
-                    if (0 < NewRank && NewRank < 4) {
-                        foreach (Player in AllPlayers) {
-                            UIModules_DisplayMessage::SendLiveMessage_RankUpdate(Player, Event.Player.User, NewRank);
-                        }
-                    } else if (0 < NewRank) {
-                        UIModules_DisplayMessage::SendLiveMessage_RankUpdate(Event.Player, Event.Player.User, NewRank);
-                    }
-                }
-                
-                CarRank::ThrottleUpdate(CarRank::C_SortCriteria_BestRace);
-            }
-        }
-    }
+	Race::ValidEvent(Event);
+	// Waypoint
+	if (Event.Type == Events::C_Type_Waypoint) {
+		if (Event.Player != Null) {
+			declare Better = False;
+			declare OldRank = 0;
+			if (Event.IsEndRace) {
+				// Computes old rank before changing Score
+				foreach (Index => Score in Scores) {
+					if (Score.Id == Event.Player.Score.Id) {
+						if (Score.BestRaceTimes.count != 0) {
+							OldRank = Index + 1;
+						} else {
+							OldRank = -123;
+						}
+						break;
+					}
+				}
+				// Change Score
+				Better = Scores::UpdatePlayerBestRaceIfBetter(Event.Player);
+				declare BetterLap = Scores::UpdatePlayerBestLapIfBetter(Event.Player);
+				Scores::UpdatePlayerPrevRace(Event.Player);				
+			} else if (Event.IsEndLap) {
+				declare BetterLap = Scores::UpdatePlayerBestLapIfBetter(Event.Player);
+				if (Race::IsIndependentLaps()) {
+					// Computes old rank before changing Score
+					foreach (Index => Score in Scores) {
+						if (Score.Id == Event.Player.Score.Id) {
+							if (Score.BestLapTimes.count != 0) {
+								OldRank = Index + 1;
+							} else {
+								OldRank = -123;
+							}
+							break;
+						}
+					}
+					// Change Score
+					Better = BetterLap;
+					if (Better) Scores::UpdatePlayerBestRace(Event.Player);
+					Scores::UpdatePlayerPrevLap(Event.Player);
+				}
+			}
+			if (Better) {
+				UpdateCustomRanking(Event.Player);
+				declare NewRank = 0;
+				foreach (Index => Score in Scores) {
+					if (Score.Id == Event.Player.Score.Id) {
+						NewRank = Index + 1;
+						break;
+					}
+				}
+				if (OldRank != NewRank) {
+					if (0 < NewRank && NewRank < 4) {
+						foreach (Player in AllPlayers) {
+							UIModules_DisplayMessage::SendLiveMessage_RankUpdate(Player, Event.Player.User, NewRank);
+						}
+					} else if (0 < NewRank) {
+						UIModules_DisplayMessage::SendLiveMessage_RankUpdate(Event.Player, Event.Player.User, NewRank);
+					}
+				}
+				
+				CarRank::ThrottleUpdate(CarRank::C_SortCriteria_BestRace);
+			}
+		}
+	}
 }
 
 // Manage mode events
 foreach (Event in PendingEvents) {
-    if (Event.HasBeenPassed || Event.HasBeenDiscarded) continue;
-    Events::Invalid(Event);
+	if (Event.HasBeenPassed || Event.HasBeenDiscarded) continue;
+	Events::Invalid(Event);
 }
 
 // Spawn players
 if (PlayersNbDead > 0) { //< Check for unspawned players only if at least one player is unspawned
-    foreach (Player in Players) {
-        if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned && Race::IsReadyToStart(Player)) {
-            Race::Start(Player);
-        }
-    }
+	foreach (Player in Players) {
+		if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned && Race::IsReadyToStart(Player)) {
+			Race::Start(Player);
+		}
+	}
 }
 
 // Update the map duration setting
 if (Map_TimeLimit != S_TimeLimit || Map_MalusTimeForDNF != S_MalusTimeForDNF || Map_MapsPerMatch != S_MapsPerMatch || Map_UseTheWorstTimeForDNF != S_UseTheWorstTimeForDNF) {
-    UpdateWorstTime();
-    UpdateCustomRanking(Null);
-    Map_UseTheWorstTimeForDNF = S_UseTheWorstTimeForDNF;
-    Map_MalusTimeForDNF = S_MalusTimeForDNF;
-    Map_TimeLimit = S_TimeLimit;
-    Map_MapsPerMatch = S_MapsPerMatch;
-    UpdateScoresTableFooterAndTimeLimit(StartTime, S_TimeLimit, S_MapsPerMatch);
+	UpdateWorstTime();
+	UpdateCustomRanking(Null);
+	Map_UseTheWorstTimeForDNF = S_UseTheWorstTimeForDNF;
+	Map_MalusTimeForDNF = S_MalusTimeForDNF;
+	Map_TimeLimit = S_TimeLimit;
+	Map_MapsPerMatch = S_MapsPerMatch;
+	UpdateScoresTableFooterAndTimeLimit(StartTime, S_TimeLimit, S_MapsPerMatch);
 }
 if (Net_ScriptEnvironment != S_ScriptEnvironment) {
 	Net_ScriptEnvironment = S_ScriptEnvironment;
@@ -355,7 +355,7 @@ if (Net_ScriptEnvironment != S_ScriptEnvironment) {
 
 // End the map when time limit is reached
 if (EndTime > 0 && Now >= EndTime) {
-    MB_StopMap();
+	MB_StopMap();
 }
 ***
 
@@ -380,11 +380,11 @@ Race::StopSkipOutroAll();
 Scores::EndRound();
 
 if (MB_GetMapCount() >= S_MapsPerMatch) {
-    Log::Log("[Match_EndMap] Stop Match");
-    Scores::SetPlayerWinner(Scores::GetBestPlayer(Scores::C_Sort_MatchPoints, Scores::C_Order_Ascending));
-    MB_StopMatch();
+	Log::Log("[Match_EndMap] Stop Match");
+	Scores::SetPlayerWinner(Scores::GetBestPlayer(Scores::C_Sort_MatchPoints, Scores::C_Order_Ascending));
+	MB_StopMatch();
 } else {
-    Scores::SetPlayerWinner(Scores::GetBestPlayer(GetLadderSortCriteria()));
+	Scores::SetPlayerWinner(Scores::GetBestPlayer(GetLadderSortCriteria()));
 }
 ***
 
@@ -396,8 +396,8 @@ UIManager.UIAll.BigMessageSoundVariant = 0;
 declare Text Message = _("|Match|Draw");
 declare CSmScore WinnerScore <=> Scores::GetPlayerWinner();
 if (WinnerScore != Null) {
-    if (!MB_MatchIsRunning()) Message = TL::Compose(_("$<%1$> wins the match!"), Tools::GetNameWithClubTag(WinnerScore.User));
-    else Message = TL::Compose(_("$<%1$> wins the map!"), Tools::GetNameWithClubTag(WinnerScore.User));
+	if (!MB_MatchIsRunning()) Message = TL::Compose(_("$<%1$> wins the match!"), Tools::GetNameWithClubTag(WinnerScore.User));
+	else Message = TL::Compose(_("$<%1$> wins the map!"), Tools::GetNameWithClubTag(WinnerScore.User));
 }
 
 UIManager.UIAll.BigMessage = Message;
@@ -406,9 +406,9 @@ UIManager.UIAll.BigMessage = Message;
 Trophy_LiveTimeAttackAchievement_ClearResultList();
 
 foreach (Key => Score in Scores) {
-    if (TrophyRanking::UserIsRanked(Score.User) && Score.BestRaceTimes.count > 0 && Score.BestRaceTimes[Score.BestRaceTimes.count - 1] >= 0) {
-        Trophy_LiveTimeAttackAchievement_AddResult(Score.User.WebServicesUserId, Key + 1, TrophyRanking::GetUserRank(Score.User));
-    }
+	if (TrophyRanking::UserIsRanked(Score.User) && Score.BestRaceTimes.count > 0 && Score.BestRaceTimes[Score.BestRaceTimes.count - 1] >= 0) {
+		Trophy_LiveTimeAttackAchievement_AddResult(Score.User.WebServicesUserId, Key + 1, TrophyRanking::GetUserRank(Score.User));
+	}
 }
 Match_TrophyTask = Task::Create(This, Trophy_LiveTimeAttackAchievement_SendResultList(Match_MatchDuration / 1000));
 Match_TrophyTaskEndTime = Now + C_TrophyTaskTimeout;
@@ -425,29 +425,29 @@ MB_Private_Sleep((S_ChatTime*1000)/2);
 // Wait until the trophy task is complete
 Match_TrophyTask = Task::Update(Match_TrophyTask);
 while (Task::IsInitialized(Match_TrophyTask) && Task::IsRunning(Match_TrophyTask) && Now < Match_TrophyTaskEndTime) {
-    MB_Yield();
-    Match_TrophyTask = Task::Update(Match_TrophyTask);
+	MB_Yield();
+	Match_TrophyTask = Task::Update(Match_TrophyTask);
 }
 if (Task::IsInitialized(Match_TrophyTask)) {
-    Match_TrophyTask = Task::Update(Match_TrophyTask);
-    declare Integer[Integer][Text] AccountsTrophies;
-    if (!Task::IsRunning(Match_TrophyTask)) {
-        declare CTaskResult_AccountTrophyGainList SourceTask = Task::GetSourceTask_AccountTrophyGainList(Match_TrophyTask);
-        if (Task::IsSuccess(Match_TrophyTask) && SourceTask != Null) {
-            foreach (AccountTrophyGain in SourceTask.AccountTrophyGainList) {
-                declare Integer[Integer] AccountTrophies = UIModules_ScoresTable::ConvertAccountTrophyGain(AccountTrophyGain);
-                if (AccountTrophies.count > 0) {
-                    AccountsTrophies[AccountTrophyGain.WebServicesUserId] = AccountTrophies;
-                }
-            }
-        }
-    }
-    Match_TrophyTask = Task::Destroy(Match_TrophyTask);
-    UIModules_ScoresTable::SetTrophies(AccountsTrophies);
-    UIModules_EndMatchTrophy::PlayTrophyAnimation(AccountsTrophies);
-    StateMgr::ForcePlayersStates([StateMgr::C_State_TrophyAnimation]);
-    MB_Private_Sleep(C_TrophyAnimationDuration);
-    StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
+	Match_TrophyTask = Task::Update(Match_TrophyTask);
+	declare Integer[Integer][Text] AccountsTrophies;
+	if (!Task::IsRunning(Match_TrophyTask)) {
+		declare CTaskResult_AccountTrophyGainList SourceTask = Task::GetSourceTask_AccountTrophyGainList(Match_TrophyTask);
+		if (Task::IsSuccess(Match_TrophyTask) && SourceTask != Null) {
+			foreach (AccountTrophyGain in SourceTask.AccountTrophyGainList) {
+				declare Integer[Integer] AccountTrophies = UIModules_ScoresTable::ConvertAccountTrophyGain(AccountTrophyGain);
+				if (AccountTrophies.count > 0) {
+					AccountsTrophies[AccountTrophyGain.WebServicesUserId] = AccountTrophies;
+				}
+			}
+		}
+	}
+	Match_TrophyTask = Task::Destroy(Match_TrophyTask);
+	UIModules_ScoresTable::SetTrophies(AccountsTrophies);
+	UIModules_EndMatchTrophy::PlayTrophyAnimation(AccountsTrophies);
+	StateMgr::ForcePlayersStates([StateMgr::C_State_TrophyAnimation]);
+	MB_Private_Sleep(C_TrophyAnimationDuration);
+	StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
 }
 
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
@@ -477,9 +477,9 @@ Match_CanForceTrophyRankUpdate = False;
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 /// Select the scores table score mode
 Void SetScoresTableScoreMode(Boolean _IsIndependentLaps, Boolean _DisplayTrophies) {
-    if (_DisplayTrophies) UIModules_ScoresTable::SetScoreMode(UIModules_ScoresTable::C_Mode_Trophy);
-    else if (_IsIndependentLaps) UIModules_ScoresTable::SetScoreMode(UIModules_ScoresTable::C_Mode_LapTime);
-    else UIModules_ScoresTable::SetScoreMode(UIModules_ScoresTable::C_Mode_BestTime);
+	if (_DisplayTrophies) UIModules_ScoresTable::SetScoreMode(UIModules_ScoresTable::C_Mode_Trophy);
+	else if (_IsIndependentLaps) UIModules_ScoresTable::SetScoreMode(UIModules_ScoresTable::C_Mode_LapTime);
+	else UIModules_ScoresTable::SetScoreMode(UIModules_ScoresTable::C_Mode_BestTime);
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -489,31 +489,31 @@ Void SetScoresTableScoreMode(Boolean _IsIndependentLaps, Boolean _DisplayTrophie
  *	@param	_NewTimeLimit							The time limit before going to the next map
  */
 Void UpdateScoresTableFooterAndTimeLimit(Integer _StartTime, Integer _NewTimeLimit, Integer _MapsPerMatch) {
-    Log::Log("[UpdateScoresTableFooterAndTimeLimit] Update Settings Footer");
-    declare Text[] Parts;
-    declare Text Message = "";
-    if (_NewTimeLimit <= 0) {
-        if (Parts.count > 0) Message ^= "\n";
-        Message ^= """%{{{Parts.count + 1}}} -""";
+	Log::Log("[UpdateScoresTableFooterAndTimeLimit] Update Settings Footer");
+	declare Text[] Parts;
+	declare Text Message = "";
+	if (_NewTimeLimit <= 0) {
+		if (Parts.count > 0) Message ^= "\n";
+		Message ^= """%{{{Parts.count + 1}}} -""";
 		//L16N [Rounds] Number of points to reach to win the match.
 		Parts.add(_("Time Limit : "));
-        EndTime = -1;
-        UIModules_ScoresTable::SetFooterInfo(TL::Compose("%1 -", _("Time Limit")));
-    } else {
-        if (Parts.count > 0) Message ^= "\n";
-        Message ^= """%{{{Parts.count + 1}}}{{{TL::TimeToText(_NewTimeLimit*1000)}}}""";
+		EndTime = -1;
+		UIModules_ScoresTable::SetFooterInfo(TL::Compose("%1 -", _("Time Limit")));
+	} else {
+		if (Parts.count > 0) Message ^= "\n";
+		Message ^= """%{{{Parts.count + 1}}}{{{TL::TimeToText(_NewTimeLimit*1000)}}}""";
 		//L16N [Rounds] Number of points to reach to win the match.
 		Parts.add(_("Time Limit : "));
-        EndTime = _StartTime + (S_TimeLimit * 1000);
-        UIModules_ScoresTable::SetFooterInfo(TL::Compose("%1 "^TL::TimeToText(_NewTimeLimit*1000), _("Time Limit")));
-    }
-    if (_MapsPerMatch > 0) {
+		EndTime = _StartTime + (S_TimeLimit * 1000);
+		UIModules_ScoresTable::SetFooterInfo(TL::Compose("%1 "^TL::TimeToText(_NewTimeLimit*1000), _("Time Limit")));
+	}
+	if (_MapsPerMatch > 0) {
 		if (Parts.count > 0) Message ^= "\n";
 		Message ^= """%{{{Parts.count + 1}}}{{{MB_GetMapCount()}}}/{{{_MapsPerMatch}}}""";
 		//L16N [Rounds] Number of maps played during the match.
 		Parts.add(_("Maps : "));
 	}
-    switch (Parts.count) {
+	switch (Parts.count) {
 		case 0: UIModules_ScoresTable::SetFooterInfo(Message);
 		case 1: UIModules_ScoresTable::SetFooterInfo(TL::Compose(Message, Parts[0]));
 		case 2: UIModules_ScoresTable::SetFooterInfo(TL::Compose(Message, Parts[0], Parts[1]));
@@ -527,8 +527,8 @@ Void UpdateScoresTableFooterAndTimeLimit(Integer _StartTime, Integer _NewTimeLim
  *	@return														The sort criteria
  */
 Integer GetScoresSortCriteria() {
-    if (Race::IsIndependentLaps()) return Race::C_Sort_BestLapTime;
-    return Race::C_Sort_BestRaceTime;
+	if (Race::IsIndependentLaps()) return Race::C_Sort_BestLapTime;
+	return Race::C_Sort_BestRaceTime;
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -538,22 +538,22 @@ Integer GetScoresSortCriteria() {
  *	@return														The sort criteria
  */
 Integer GetLadderSortCriteria() {
-    if (Race::IsIndependentLaps()) return Scores::C_Sort_BestLapTime;
-    return Scores::C_Sort_BestRaceTime;
+	if (Race::IsIndependentLaps()) return Scores::C_Sort_BestLapTime;
+	return Scores::C_Sort_BestRaceTime;
 }
 
 Void UpdateWorstTime() {
-    declare Integer MaxTime;
-    if (S_UseTheWorstTimeForDNF) {
-        foreach (Score in Scores) {
-            MaxTime = ML::Max(MaxTime, Scores::GetPlayerBestRaceTime(Score));
-        }
-        if (MaxTime == 0) MaxTime = S_TimeLimit * 1000;
-    } else {
-        MaxTime = S_TimeLimit * 1000;
-    }
-    declare Integer WorstTime for This;
-    WorstTime = MaxTime;
+	declare Integer MaxTime;
+	if (S_UseTheWorstTimeForDNF) {
+		foreach (Score in Scores) {
+			MaxTime = ML::Max(MaxTime, Scores::GetPlayerBestRaceTime(Score));
+		}
+		if (MaxTime == 0) MaxTime = S_TimeLimit * 1000;
+	} else {
+		MaxTime = S_TimeLimit * 1000;
+	}
+	declare Integer WorstTime for This;
+	WorstTime = MaxTime;
 }
 
 /** Update the Scores Table with hidden custom points
@@ -561,63 +561,63 @@ Void UpdateWorstTime() {
  *	@param	_EliminatedPlayer						The Player who is eliminated
  */
  Void UpdateCustomRanking(CSmPlayer _Player) {
-    /*
-    * FYI, it's not possible to sort the scoreboard by Matchpoint Asc
-    */
-    declare netwrite Integer[Text] Net_MatchPoints for Teams[0];
-    declare netwrite Integer[Text] Net_RoundPoints for Teams[0];
-    declare Integer[Text] MatchPoints = Net_MatchPoints;
-    declare Integer[Text] RoundPoints = Net_RoundPoints;
-    declare Boolean SkipUpdate;
+	/*
+	* FYI, it's not possible to sort the scoreboard by Matchpoint Asc
+	*/
+	declare netwrite Integer[Text] Net_MatchPoints for Teams[0];
+	declare netwrite Integer[Text] Net_RoundPoints for Teams[0];
+	declare Integer[Text] MatchPoints = Net_MatchPoints;
+	declare Integer[Text] RoundPoints = Net_RoundPoints;
+	declare Boolean SkipUpdate;
 
 	declare Text[][Text] CustomPoints for This;
-    declare Integer WorstTime for This;
-    
+	declare Integer WorstTime for This;
+	
 	foreach (Score in Scores) {
 		if (Score == Null) continue;
 		declare CSmPlayer Player = GetPlayer(Score.User.Login);
 		if (Player == Null) continue;
 
-        if (_Player == Null || _Player == Player) {
-            declare Text BestCurrentColor = "$ccc";
-            if (Score.BestRaceTimes.count > 0) {
-                if (S_UseTheWorstTimeForDNF && Scores::GetPlayerRoundPoints(Score) == 0 ||
-                    (WorstTime == Scores::GetPlayerRoundPoints(Score) && Scores::GetPlayerRoundPoints(Score) != Scores::GetPlayerBestRaceTime(Score)) || // When Last
-                    (WorstTime + S_MalusTimeForDNF == Scores::GetPlayerRoundPoints(Score) && Scores::GetPlayerRoundPoints(Score) != Scores::GetPlayerBestRaceTime(Score) + S_MalusTimeForDNF)) // When First Time registered
-                {
-                    Log::Log("[UpdateCustomRanking] Update Worst Time");
-                    UpdateWorstTime();
-                    Scores::SetPlayerRoundPoints(Score, Scores::GetPlayerBestRaceTime(Score));
-                    UpdateCustomRanking(Null);
-                    SkipUpdate = True;
-                    break;
-                } else {
-                    Scores::SetPlayerRoundPoints(Score, Scores::GetPlayerBestRaceTime(Score));
-                }
-                BestCurrentColor = "$fff" ;
-            } else {
-                Scores::SetPlayerRoundPoints(Score, WorstTime + S_MalusTimeForDNF);
-            }
-            declare Text BestCurrentTime = TL::TimeToText(Scores::GetPlayerRoundPoints(Score) , True, True);
-            declare Text TotalTimes = TL::TimeToText(Scores::GetPlayerRoundPoints(Score) + Scores::GetPlayerMatchPoints(Score) , True, False);
+		if (_Player == Null || _Player == Player) {
+			declare Text BestCurrentColor = "$ccc";
+			if (Score.BestRaceTimes.count > 0) {
+				if (S_UseTheWorstTimeForDNF && Scores::GetPlayerRoundPoints(Score) == 0 ||
+					(WorstTime == Scores::GetPlayerRoundPoints(Score) && Scores::GetPlayerRoundPoints(Score) != Scores::GetPlayerBestRaceTime(Score)) || // When Last
+					(WorstTime + S_MalusTimeForDNF == Scores::GetPlayerRoundPoints(Score) && Scores::GetPlayerRoundPoints(Score) != Scores::GetPlayerBestRaceTime(Score) + S_MalusTimeForDNF)) // When First Time registered
+				{
+					Log::Log("[UpdateCustomRanking] Update Worst Time");
+					UpdateWorstTime();
+					Scores::SetPlayerRoundPoints(Score, Scores::GetPlayerBestRaceTime(Score));
+					UpdateCustomRanking(Null);
+					SkipUpdate = True;
+					break;
+				} else {
+					Scores::SetPlayerRoundPoints(Score, Scores::GetPlayerBestRaceTime(Score));
+				}
+				BestCurrentColor = "$fff" ;
+			} else {
+				Scores::SetPlayerRoundPoints(Score, WorstTime + S_MalusTimeForDNF);
+			}
+			declare Text BestCurrentTime = TL::TimeToText(Scores::GetPlayerRoundPoints(Score) , True, True);
+			declare Text TotalTimes = TL::TimeToText(Scores::GetPlayerRoundPoints(Score) + Scores::GetPlayerMatchPoints(Score) , True, False);
 
-            RoundPoints[Score.User.WebServicesUserId] = Scores::GetPlayerRoundPoints(Score);
-            MatchPoints[Score.User.WebServicesUserId] = Scores::GetPlayerRoundPoints(Score) + Scores::GetPlayerMatchPoints(Score);
+			RoundPoints[Score.User.WebServicesUserId] = Scores::GetPlayerRoundPoints(Score);
+			MatchPoints[Score.User.WebServicesUserId] = Scores::GetPlayerRoundPoints(Score) + Scores::GetPlayerMatchPoints(Score);
 
-            CustomPoints[Score.User.WebServicesUserId] = ["$<$i"^ BestCurrentColor ^ BestCurrentTime ^ "$> $<$n$i$aaa" ^ TotalTimes , ""];
+			CustomPoints[Score.User.WebServicesUserId] = ["$<$i"^ BestCurrentColor ^ BestCurrentTime ^ "$> $<$n$i$aaa" ^ TotalTimes , ""];
 		}
 	}
 
-    if (!SkipUpdate) {
-        UIModules_ScoresTable::SetCustomPoints(CustomPoints);
+	if (!SkipUpdate) {
+		UIModules_ScoresTable::SetCustomPoints(CustomPoints);
 
-        declare netwrite Integer Net_SerialNeedToUpdate for Teams[0];
-        Net_SerialNeedToUpdate = Net_SerialNeedToUpdate + 1;
+		declare netwrite Integer Net_SerialNeedToUpdate for Teams[0];
+		Net_SerialNeedToUpdate = Net_SerialNeedToUpdate + 1;
 
-        // Update UI
-        Net_MatchPoints = MatchPoints;
-        Net_RoundPoints = RoundPoints;
-    }
+		// Update UI
+		Net_MatchPoints = MatchPoints;
+		Net_RoundPoints = RoundPoints;
+	}
 }
 
 Void SetML() {
@@ -643,12 +643,12 @@ Void SetML() {
 			return True;
 		}
 
-        CUser GetUserFromAccountId(Text _AccountId) {
-            foreach (Score in Scores) {
-                if (Score.User != Null && Score.User.WebServicesUserId == _AccountId) return Score.User;
-            }
-            return Null;
-        }
+		CUser GetUserFromAccountId(Text _AccountId) {
+			foreach (Score in Scores) {
+				if (Score.User != Null && Score.User.WebServicesUserId == _AccountId) return Score.User;
+			}
+			return Null;
+		}
 
 		Void ToggleUI() {
 			declare CMlFrame Frame_Global <=> (Page.GetFirstChild("frame-global") as CMlFrame);
@@ -673,38 +673,38 @@ Void SetML() {
 			AnimMgr.Add(Frame_Global, "<frame pos=\"" ^GlobalEndPosX^" "^Frame_Global.RelativePosition_V3.Y^ "\" />", Now, 250, CAnimManager::EAnimManagerEasing::Linear);
 		}
 
-        Void SetPlayerEntry(Integer _Index, Integer _Rank, Text _Name, Text _Login, Vec3 _PlayerNameColor, Integer _RoundPoints, Integer _MatchPoints) {
-            DevLog("[SetPlayerEntry UI] Set entry for " ^ _Name ^ " at index " ^_Index);
-            declare CMlFrame Frame_ParentFrame  <=> (Page.GetFirstChild("player-" ^ _Index) as CMlFrame);
-            declare CMlQuad Quad_Bg <=> (Page.GetFirstChild("bg-player-" ^ _Index) as CMlQuad);
-            declare CMlLabel Label_PlayerPos <=> (Frame_ParentFrame.GetFirstChild("player-pos") as CMlLabel);
-            declare CMlLabel Label_PlayerName <=> (Frame_ParentFrame.GetFirstChild("player-name") as CMlLabel);
-            declare CMlLabel Label_PlayerMapTime <=> (Frame_ParentFrame.GetFirstChild("player-maptime") as CMlLabel);
-            declare CMlLabel Label_PlayerTotalTimes <=> (Frame_ParentFrame.GetFirstChild("player-totaltimes") as CMlLabel);
+		Void SetPlayerEntry(Integer _Index, Integer _Rank, Text _Name, Text _Login, Vec3 _PlayerNameColor, Integer _RoundPoints, Integer _MatchPoints) {
+			DevLog("[SetPlayerEntry UI] Set entry for " ^ _Name ^ " at index " ^_Index);
+			declare CMlFrame Frame_ParentFrame  <=> (Page.GetFirstChild("player-" ^ _Index) as CMlFrame);
+			declare CMlQuad Quad_Bg <=> (Page.GetFirstChild("bg-player-" ^ _Index) as CMlQuad);
+			declare CMlLabel Label_PlayerPos <=> (Frame_ParentFrame.GetFirstChild("player-pos") as CMlLabel);
+			declare CMlLabel Label_PlayerName <=> (Frame_ParentFrame.GetFirstChild("player-name") as CMlLabel);
+			declare CMlLabel Label_PlayerMapTime <=> (Frame_ParentFrame.GetFirstChild("player-maptime") as CMlLabel);
+			declare CMlLabel Label_PlayerTotalTimes <=> (Frame_ParentFrame.GetFirstChild("player-totaltimes") as CMlLabel);
 
-            Frame_ParentFrame.Visible = True;
+			Frame_ParentFrame.Visible = True;
 
-            declare Text User_Login for Quad_Bg = "";
-            User_Login = _Login;
+			declare Text User_Login for Quad_Bg = "";
+			User_Login = _Login;
 
-            Label_PlayerPos.Value = ""^_Rank;
-            Label_PlayerName.Value = _Name;
-            Label_PlayerName.TextColor = _PlayerNameColor;
-            Label_PlayerMapTime.Value = TL::TimeToText(_RoundPoints,True,True);
-            Label_PlayerTotalTimes.Value = TL::TimeToText(_MatchPoints,True,True);
-        }
+			Label_PlayerPos.Value = ""^_Rank;
+			Label_PlayerName.Value = _Name;
+			Label_PlayerName.TextColor = _PlayerNameColor;
+			Label_PlayerMapTime.Value = TL::TimeToText(_RoundPoints,True,True);
+			Label_PlayerTotalTimes.Value = TL::TimeToText(_MatchPoints,True,True);
+		}
 
-        Void SpectateLogin(Text _Login) {
-            ClientUI.Spectator_SetForcedTarget_Clear();
-            SetSpectateTarget(_Login);
-            Playground.SetWantedSpectatorCameraType(CPlaygroundClient::ESpectatorCameraType::Replay);
-        }
+		Void SpectateLogin(Text _Login) {
+			ClientUI.Spectator_SetForcedTarget_Clear();
+			SetSpectateTarget(_Login);
+			Playground.SetWantedSpectatorCameraType(CPlaygroundClient::ESpectatorCameraType::Replay);
+		}
 
 		main() {
-            declare netread Integer Net_SerialNeedToUpdate for Teams[0];
-            declare Integer Last_SerialNeedToUpdate = -1;
-            declare Text Last_GUIPlayerUID;
-            declare Integer RetryIn3Secs;
+			declare netread Integer Net_SerialNeedToUpdate for Teams[0];
+			declare Integer Last_SerialNeedToUpdate = -1;
+			declare Text Last_GUIPlayerUID;
+			declare Integer RetryIn3Secs;
 
 			while(True) {
 				yield;
@@ -713,213 +713,213 @@ Void SetML() {
 					// Events
 					foreach(Event in PendingEvents) {
 						DevLog("[PendingEvents] Event.Type: " ^ Event.Type);
-                        if (Event.Type == CMlScriptEvent::Type::MouseClick) {
-                            if (TL::Find("player-", Event.ControlId, True, True) && InputPlayerIsSpectator()) {
-                                declare Text User_Login for Event.Control = "";
-                                
-                                if (User_Login != "") {
-                                    DevLog("[PendingEvents] Spectator " ^ InputPlayer.User.Login ^" spectate " ^ User_Login);
-                                    SpectateLogin(User_Login);
-                                }
-                            } else if (Event.ControlId == "quad-toggle") {
-                                DevLog("[PendingEvents] Toggle UI by " ^ InputPlayer.User.Login);
-                                ToggleUI();
-                            }
-                        } else if (Event.Type == CMlScriptEvent::Type::MouseOver && TL::Find("bg-player-", Event.ControlId, True, True) && InputPlayerIsSpectator()) {
-                            declare Quad <=> (Page.GetFirstChild(Event.ControlId) as CMlQuad);
-                            Quad.Opacity = 0.1;
-                        } else if (Event.Type == CMlScriptEvent::Type::MouseOut && TL::Find("bg-player-", Event.ControlId, True, True)) {
-                            declare Quad <=> (Page.GetFirstChild(Event.ControlId) as CMlQuad);
-                            Quad.Opacity = 0.;
-                        }
+						if (Event.Type == CMlScriptEvent::Type::MouseClick) {
+							if (TL::Find("player-", Event.ControlId, True, True) && InputPlayerIsSpectator()) {
+								declare Text User_Login for Event.Control = "";
+								
+								if (User_Login != "") {
+									DevLog("[PendingEvents] Spectator " ^ InputPlayer.User.Login ^" spectate " ^ User_Login);
+									SpectateLogin(User_Login);
+								}
+							} else if (Event.ControlId == "quad-toggle") {
+								DevLog("[PendingEvents] Toggle UI by " ^ InputPlayer.User.Login);
+								ToggleUI();
+							}
+						} else if (Event.Type == CMlScriptEvent::Type::MouseOver && TL::Find("bg-player-", Event.ControlId, True, True) && InputPlayerIsSpectator()) {
+							declare Quad <=> (Page.GetFirstChild(Event.ControlId) as CMlQuad);
+							Quad.Opacity = 0.1;
+						} else if (Event.Type == CMlScriptEvent::Type::MouseOut && TL::Find("bg-player-", Event.ControlId, True, True)) {
+							declare Quad <=> (Page.GetFirstChild(Event.ControlId) as CMlQuad);
+							Quad.Opacity = 0.;
+						}
 					}
 				}
 
-                if (Last_SerialNeedToUpdate != Net_SerialNeedToUpdate || (GUIPlayer != Null && Last_GUIPlayerUID != GUIPlayer.User.WebServicesUserId) || GUIPlayer == Null && Last_GUIPlayerUID != "") {
-                    DevLog("[main] Update UI "^ Now);
+				if (Last_SerialNeedToUpdate != Net_SerialNeedToUpdate || (GUIPlayer != Null && Last_GUIPlayerUID != GUIPlayer.User.WebServicesUserId) || GUIPlayer == Null && Last_GUIPlayerUID != "") {
+					DevLog("[main] Update UI "^ Now);
 
-                    Last_SerialNeedToUpdate = Net_SerialNeedToUpdate;
+					Last_SerialNeedToUpdate = Net_SerialNeedToUpdate;
 
-                    declare netread Integer[Text] Net_MatchPoints for Teams[0];
-                    declare netread Integer[Text] Net_RoundPoints for Teams[0];
+					declare netread Integer[Text] Net_MatchPoints for Teams[0];
+					declare netread Integer[Text] Net_RoundPoints for Teams[0];
 
-                    // Update if change spec target
-                    if (GUIPlayer != Null) Last_GUIPlayerUID = GUIPlayer.User.WebServicesUserId;
-                    else Last_GUIPlayerUID = "";
+					// Update if change spec target
+					if (GUIPlayer != Null) Last_GUIPlayerUID = GUIPlayer.User.WebServicesUserId;
+					else Last_GUIPlayerUID = "";
 
-                    declare Integer[Text] PlayersMatchPoints;
-                    PlayersMatchPoints = Net_MatchPoints.sort();
+					declare Integer[Text] PlayersMatchPoints;
+					PlayersMatchPoints = Net_MatchPoints.sort();
 
-                    declare Integer Rank = 1;
-                    Rank = 1;
-                    declare Integer Index = 1;
-                    Index = 1;
-                    declare Boolean GUIPlayerPassed = False;
-                    GUIPlayerPassed = False;
-                    declare CUser PreviousUser;
-                    declare CUser PreviousPreviousUser;
+					declare Integer Rank = 1;
+					Rank = 1;
+					declare Integer Index = 1;
+					Index = 1;
+					declare Boolean GUIPlayerPassed = False;
+					GUIPlayerPassed = False;
+					declare CUser PreviousUser;
+					declare CUser PreviousPreviousUser;
 
-                    foreach (PlayerUID => Points in PlayersMatchPoints) {
-                        declare CUser User <=> GetUserFromAccountId(PlayerUID);
-                        if (User == Null) continue;
+					foreach (PlayerUID => Points in PlayersMatchPoints) {
+						declare CUser User <=> GetUserFromAccountId(PlayerUID);
+						if (User == Null) continue;
 
-                        declare Vec3 PlayerNameColor = <1.,1.,1.>;
-                        if (GUIPlayer != Null && PlayerUID == GUIPlayer.User.WebServicesUserId) {
-                            PlayerNameColor = <0.922,0.855,0.42>; //Gold
-                            GUIPlayerPassed = True;
-                        } else if (InputPlayer != Null && PlayerUID == InputPlayer.User.WebServicesUserId) {
-                            PlayerNameColor = <0.431,0.98,0.627>; // Green
-                        }
+						declare Vec3 PlayerNameColor = <1.,1.,1.>;
+						if (GUIPlayer != Null && PlayerUID == GUIPlayer.User.WebServicesUserId) {
+							PlayerNameColor = <0.922,0.855,0.42>; //Gold
+							GUIPlayerPassed = True;
+						} else if (InputPlayer != Null && PlayerUID == InputPlayer.User.WebServicesUserId) {
+							PlayerNameColor = <0.431,0.98,0.627>; // Green
+						}
 
-                        if (Index < 10  || Index == 12 || GUIPlayer == Null || (GUIPlayerPassed && PlayerUID != GUIPlayer.User.WebServicesUserId) || (GUIPlayerPassed && PlayerUID == GUIPlayer.User.WebServicesUserId && Rank <= 10 )) {
-                            DevLog("[Update UI] Normal Entry");
-                            SetPlayerEntry(Index,Rank,User.Name,User.Login,PlayerNameColor,Net_RoundPoints[PlayerUID],Points);
-                            Index = Index + 1;
-                        } else if (GUIPlayerPassed && PlayerUID == GUIPlayer.User.WebServicesUserId && Rank > 10 ) {
-                            DevLog("[Update UI] Last Entries");
-                            if (Rank == PlayersMatchPoints.count) {
-                                SetPlayerEntry(Index,Rank-2,PreviousPreviousUser.Name,PreviousPreviousUser.Login,<1.,1.,1.>,Net_RoundPoints[PreviousPreviousUser.WebServicesUserId],PlayersMatchPoints[PreviousPreviousUser.WebServicesUserId]);
-                                Index = Index + 1;
-                            }
-                            SetPlayerEntry(Index,Rank-1,PreviousUser.Name,PreviousUser.Login,<1.,1.,1.>,Net_RoundPoints[PreviousUser.WebServicesUserId],PlayersMatchPoints[PreviousUser.WebServicesUserId]);
-                            SetPlayerEntry(Index+1,Rank,User.Name,User.Login,PlayerNameColor,Net_RoundPoints[PlayerUID],Points);
+						if (Index < 10  || Index == 12 || GUIPlayer == Null || (GUIPlayerPassed && PlayerUID != GUIPlayer.User.WebServicesUserId) || (GUIPlayerPassed && PlayerUID == GUIPlayer.User.WebServicesUserId && Rank <= 10 )) {
+							DevLog("[Update UI] Normal Entry");
+							SetPlayerEntry(Index,Rank,User.Name,User.Login,PlayerNameColor,Net_RoundPoints[PlayerUID],Points);
+							Index = Index + 1;
+						} else if (GUIPlayerPassed && PlayerUID == GUIPlayer.User.WebServicesUserId && Rank > 10 ) {
+							DevLog("[Update UI] Last Entries");
+							if (Rank == PlayersMatchPoints.count) {
+								SetPlayerEntry(Index,Rank-2,PreviousPreviousUser.Name,PreviousPreviousUser.Login,<1.,1.,1.>,Net_RoundPoints[PreviousPreviousUser.WebServicesUserId],PlayersMatchPoints[PreviousPreviousUser.WebServicesUserId]);
+								Index = Index + 1;
+							}
+							SetPlayerEntry(Index,Rank-1,PreviousUser.Name,PreviousUser.Login,<1.,1.,1.>,Net_RoundPoints[PreviousUser.WebServicesUserId],PlayersMatchPoints[PreviousUser.WebServicesUserId]);
+							SetPlayerEntry(Index+1,Rank,User.Name,User.Login,PlayerNameColor,Net_RoundPoints[PlayerUID],Points);
 
-                            Index = Index + 2;
-                        } else {
-                            DevLog("[Update UI] No Entry");
-                            PreviousPreviousUser <=> PreviousUser;
-                            PreviousUser <=> User;
-                        }
-                        if (Index > 12) break;
-                        Rank = Rank + 1;
-                    }
-                }
+							Index = Index + 2;
+						} else {
+							DevLog("[Update UI] No Entry");
+							PreviousPreviousUser <=> PreviousUser;
+							PreviousUser <=> User;
+						}
+						if (Index > 12) break;
+						Rank = Rank + 1;
+					}
+				}
 			}
-        }
+		}
 		--></script>
-        <stylesheet>
-            <style class="text" textfont="GameFontBlack" textcolor="fff" textsize="1.5" halign="left" valign="center2" textprefix="$i$t"  />
-            <style class="text-suffix" textfont="GameFontBlack" textcolor="ffffff" textsize="0.7" halign="center" valign="center2" textprefix="$i$t"/>
-        </stylesheet>
-        <frame id="frame-global" pos="-160 30">
-            <frame pos="53 -2.5" id="frame-toggle">
-                <quad id="quad-toggle" pos="0 0" size="4 4" class="quad-base" z-index="3" opacity="0.9" scriptevents="1" halign="center" valign="center" image="file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds" colorize="fff"/>
-            </frame>
-            <quad pos="0 0" z-index="0" size="55 71" bgcolor="000" opacity="0.5"/>
-            <frame id="frame-ui" z-index="1">
-                <label pos="27.5 -5" z-index="2" size="55 7" text="Match Ranking" textfont="GameFontBlack" textprefix="$i$t" valign="center2" halign="center" textcolor="fff"/>
-                <frame pos="0 -10" z-index="2">
-                    <frame hidden=1 id="player-1" pos="0 0">
-                        <quad id="bg-player-1" pos="0 0" z-index="0" size="55 5" bgcolor="999" opacity="0" scriptevents="1"/>
-                        <frame pos="0 -2.7">
-                            <label id="player-pos" class="text" pos="1 0" z-index="0" size="5 6" text="1"/>
-                            <label id="player-name" class="text" pos="7 0" z-index="0" size="25 6" text=""/>
-                            <label id="player-maptime" class="text" pos="42 0" z-index="0" size="8 6" text="--:--.---" textcolor="aaa" textsize="0.5" halign="right"/>
-                            <label id="player-totaltimes" class="text" pos="54 0" z-index="0" size="10 6" text="--:--.---" halign="right"/>
-                        </frame>
-                    </frame>
-                    <frame hidden=1 id="player-2" pos="0 -5">
-                        <quad id="bg-player-2" pos="0 0" z-index="0" size="55 5" bgcolor="999" opacity="0" scriptevents="1"/>
-                        <frame pos="0 -2.7">
-                            <label id="player-pos" class="text" pos="1 0" z-index="0" size="5 6" text="2"/>
-                            <label id="player-name" class="text" pos="7 0" z-index="0" size="25 6" text=""/>
-                            <label id="player-maptime" class="text" pos="42 0" z-index="0" size="8 6" text="--:--.---" textcolor="aaa" textsize="0.5" halign="right"/>
-                            <label id="player-totaltimes" class="text" pos="54 0" z-index="0" size="10 6" text="--:--.---" halign="right"/>
-                        </frame>
-                    </frame>
-                    <frame hidden=1 id="player-3" pos="0 -10">
-                        <quad id="bg-player-3" pos="0 0" z-index="0" size="55 5" bgcolor="999" opacity="0" scriptevents="1"/>
-                        <frame pos="0 -2.7">
-                            <label id="player-pos" class="text" pos="1 0" z-index="0" size="5 6" text="3"/>
-                            <label id="player-name" class="text" pos="7 0" z-index="0" size="25 6" text=""/>
-                            <label id="player-maptime" class="text" pos="42 0" z-index="0" size="8 6" text="--:--.---" textcolor="aaa" textsize="0.5" halign="right"/>
-                            <label id="player-totaltimes" class="text" pos="54 0" z-index="0" size="10 6" text="--:--.---" halign="right"/>
-                        </frame>
-                    </frame>
-                    <frame hidden=1 id="player-4" pos="0 -15">
-                        <quad id="bg-player-4" pos="0 0" z-index="0" size="55 5" bgcolor="999" opacity="0" scriptevents="1"/>
-                        <frame pos="0 -2.7">
-                            <label id="player-pos" class="text" pos="1 0" z-index="0" size="5 6" text="4"/>
-                            <label id="player-name" class="text" pos="7 0" z-index="0" size="25 6" text=""/>
-                            <label id="player-maptime" class="text" pos="42 0" z-index="0" size="8 6" text="--:--.---" textcolor="aaa" textsize="0.5" halign="right"/>
-                            <label id="player-totaltimes" class="text" pos="54 0" z-index="0" size="10 6" text="--:--.---" halign="right"/>
-                        </frame>
-                    </frame>
-                    <frame hidden=1 id="player-5" pos="0 -20">
-                        <quad id="bg-player-5" pos="0 0" z-index="0" size="55 5" bgcolor="999" opacity="0" scriptevents="1"/>
-                        <frame pos="0 -2.7">
-                            <label id="player-pos" class="text" pos="1 0" z-index="0" size="5 6" text="5"/>
-                            <label id="player-name" class="text" pos="7 0" z-index="0" size="25 6" text=""/>
-                            <label id="player-maptime" class="text" pos="42 0" z-index="0" size="8 6" text="--:--.---" textcolor="aaa" textsize="0.5" halign="right"/>
-                            <label id="player-totaltimes" class="text" pos="54 0" z-index="0" size="10 6" text="--:--.---" halign="right"/>
-                        </frame>
-                    </frame>
-                    <frame hidden=1 id="player-6" pos="0 -25">
-                        <quad id="bg-player-6" pos="0 0" z-index="0" size="55 5" bgcolor="999" opacity="0" scriptevents="1"/>
-                        <frame pos="0 -2.7">
-                            <label id="player-pos" class="text" pos="1 0" z-index="0" size="5 6" text="6"/>
-                            <label id="player-name" class="text" pos="7 0" z-index="0" size="25 6" text=""/>
-                            <label id="player-maptime" class="text" pos="42 0" z-index="0" size="8 6" text="--:--.---" textcolor="aaa" textsize="0.5" halign="right"/>
-                            <label id="player-totaltimes" class="text" pos="54 0" z-index="0" size="10 6" text="--:--.---" halign="right"/>
-                        </frame>
-                    </frame>
-                    <frame hidden=1 id="player-7" pos="0 -30">
-                        <quad id="bg-player-7" pos="0 0" z-index="0" size="55 5" bgcolor="999" opacity="0" scriptevents="1"/>
-                        <frame pos="0 -2.7">
-                            <label id="player-pos" class="text" pos="1 0" z-index="0" size="5 6" text="7"/>
-                            <label id="player-name" class="text" pos="7 0" z-index="0" size="25 6" text=""/>
-                            <label id="player-maptime" class="text" pos="42 0" z-index="0" size="8 6" text="--:--.---" textcolor="aaa" textsize="0.5" halign="right"/>
-                            <label id="player-totaltimes" class="text" pos="54 0" z-index="0" size="10 6" text="--:--.---" halign="right"/>
-                        </frame>
-                    </frame>
-                    <frame hidden=1 id="player-8" pos="0 -35">
-                        <quad id="bg-player-8" pos="0 0" z-index="0" size="55 5" bgcolor="999" opacity="0" scriptevents="1"/>
-                        <frame pos="0 -2.7">
-                            <label id="player-pos" class="text" pos="1 0" z-index="0" size="5 6" text="8"/>
-                            <label id="player-name" class="text" pos="7 0" z-index="0" size="25 6" text=""/>
-                            <label id="player-maptime" class="text" pos="42 0" z-index="0" size="8 6" text="--:--.---" textcolor="aaa" textsize="0.5" halign="right"/>
-                            <label id="player-totaltimes" class="text" pos="54 0" z-index="0" size="10 6" text="--:--.---" halign="right"/>
-                        </frame>
-                    </frame>
-                    <frame hidden=1 id="player-9" pos="0 -40">
-                        <quad id="bg-player-8" pos="0 0" z-index="0" size="55 5" bgcolor="999" opacity="0" scriptevents="1"/>
-                        <frame pos="0 -2.7">
-                            <label id="player-pos" class="text" pos="1 0" z-index="0" size="5 6" text="9"/>
-                            <label id="player-name" class="text" pos="7 0" z-index="0" size="25 6" text=""/>
-                            <label id="player-maptime" class="text" pos="42 0" z-index="0" size="8 6" text="--:--.---" textcolor="aaa" textsize="0.5" halign="right"/>
-                            <label id="player-totaltimes" class="text" pos="54 0" z-index="0" size="10 6" text="--:--.---" halign="right"/>
-                        </frame>
-                    </frame>
-                    <frame hidden=1 id="player-10" pos="0 -45">
-                        <quad id="bg-player-10" pos="0 0" z-index="0" size="55 5" bgcolor="999" opacity="0" scriptevents="1"/>
-                        <frame pos="0 -2.7">
-                            <label id="player-pos" class="text" pos="1 0" z-index="0" size="5 6" text="10"/>
-                            <label id="player-name" class="text" pos="7 0" z-index="0" size="25 6" text=""/>
-                            <label id="player-maptime" class="text" pos="42 0" z-index="0" size="8 6" text="--:--.---" textcolor="aaa" textsize="0.5" halign="right"/>
-                            <label id="player-totaltimes" class="text" pos="54 0" z-index="0" size="10 6" text="--:--.---" halign="right"/>
-                        </frame>
-                    </frame>
-                    <frame hidden=1 id="player-11" pos="0 -45">
-                        <quad id="bg-player-11" pos="0 0" z-index="0" size="55 5" bgcolor="999" opacity="0" scriptevents="1"/>
-                        <frame pos="0 -2.7">
-                            <label id="player-pos" class="text" pos="1 0" z-index="0" size="5 6" text="11"/>
-                            <label id="player-name" class="text" pos="7 0" z-index="0" size="25 6" text=""/>
-                            <label id="player-maptime" class="text" pos="42 0" z-index="0" size="8 6" text="--:--.---" textcolor="aaa" textsize="0.5" halign="right"/>
-                            <label id="player-totaltimes" class="text" pos="54 0" z-index="0" size="10 6" text="--:--.---" halign="right"/>
-                        </frame>
-                    </frame>
-                    <frame hidden=1 id="player-12" pos="0 -45">
-                        <quad id="bg-player-12" pos="0 0" z-index="0" size="55 5" bgcolor="999" opacity="0" scriptevents="1"/>
-                        <frame pos="0 -2.7">
-                            <label id="player-pos" class="text" pos="1 0" z-index="0" size="5 6" text="12"/>
-                            <label id="player-name" class="text" pos="7 0" z-index="0" size="25 6" text=""/>
-                            <label id="player-maptime" class="text" pos="42 0" z-index="0" size="8 6" text="--:--.---" textcolor="aaa" textsize="0.5" halign="right"/>
-                            <label id="player-totaltimes" class="text" pos="54 0" z-index="0" size="10 6" text="--:--.---" halign="right"/>
-                        </frame>
-                    </frame>
-                </frame>
-            </frame>
-        </frame>
+		<stylesheet>
+			<style class="text" textfont="GameFontBlack" textcolor="fff" textsize="1.5" halign="left" valign="center2" textprefix="$i$t"  />
+			<style class="text-suffix" textfont="GameFontBlack" textcolor="ffffff" textsize="0.7" halign="center" valign="center2" textprefix="$i$t"/>
+		</stylesheet>
+		<frame id="frame-global" pos="-160 30">
+			<frame pos="53 -2.5" id="frame-toggle">
+				<quad id="quad-toggle" pos="0 0" size="4 4" class="quad-base" z-index="3" opacity="0.9" scriptevents="1" halign="center" valign="center" image="file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds" colorize="fff"/>
+			</frame>
+			<quad pos="0 0" z-index="0" size="55 71" bgcolor="000" opacity="0.5"/>
+			<frame id="frame-ui" z-index="1">
+				<label pos="27.5 -5" z-index="2" size="55 7" text="Match Ranking" textfont="GameFontBlack" textprefix="$i$t" valign="center2" halign="center" textcolor="fff"/>
+				<frame pos="0 -10" z-index="2">
+					<frame hidden=1 id="player-1" pos="0 0">
+						<quad id="bg-player-1" pos="0 0" z-index="0" size="55 5" bgcolor="999" opacity="0" scriptevents="1"/>
+						<frame pos="0 -2.7">
+							<label id="player-pos" class="text" pos="1 0" z-index="0" size="5 6" text="1"/>
+							<label id="player-name" class="text" pos="7 0" z-index="0" size="25 6" text=""/>
+							<label id="player-maptime" class="text" pos="42 0" z-index="0" size="8 6" text="--:--.---" textcolor="aaa" textsize="0.5" halign="right"/>
+							<label id="player-totaltimes" class="text" pos="54 0" z-index="0" size="10 6" text="--:--.---" halign="right"/>
+						</frame>
+					</frame>
+					<frame hidden=1 id="player-2" pos="0 -5">
+						<quad id="bg-player-2" pos="0 0" z-index="0" size="55 5" bgcolor="999" opacity="0" scriptevents="1"/>
+						<frame pos="0 -2.7">
+							<label id="player-pos" class="text" pos="1 0" z-index="0" size="5 6" text="2"/>
+							<label id="player-name" class="text" pos="7 0" z-index="0" size="25 6" text=""/>
+							<label id="player-maptime" class="text" pos="42 0" z-index="0" size="8 6" text="--:--.---" textcolor="aaa" textsize="0.5" halign="right"/>
+							<label id="player-totaltimes" class="text" pos="54 0" z-index="0" size="10 6" text="--:--.---" halign="right"/>
+						</frame>
+					</frame>
+					<frame hidden=1 id="player-3" pos="0 -10">
+						<quad id="bg-player-3" pos="0 0" z-index="0" size="55 5" bgcolor="999" opacity="0" scriptevents="1"/>
+						<frame pos="0 -2.7">
+							<label id="player-pos" class="text" pos="1 0" z-index="0" size="5 6" text="3"/>
+							<label id="player-name" class="text" pos="7 0" z-index="0" size="25 6" text=""/>
+							<label id="player-maptime" class="text" pos="42 0" z-index="0" size="8 6" text="--:--.---" textcolor="aaa" textsize="0.5" halign="right"/>
+							<label id="player-totaltimes" class="text" pos="54 0" z-index="0" size="10 6" text="--:--.---" halign="right"/>
+						</frame>
+					</frame>
+					<frame hidden=1 id="player-4" pos="0 -15">
+						<quad id="bg-player-4" pos="0 0" z-index="0" size="55 5" bgcolor="999" opacity="0" scriptevents="1"/>
+						<frame pos="0 -2.7">
+							<label id="player-pos" class="text" pos="1 0" z-index="0" size="5 6" text="4"/>
+							<label id="player-name" class="text" pos="7 0" z-index="0" size="25 6" text=""/>
+							<label id="player-maptime" class="text" pos="42 0" z-index="0" size="8 6" text="--:--.---" textcolor="aaa" textsize="0.5" halign="right"/>
+							<label id="player-totaltimes" class="text" pos="54 0" z-index="0" size="10 6" text="--:--.---" halign="right"/>
+						</frame>
+					</frame>
+					<frame hidden=1 id="player-5" pos="0 -20">
+						<quad id="bg-player-5" pos="0 0" z-index="0" size="55 5" bgcolor="999" opacity="0" scriptevents="1"/>
+						<frame pos="0 -2.7">
+							<label id="player-pos" class="text" pos="1 0" z-index="0" size="5 6" text="5"/>
+							<label id="player-name" class="text" pos="7 0" z-index="0" size="25 6" text=""/>
+							<label id="player-maptime" class="text" pos="42 0" z-index="0" size="8 6" text="--:--.---" textcolor="aaa" textsize="0.5" halign="right"/>
+							<label id="player-totaltimes" class="text" pos="54 0" z-index="0" size="10 6" text="--:--.---" halign="right"/>
+						</frame>
+					</frame>
+					<frame hidden=1 id="player-6" pos="0 -25">
+						<quad id="bg-player-6" pos="0 0" z-index="0" size="55 5" bgcolor="999" opacity="0" scriptevents="1"/>
+						<frame pos="0 -2.7">
+							<label id="player-pos" class="text" pos="1 0" z-index="0" size="5 6" text="6"/>
+							<label id="player-name" class="text" pos="7 0" z-index="0" size="25 6" text=""/>
+							<label id="player-maptime" class="text" pos="42 0" z-index="0" size="8 6" text="--:--.---" textcolor="aaa" textsize="0.5" halign="right"/>
+							<label id="player-totaltimes" class="text" pos="54 0" z-index="0" size="10 6" text="--:--.---" halign="right"/>
+						</frame>
+					</frame>
+					<frame hidden=1 id="player-7" pos="0 -30">
+						<quad id="bg-player-7" pos="0 0" z-index="0" size="55 5" bgcolor="999" opacity="0" scriptevents="1"/>
+						<frame pos="0 -2.7">
+							<label id="player-pos" class="text" pos="1 0" z-index="0" size="5 6" text="7"/>
+							<label id="player-name" class="text" pos="7 0" z-index="0" size="25 6" text=""/>
+							<label id="player-maptime" class="text" pos="42 0" z-index="0" size="8 6" text="--:--.---" textcolor="aaa" textsize="0.5" halign="right"/>
+							<label id="player-totaltimes" class="text" pos="54 0" z-index="0" size="10 6" text="--:--.---" halign="right"/>
+						</frame>
+					</frame>
+					<frame hidden=1 id="player-8" pos="0 -35">
+						<quad id="bg-player-8" pos="0 0" z-index="0" size="55 5" bgcolor="999" opacity="0" scriptevents="1"/>
+						<frame pos="0 -2.7">
+							<label id="player-pos" class="text" pos="1 0" z-index="0" size="5 6" text="8"/>
+							<label id="player-name" class="text" pos="7 0" z-index="0" size="25 6" text=""/>
+							<label id="player-maptime" class="text" pos="42 0" z-index="0" size="8 6" text="--:--.---" textcolor="aaa" textsize="0.5" halign="right"/>
+							<label id="player-totaltimes" class="text" pos="54 0" z-index="0" size="10 6" text="--:--.---" halign="right"/>
+						</frame>
+					</frame>
+					<frame hidden=1 id="player-9" pos="0 -40">
+						<quad id="bg-player-8" pos="0 0" z-index="0" size="55 5" bgcolor="999" opacity="0" scriptevents="1"/>
+						<frame pos="0 -2.7">
+							<label id="player-pos" class="text" pos="1 0" z-index="0" size="5 6" text="9"/>
+							<label id="player-name" class="text" pos="7 0" z-index="0" size="25 6" text=""/>
+							<label id="player-maptime" class="text" pos="42 0" z-index="0" size="8 6" text="--:--.---" textcolor="aaa" textsize="0.5" halign="right"/>
+							<label id="player-totaltimes" class="text" pos="54 0" z-index="0" size="10 6" text="--:--.---" halign="right"/>
+						</frame>
+					</frame>
+					<frame hidden=1 id="player-10" pos="0 -45">
+						<quad id="bg-player-10" pos="0 0" z-index="0" size="55 5" bgcolor="999" opacity="0" scriptevents="1"/>
+						<frame pos="0 -2.7">
+							<label id="player-pos" class="text" pos="1 0" z-index="0" size="5 6" text="10"/>
+							<label id="player-name" class="text" pos="7 0" z-index="0" size="25 6" text=""/>
+							<label id="player-maptime" class="text" pos="42 0" z-index="0" size="8 6" text="--:--.---" textcolor="aaa" textsize="0.5" halign="right"/>
+							<label id="player-totaltimes" class="text" pos="54 0" z-index="0" size="10 6" text="--:--.---" halign="right"/>
+						</frame>
+					</frame>
+					<frame hidden=1 id="player-11" pos="0 -45">
+						<quad id="bg-player-11" pos="0 0" z-index="0" size="55 5" bgcolor="999" opacity="0" scriptevents="1"/>
+						<frame pos="0 -2.7">
+							<label id="player-pos" class="text" pos="1 0" z-index="0" size="5 6" text="11"/>
+							<label id="player-name" class="text" pos="7 0" z-index="0" size="25 6" text=""/>
+							<label id="player-maptime" class="text" pos="42 0" z-index="0" size="8 6" text="--:--.---" textcolor="aaa" textsize="0.5" halign="right"/>
+							<label id="player-totaltimes" class="text" pos="54 0" z-index="0" size="10 6" text="--:--.---" halign="right"/>
+						</frame>
+					</frame>
+					<frame hidden=1 id="player-12" pos="0 -45">
+						<quad id="bg-player-12" pos="0 0" z-index="0" size="55 5" bgcolor="999" opacity="0" scriptevents="1"/>
+						<frame pos="0 -2.7">
+							<label id="player-pos" class="text" pos="1 0" z-index="0" size="5 6" text="12"/>
+							<label id="player-name" class="text" pos="7 0" z-index="0" size="25 6" text=""/>
+							<label id="player-maptime" class="text" pos="42 0" z-index="0" size="8 6" text="--:--.---" textcolor="aaa" textsize="0.5" halign="right"/>
+							<label id="player-totaltimes" class="text" pos="54 0" z-index="0" size="10 6" text="--:--.---" halign="right"/>
+						</frame>
+					</frame>
+				</frame>
+			</frame>
+		</frame>
 	</manialink>
 """;
 Layers::Create("MatchRanking_UI", MLText);
