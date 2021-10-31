@@ -673,9 +673,10 @@ Void SetML() {
 			AnimMgr.Add(Frame_Global, "<frame pos=\"" ^GlobalEndPosX^" "^Frame_Global.RelativePosition_V3.Y^ "\" />", Now, 250, CAnimManager::EAnimManagerEasing::Linear);
 		}
 
-        Void SetPlayerEntry(Integer _Index, Integer _Rank, Text _Name, Vec3 _PlayerNameColor, Integer _RoundPoints, Integer _MatchPoints) {
+        Void SetPlayerEntry(Integer _Index, Integer _Rank, Text _Name, Text _Login, Vec3 _PlayerNameColor, Integer _RoundPoints, Integer _MatchPoints) {
             DevLog("[SetPlayerEntry UI] Set entry for " ^ _Name ^ " at index " ^_Index);
             declare CMlFrame Frame_ParentFrame  <=> (Page.GetFirstChild("player-" ^ _Index) as CMlFrame);
+            declare CMlQuad Quad_Bg <=> (Page.GetFirstChild("bg-player-" ^ _Index) as CMlQuad);
             declare CMlLabel Label_PlayerPos <=> (Frame_ParentFrame.GetFirstChild("player-pos") as CMlLabel);
             declare CMlLabel Label_PlayerName <=> (Frame_ParentFrame.GetFirstChild("player-name") as CMlLabel);
             declare CMlLabel Label_PlayerMapTime <=> (Frame_ParentFrame.GetFirstChild("player-maptime") as CMlLabel);
@@ -683,11 +684,20 @@ Void SetML() {
 
             Frame_ParentFrame.Visible = True;
 
+            declare Text User_Login for Quad_Bg = "";
+            User_Login = _Login;
+
             Label_PlayerPos.Value = ""^_Rank;
             Label_PlayerName.Value = _Name;
             Label_PlayerName.TextColor = _PlayerNameColor;
             Label_PlayerMapTime.Value = TL::TimeToText(_RoundPoints,True,True);
             Label_PlayerTotalTimes.Value = TL::TimeToText(_MatchPoints,True,True);
+        }
+
+        Void SpectateLogin(Text _Login) {
+            ClientUI.Spectator_SetForcedTarget_Clear();
+            SetSpectateTarget(_Login);
+            Playground.SetWantedSpectatorCameraType(CPlaygroundClient::ESpectatorCameraType::Replay);
         }
 
 		main() {
@@ -705,19 +715,23 @@ Void SetML() {
 						DevLog("[PendingEvents] Event.Type: " ^ Event.Type);
                         if (Event.Type == CMlScriptEvent::Type::MouseClick) {
                             if (TL::Find("player-", Event.ControlId, True, True) && InputPlayerIsSpectator()) {
-                                DevLog("[PendingEvents] Spectator " ^ InputPlayer.User.Login ^" spectate TBD");
-                                // TODO spectate
+                                declare Text User_Login for Event.Control = "";
+                                
+                                if (User_Login != "") {
+                                    DevLog("[PendingEvents] Spectator " ^ InputPlayer.User.Login ^" spectate " ^ User_Login);
+                                    SpectateLogin(User_Login);
+                                }
                             } else if (Event.ControlId == "quad-toggle") {
                                 DevLog("[PendingEvents] Toggle UI by " ^ InputPlayer.User.Login);
                                 ToggleUI();
                             }
-                        } /*else if (Event.Type == CMlScriptEvent::Type::MouseOver && TL::Find("bg-player-", Event.ControlId, True, True) && InputPlayerIsSpectator()) {
+                        } else if (Event.Type == CMlScriptEvent::Type::MouseOver && TL::Find("bg-player-", Event.ControlId, True, True) && InputPlayerIsSpectator()) {
                             declare Quad <=> (Page.GetFirstChild(Event.ControlId) as CMlQuad);
                             Quad.Opacity = 0.1;
                         } else if (Event.Type == CMlScriptEvent::Type::MouseOut && TL::Find("bg-player-", Event.ControlId, True, True)) {
                             declare Quad <=> (Page.GetFirstChild(Event.ControlId) as CMlQuad);
                             Quad.Opacity = 0.;
-                        } */
+                        }
 					}
 				}
 
@@ -759,16 +773,16 @@ Void SetML() {
 
                         if (Index < 10  || Index == 12 || GUIPlayer == Null || (GUIPlayerPassed && PlayerUID != GUIPlayer.User.WebServicesUserId) || (GUIPlayerPassed && PlayerUID == GUIPlayer.User.WebServicesUserId && Rank <= 10 )) {
                             DevLog("[Update UI] Normal Entry");
-                            SetPlayerEntry(Index,Rank,User.Name,PlayerNameColor,Net_RoundPoints[PlayerUID],Points);
+                            SetPlayerEntry(Index,Rank,User.Name,User.Login,PlayerNameColor,Net_RoundPoints[PlayerUID],Points);
                             Index = Index + 1;
                         } else if (GUIPlayerPassed && PlayerUID == GUIPlayer.User.WebServicesUserId && Rank > 10 ) {
                             DevLog("[Update UI] Last Entries");
                             if (Rank == PlayersMatchPoints.count) {
-                                SetPlayerEntry(Index,Rank-2,PreviousPreviousUser.Name,<1.,1.,1.>,Net_RoundPoints[PreviousPreviousUser.WebServicesUserId],PlayersMatchPoints[PreviousPreviousUser.WebServicesUserId]);
+                                SetPlayerEntry(Index,Rank-2,PreviousPreviousUser.Name,PreviousPreviousUser.Login,<1.,1.,1.>,Net_RoundPoints[PreviousPreviousUser.WebServicesUserId],PlayersMatchPoints[PreviousPreviousUser.WebServicesUserId]);
                                 Index = Index + 1;
                             }
-                            SetPlayerEntry(Index,Rank-1,PreviousUser.Name,<1.,1.,1.>,Net_RoundPoints[PreviousUser.WebServicesUserId],PlayersMatchPoints[PreviousUser.WebServicesUserId]);
-                            SetPlayerEntry(Index+1,Rank,User.Name,PlayerNameColor,Net_RoundPoints[PlayerUID],Points);
+                            SetPlayerEntry(Index,Rank-1,PreviousUser.Name,PreviousUser.Login,<1.,1.,1.>,Net_RoundPoints[PreviousUser.WebServicesUserId],PlayersMatchPoints[PreviousUser.WebServicesUserId]);
+                            SetPlayerEntry(Index+1,Rank,User.Name,User.Login,PlayerNameColor,Net_RoundPoints[PlayerUID],Points);
 
                             Index = Index + 2;
                         } else {
