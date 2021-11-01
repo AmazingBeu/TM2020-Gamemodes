@@ -403,7 +403,7 @@ if (UpdateRankingTimer > 0 && Now > UpdateRankingTimer) {
 			if (Segment == 0) Rank =  Rank + CurrentRanking[0].count - 1;
 			foreach (ID => Time in CurrentRanking[Segment]) {
 				declare CSmPlayer Player = ModeUtils::GetPlayerFromAccountId(ID);
-				Player.Dossard_Number = TL::FormatInteger(ML::Clamp(Rank, 0, 99), 2);
+				if (Player != Null) Player.Dossard_Number = TL::FormatInteger(ML::Clamp(Rank, 0, 99), 2);
 				if (Segment != 0) Rank = Rank + 1;
 			}
 		}
