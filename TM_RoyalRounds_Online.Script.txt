@@ -193,11 +193,8 @@ if (Map_Starts.count > 0) {
 	MB_StopMap();
 }
 
-// We use `>= 0` and not `> 0` here because the waiting screen
-// has two steps. First waiting for the presence of at least one player.
-// Then waiting the desired amount of time. With `>= 0` we can have
-// the first step without the second.
-declare Integer WaitingScreenDuration = S_RoundWaitingScreenDuration;
+// Waiting screen
+declare Integer WaitingScreenDuration = 0;
 if (WaitingScreenDuration >= 0) {
 	if (S_AllowCam7DuringWaitingScreen) ModeUtils::PushAndApplyUISequence(UIManager.UIAll, CUIConfig::EUISequence::Playing);
 	else ModeUtils::PushAndApplyUISequence(UIManager.UIAll, CUIConfig::EUISequence::RollingBackgroundIntro);
@@ -210,14 +207,14 @@ if (WaitingScreenDuration >= 0) {
 	// If all players are connected before the end of the countdown start immediatly
 	declare Integer WaitEndTime = Now + (WaitingScreenDuration * 1000);
 	
-	while (WaitingScreenDuration > 0) {
-		if (WaitingScreenDuration > 3) {
-			UIModules_BigMessage::SetMessage("""The map starts in {{{WaitingScreenDuration}}} seconds""");
+	while (S_RoundWaitingScreenDuration - WaitingScreenDuration > 0) {
+		if (S_RoundWaitingScreenDuration - WaitingScreenDuration > 3) {
+			UIModules_BigMessage::SetMessage("""The map starts in {{{S_RoundWaitingScreenDuration - WaitingScreenDuration}}} seconds""");
 		} else {
 			UIModules_BigMessage::SetMessage("");
-			UIManager.UIAll.BigMessage = """The map starts in {{{WaitingScreenDuration}}} seconds""";
+			UIManager.UIAll.BigMessage = """The map starts in {{{S_RoundWaitingScreenDuration - WaitingScreenDuration}}} seconds""";
 		}
-		WaitingScreenDuration = WaitingScreenDuration - 1;
+		WaitingScreenDuration = WaitingScreenDuration + 1;
 		MB_Sleep(1000);
 	}
 	UIManager.UIAll.BigMessage = "";
