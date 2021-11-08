@@ -37,9 +37,9 @@
 #Setting S_AllowCam7DuringWaitingScreen False as ""
 #Setting S_RoundWaitingScreenDuration 20 as _("Round waiting screen duration") //< Maximum time spent waiting for players at the beginning of each round
 
-/*#Setting S_WarmUpNb 0	as _("Number of warm up") // (Impossible at the moment https://forum.nadeo.com/viewtopic.php?f=51&p=8745#p8745)
+#Setting S_WarmUpNb 0	as _("Number of warm up")
 #Setting S_WarmUpDuration 0 as _("Duration of one warm up")
-#Setting S_WarmUpTimeout -1 as _("Warm up timeout")*/
+#Setting S_WarmUpTimeout -1 as _("Warm up timeout")
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Constants
@@ -165,12 +165,16 @@ Server_SegmentsPerRound = S_SegmentsPerRound - 1;
 
 ***Match_InitMap***
 ***
+declare netwrite Text Net_ScriptEnvironment for Teams[0] = S_ScriptEnvironment;
+if (Net_ScriptEnvironment != S_ScriptEnvironment) {
+	Net_ScriptEnvironment = S_ScriptEnvironment;
+}
 declare Integer Map_ValidRoundsNb;
 declare Boolean Map_Skipped;
 
 UpdateScoresTableFooter(S_PointsLimit, S_RoundsPerMap, S_MapsPerMatch, Map_ValidRoundsNb, S_SegmentsPerRound);
 
-declare CMapLandmark[] Map_Starts;
+declare CMapLandmark[] Map_Starts for This;
 declare Integer Map_NextEmptyArmorCheckTime;
 
 // Find start blocks
@@ -233,10 +237,48 @@ Map_Skipped = True;
 
 StartTime = Now + Race::C_SpawnDuration;
 
-// Warm up (Impossible at the moment https://forum.nadeo.com/viewtopic.php?f=51&p=8745#p8745)
-/*UIModules_ScoresTable::SetFooterInfo(_("Warm up"));
+UIModules_ScoresTable::SetFooterInfo(_("Warm up"));
 MB_WarmUp(S_WarmUpNb, S_WarmUpDuration * 1000, S_WarmUpTimeout * 1000);
-*/
+***
+
+***Match_StartWarmUpRound***
+***
+declare netwrite Boolean Net_RoyalRounds_WarmUpUI_IsActive for Teams[0];
+Net_RoyalRounds_WarmUpUI_IsActive = True;
+***
+
+***Match_WarmUpLoop***
+***
+// Manage Custom UI Events
+foreach (Event in UIManager.PendingEvents) {
+	Log::Log("[UIManager] Event.CustomEventType: " ^ Event.CustomEventType);
+	if (TL::StartsWith("Request.WarmUp.Segment.", Event.CustomEventType)) {
+		declare Text Target = Event.CustomEventData[0];
+		declare CSmPlayer Player = GetPlayer(Target);
+		if (Player != Null) {
+			declare CMapLandmark[] Map_Starts for This;
+			declare netwrite Integer Net_RoyalRounds_WarmUpUI_SelectedSegment for Player = 1;
+			declare Integer NewSegment;
+			if (Event.CustomEventType == "Request.WarmUp.Segment.Minus") {
+				if (Net_RoyalRounds_WarmUpUI_SelectedSegment == 1) NewSegment = 5;
+				else NewSegment = Net_RoyalRounds_WarmUpUI_SelectedSegment - 1;
+			} else if (Event.CustomEventType == "Request.WarmUp.Segment.Plus") { 
+				if (Net_RoyalRounds_WarmUpUI_SelectedSegment == 5) NewSegment = 1;
+				else NewSegment = Net_RoyalRounds_WarmUpUI_SelectedSegment + 1;
+			}
+			Player.LandmarkOrderSelector_Race = NewSegment;
+			Net_RoyalRounds_WarmUpUI_SelectedSegment = NewSegment;
+			Race::SetPlayerDefaultStart(Player, Map_Starts[NewSegment-1]);
+			Race::StopSkipOutro(Player);
+		}
+	}
+}
+***
+
+***Match_EndWarmUpRound***
+***
+declare netwrite Boolean Net_RoyalRounds_WarmUpUI_IsActive for Teams[0];
+Net_RoyalRounds_WarmUpUI_IsActive = False;
 ***
 
 ***Rounds_SpawnPlayer***
@@ -286,10 +328,10 @@ CurrentRanking[0] = Integer[Text]; // Init white section
 declare Boolean IsStartRound = True;
 
 // Reset players for the race
-foreach (Player in Players) {
-	declare Integer CurrentSegment for Player.Score = -1;
+foreach (Score in Scores) { // TODO Change segment for spectators alwell (Test if change works)
+	declare Integer CurrentSegment for Score = -1;
 	CurrentSegment = 1;
-	CurrentRanking[0][Player.User.WebServicesUserId] = 0;
+	CurrentRanking[0][Score.User.WebServicesUserId] = 0;
 }
 
 declare Integer UpdateRankingTimer = 1;
@@ -422,6 +464,10 @@ if (
 	Server_SegmentsPerRound = S_SegmentsPerRound;
 	
 	UpdateScoresTableFooter(S_PointsLimit, S_RoundsPerMap, S_MapsPerMatch, Map_ValidRoundsNb, S_SegmentsPerRound);
+}
+
+if (Net_ScriptEnvironment != S_ScriptEnvironment) {
+	Net_ScriptEnvironment = S_ScriptEnvironment;
 }
 
 if (Net_RoyalRounds_CheckpointUI_TotalNbSegments != S_SegmentsPerRound) {
@@ -726,8 +772,6 @@ Boolean MapIsOver(Boolean _UseTieBreak, Integer _PointsLimit, Integer _ValidRoun
  * Set the UI
  */
  Void SetML() {
-	declare TotalWidth = 44.5;
-
 	declare Text MLText = """
 	<manialink name="ML_RoyalRounds_CheckpointUI" version="3">
 		<script><!--
@@ -737,7 +781,7 @@ Boolean MapIsOver(Boolean _UseTieBreak, Integer _PointsLimit, Integer _ValidRoun
 			declare Integer TimeToDisplay = 0;
 			declare Integer LastUpdate = 0;
 
-			declare Quad_UI <=> (Page.GetFirstChild("quad-ui") as CMlQuad);
+			declare Frame_Global <=> (Page.GetFirstChild("frame-global") as CMlFrame);
 			declare Label_Rank <=> (Page.GetFirstChild("label-rank") as CMlLabel);
 			declare Label_Time <=> (Page.GetFirstChild("label-time") as CMlLabel);
 			declare Label_Segments <=> (Page.GetFirstChild("label-segments") as CMlLabel);
@@ -759,7 +803,7 @@ Boolean MapIsOver(Boolean _UseTieBreak, Integer _PointsLimit, Integer _ValidRoun
 							Label_Time.Value = TL::TimeToText(GUIPlayer.RaceWaypointTimes[0], True, True);
 							Label_Rank.Value = TL::FormatRank(Net_RoyalRounds_CheckpointUI_Rank, False);
 							Label_Segments.Value = TL::Compose("Segment %1/%2", TL::ToText(Net_RoyalRounds_CheckpointUI_CurrentNbSegments), TL::ToText(Net_RoyalRounds_CheckpointUI_TotalNbSegments));
-							Quad_UI.Visible = True;
+							Frame_Global.Visible = True;
 							TimeToDisplay = Now + 3000;
 						} else {
 							TimeToDisplay = -1; // Force hide UI
@@ -767,11 +811,11 @@ Boolean MapIsOver(Boolean _UseTieBreak, Integer _PointsLimit, Integer _ValidRoun
 					}
 	
 					if (TimeToDisplay != 0 && TimeToDisplay < Now) {
-						Quad_UI.Visible = False;
+						Frame_Global.Visible = False;
 						TimeToDisplay = 0;
 					}
-				} else if (Quad_UI.Visible) {
-					Quad_UI.Visible = False;
+				} else if (Frame_Global.Visible) {
+					Frame_Global.Visible = False;
 					TimeToDisplay = 0;
 				}
 			}
@@ -781,7 +825,7 @@ Boolean MapIsOver(Boolean _UseTieBreak, Integer _PointsLimit, Integer _ValidRoun
 			<style class="text-default" textfont="Oswald" textcolor="ffffff" textsize="3" />
 			<style class="text-number" textfont="OswaldMono" textcolor="ffffff" textsize="4" />
 		</stylesheet>
-		<frame z-index="-2" hidden="1" id="quad-ui" pos="-10 45">
+		<frame z-index="-2" hidden="1" id="frame-global" pos="-10 45">
 			<frame id="frame-checkpoint">
 				<frame pos="0 -12" id="frame-race">
 					<frame pos="0 5" id="frame-race-time" scale="0.9">
@@ -804,4 +848,100 @@ Boolean MapIsOver(Boolean _UseTieBreak, Integer _PointsLimit, Integer _ValidRoun
 	Layers::Create("ML_RoyalRounds_CheckpointUI", MLText);
 	Layers::SetType("ML_RoyalRounds_CheckpointUI", CUILayer::EUILayerType::Normal);
 	Layers::Attach("ML_RoyalRounds_CheckpointUI");
+
+	MLText = """
+	<manialink name="ML_RoyalRounds_WarmUpUI" version="3">
+		<script><!--
+		#Include "TextLib" as TL
+		#Include "ColorLib" as CL
+
+		#Const C_SegmentColor ["fff", "1b2", "24c", "c33", "000" ]
+		#Const C_SegmentName ["white", "green", "blue", "red", "black" ]
+		
+
+		Boolean InputPlayerIsSpectator() {
+			if (GUIPlayer != Null && InputPlayer != Null && GUIPlayer.User.Login == InputPlayer.User.Login) return False;
+			return True;
+		}
+
+		Void DevLog(Text _LogText) {
+			declare netread Text Net_ScriptEnvironment for Teams[0] = "production";
+			if (Net_ScriptEnvironment == "development") log(_LogText);
+		}
+
+		main() {
+			declare Integer TimeToDisplay = 0;
+			declare Integer LastUpdate = 0;
+
+			declare Frame_Global <=> (Page.GetFirstChild("frame-global") as CMlFrame);
+			declare Label_Text <=> (Page.GetFirstChild("label-text") as CMlLabel);
+			declare Quad_Left_Button <=> (Page.GetFirstChild("quad-left-button") as CMlQuad);
+			declare Quad_Left_Arrow <=> (Page.GetFirstChild("quad-left-arrow") as CMlQuad);
+			declare Quad_Right_Button <=> (Page.GetFirstChild("quad-right-button") as CMlQuad);
+			declare Quad_Right_Arrow <=> (Page.GetFirstChild("quad-right-arrow") as CMlQuad);
+
+			declare netread Boolean Net_RoyalRounds_WarmUpUI_IsActive for Teams[0];
+			declare Integer Last_SelectedSegment = 1;
+
+			while(True) {
+				yield;
+
+				if (Net_RoyalRounds_WarmUpUI_IsActive && GUIPlayer != Null) {
+
+					declare netread Integer Net_RoyalRounds_WarmUpUI_SelectedSegment for GUIPlayer = 1;
+
+					foreach(Event in PendingEvents) {
+						DevLog("[PendingEvents] Event.Type: " ^ Event.Type);
+
+						if (!InputPlayerIsSpectator() && Event.Type == CMlScriptEvent::Type::MouseClick && TL::Find("quad-", Event.ControlId, True, True) && TL::Find("-button", Event.ControlId, True, True)) {
+							if (Event.ControlId == "quad-left-button") {
+								DevLog("[PendingEvents] Player " ^ GUIPlayer.User.Name ^ " ask the previous segment");
+								SendCustomEvent("Request.WarmUp.Segment.Minus", [GUIPlayer.User.Login]);
+							} else {
+								DevLog("[PendingEvents] Player " ^ GUIPlayer.User.Name ^ " ask the next segment");
+								SendCustomEvent("Request.WarmUp.Segment.Plus", [GUIPlayer.User.Login]);
+							}
+						} else if (!InputPlayerIsSpectator() && Event.Type == CMlScriptEvent::Type::MouseOver && TL::Find("quad-", Event.ControlId, True, True) && TL::Find("-button", Event.ControlId, True, True)) {
+							declare Quad <=> (Page.GetFirstChild(Event.ControlId) as CMlQuad);
+							Quad.Opacity = 0.5;
+						} else if (Event.Type == CMlScriptEvent::Type::MouseOut && TL::Find("quad-", Event.ControlId, True, True) && TL::Find("-button", Event.ControlId, True, True)) {
+							declare Quad <=> (Page.GetFirstChild(Event.ControlId) as CMlQuad);
+							Quad.Opacity = 0.7;
+						} 
+					}
+	
+					if (Last_SelectedSegment != Net_RoyalRounds_WarmUpUI_SelectedSegment) {
+						Last_SelectedSegment = Net_RoyalRounds_WarmUpUI_SelectedSegment;
+						if (Last_SelectedSegment == 1) Quad_Left_Arrow.Colorize = CL::HexToRgb(C_SegmentColor[4]);
+						else Quad_Left_Arrow.Colorize = CL::Hex3ToRgb(C_SegmentColor[Last_SelectedSegment-2]);
+						Label_Text.Value = "You are on the $<$" ^ C_SegmentColor[Last_SelectedSegment-1] ^ C_SegmentName[Last_SelectedSegment-1] ^ "$> segment";
+						if (Last_SelectedSegment == 5) Quad_Right_Arrow.Colorize = CL::HexToRgb(C_SegmentColor[0]);
+						else Quad_Right_Arrow.Colorize = CL::Hex3ToRgb(C_SegmentColor[Last_SelectedSegment]);
+					}
+
+	
+					if (!Frame_Global.Visible) {
+						Frame_Global.Visible = True;
+					}
+				} else if (Frame_Global.Visible) {
+					Frame_Global.Visible = False;
+				}
+			}
+		}
+		--></script>
+		<frame id="frame-global" hidden=1 pos="0 85">
+			<quad pos="0.75 0" z-index="0" size="50 10" opacity="0.7" image="https://files.virtit.fr/TrackMania/UI/tilted_bg_half.dds" colorize="ff6e00" halign="center"/>
+			<label pos="1 -5.5" z-index="1" size="38 10" text="WARMUP" textfont="GameFontBlack" halign="center" valign="center2" textprefix="$i" textsize="8"/>
+			<quad pos="-0.75 -10" z-index="0" size="50 10" opacity="0.7" image="https://files.virtit.fr/TrackMania/UI/tilted_bg_half.dds" colorize="000" halign="center"/>
+			<label id="label-text" pos="-1 -15" z-index="1" size="45 10" text="You are on the $<$fffwhite$> segment" textfont="GameFontSemiBold" halign="center" valign="center2" textprefix="$i" textsize="1.5" textcolor="D8D8D8"/>
+			<quad id="quad-left-button" pos="-30 1.9" z-index="0" size="13 23" opacity="0.7" image="https://files.virtit.fr/TrackMania/UI/tilted_bg_left_button.dds" colorize="000" halign="center" scriptevents="1"/>
+			<quad id="quad-left-arrow" pos="-30 -5" z-index="1" size="10 10" image="file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds" halign="center" colorize="000"/>
+			<quad id="quad-right-button" pos="30.2 1.6" z-index="0" size="13 23.5" opacity="0.7" image="https://files.virtit.fr/TrackMania/UI/tilted_bg_right_button.dds" colorize="000" halign="center" scriptevents="1"/>
+			<quad id="quad-right-arrow" pos="30 -5" z-index="1" size="10 10" image="file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_RIGHT_OBLIQUE.dds" halign="center" colorize="1b2"/>
+		</frame>
+	</manialink>
+""";
+	Layers::Create("ML_RoyalRounds_WarmUpUI", MLText);
+	Layers::SetType("ML_RoyalRounds_WarmUpUI", CUILayer::EUILayerType::Normal);
+	Layers::Attach("ML_RoyalRounds_WarmUpUI");
 }
