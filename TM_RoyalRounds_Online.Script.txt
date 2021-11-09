@@ -174,7 +174,6 @@ declare Boolean Map_Skipped;
 
 UpdateScoresTableFooter(S_PointsLimit, S_RoundsPerMap, S_MapsPerMatch, Map_ValidRoundsNb, S_SegmentsPerRound);
 
-declare CMapLandmark[] Map_Starts for This;
 declare Integer Map_NextEmptyArmorCheckTime;
 
 // Find start blocks
@@ -184,6 +183,9 @@ foreach (Start in Starts) {
 	SortedStarts[Start.Order] = Start;
 }
 SortedStarts = SortedStarts.sortkey();
+
+declare CMapLandmark[] Map_Starts for This;
+Map_Starts = [];
 foreach (Start in SortedStarts) {
 	Map_Starts.add(Start);
 }
