@@ -1,6 +1,7 @@
 #Extends "Modes/TrackMania/TM_TimeAttack_Online.Script.txt"
 
 #Setting S_AdminPlayers "" as "Comma separated admin to manage all players physics"
+#Setting S_LinksSpectatorsToPlayers "" as "Comma separated Spectator login linked to a Player login with a colon" // Exemple : "Spectator1Login:Player1Login,Spectator1Login:Player2Login,Spectator2Login:any"
 #Setting S_ForcePlayersToBeControledBySpectators False as "Force Players to be controlled by Spectators"
 #Setting S_AllowPlayersToBeControledBySpectators True as "Allow Players to be controlled by Spectators"
 
@@ -47,6 +48,8 @@ SetML();
 ***
 declare K_PlayerPhysics AllPlayersPhysics = InitPlayerPhysicsVariable();
 declare Text Last_AdminPlayers;
+declare Text Last_LinksSpectatorsToPlayers;
+declare Text[][Text] Array_LinksSpectatorsToPlayers ;
 declare Boolean[CSmPlayer] ApplyPhysicsAtRespawn_Queue; // [CSmPlayer => ResetBeforeAppling]
 
 declare netwrite Text Net_ScriptEnvironment for Teams[0] = S_ScriptEnvironment;
@@ -63,6 +66,17 @@ foreach (Event in PendingEvents) {
 		if (Event.Player != Null) {
 			declare netwrite Boolean Net_PlayerIsAdmin for Event.Player = False;
 			Net_PlayerIsAdmin = TL::Split(",", S_AdminPlayers).exists(Event.Player.User.Login);
+
+			declare netwrite Text[] Net_CanControlPlayers for Event.Player = ["any"];
+			if (Array_LinksSpectatorsToPlayers.count == 0) {
+				Net_CanControlPlayers = ["any"];
+			} else {
+				if (Array_LinksSpectatorsToPlayers.existskey(Event.Player.User.Login)) {
+					Net_CanControlPlayers = Array_LinksSpectatorsToPlayers[Event.Player.User.Login];
+				} else {
+					Net_CanControlPlayers = [];
+				}
+			}
 			declare netwrite K_PlayerPhysics Net_PlayerPhysics for Event.Player = InitPlayerPhysicsVariable();
 			Net_PlayerPhysics = AllPlayersPhysics;
 		}
@@ -142,6 +156,45 @@ if (Last_AdminPlayers != S_AdminPlayers) {
 	foreach (Player in AllPlayers) {
 		declare netwrite Boolean Net_PlayerIsAdmin for Player = False;
 		Net_PlayerIsAdmin = Admin.exists(Player.User.Login);
+	}
+}
+if (Last_LinksSpectatorsToPlayers != S_LinksSpectatorsToPlayers) {
+	Last_LinksSpectatorsToPlayers = S_LinksSpectatorsToPlayers;
+
+	declare Text[][Text] TemporaryData;
+	if (Last_LinksSpectatorsToPlayers != "") {
+		Log::Log("[Last_LinksSpectatorsToPlayers] Last_LinksSpectatorsToPlayers not empty");
+		declare Text[] AllLinks= TL::Split(",", Last_LinksSpectatorsToPlayers);
+		foreach (Link in AllLinks) {
+			declare Text[] LinkArray = TL::Split(":", Link);
+			if (LinkArray.count > 1) {
+				log("[Last_LinksSpectatorsToPlayers] LinkArray.count > 1");
+				if (!TemporaryData.existskey(LinkArray[0])) TemporaryData[LinkArray[0]] = [];
+				TemporaryData[LinkArray[0]].add(LinkArray[1]);
+			}
+		}
+	}
+	Array_LinksSpectatorsToPlayers = TemporaryData;
+
+	Log::Log("[Last_LinksSpectatorsToPlayers] Array_LinksSpectatorsToPlayers = " ^ Array_LinksSpectatorsToPlayers);
+	foreach (Player in AllPlayers) {
+		if (Player == Null) continue;
+		Log::Log("[Last_LinksSpectatorsToPlayers] Player : " ^ Player.User.Name);
+		declare netwrite Text[] Net_CanControlPlayers for Player = ["any"];
+		declare netwrite Integer Net_Serial_CanControlPlayers for Player = 0;
+		Net_Serial_CanControlPlayers = Net_Serial_CanControlPlayers + 1;
+		if (Array_LinksSpectatorsToPlayers.count == 0) {
+			Log::Log("[Last_LinksSpectatorsToPlayers] Array_LinksSpectatorsToPlayers.count == 0");
+			Net_CanControlPlayers = ["any"];
+		} else {
+			Log::Log("[Last_LinksSpectatorsToPlayers] Array_LinksSpectatorsToPlayers.count != 0");
+			if (Array_LinksSpectatorsToPlayers.existskey(Player.User.Login)) {
+				Net_CanControlPlayers = Array_LinksSpectatorsToPlayers[Player.User.Login];
+			} else {
+				Net_CanControlPlayers = [];
+			}
+			Log::Log("[Last_LinksSpectatorsToPlayers] Net_CanControlPlayers : " ^ Net_CanControlPlayers);
+		}
 	}
 }
 
@@ -465,6 +518,7 @@ Void SetML() {
 
 			declare Boolean Last_PlayerIsAdmin = False;
 			declare Boolean Last_PlayerIsSpectator = False;
+			declare Integer Last_Serial_CanControlPlayers = 0;
 
 			declare Boolean Last_ServerForcePlayersToBeControledBySpectators = False;
 			declare Boolean Last_ServerAllowPlayersToBeControledBySpectators = True;
@@ -490,11 +544,14 @@ Void SetML() {
 				if (Owner != Null) {
 					declare netread Boolean Net_PlayerAllowToBeControledBySpectators for Owner = True;
 					declare netread Boolean Net_PlayerIsAdmin for InputPlayer;
+					declare netread Text[] Net_CanControlPlayers for InputPlayer;
+					declare netread Integer Net_Serial_CanControlPlayers for InputPlayer;
 					declare netread K_PlayerPhysics Net_PlayerPhysics for Owner = InitPlayerPhysicsVariable();
 
 					if (Last_ControledByAdmins != Net_ControledByAdmins || 
 							Last_PlayerIsAdmin != Net_PlayerIsAdmin ||
 							Last_PlayerIsSpectator != InputPlayerIsSpectator() ||
+							Last_Serial_CanControlPlayers != Net_Serial_CanControlPlayers ||
 							Last_PlayerAllowToBeControledBySpectators != Net_PlayerAllowToBeControledBySpectators || 
 							Last_ServerForcePlayersToBeControledBySpectators != Net_ServerForcePlayersToBeControledBySpectators ||
 							Last_ServerAllowPlayersToBeControledBySpectators != Net_ServerAllowPlayersToBeControledBySpectators
@@ -503,6 +560,8 @@ Void SetML() {
 						Last_PlayerIsAdmin = Net_PlayerIsAdmin;
 						Frame_Admin.Visible = Last_PlayerIsAdmin;
 						Last_PlayerIsSpectator = InputPlayerIsSpectator();
+						Last_Serial_CanControlPlayers = Net_Serial_CanControlPlayers;
+						log(Net_CanControlPlayers);
 						DevLog("[main] Update Warning page");
 						Last_ControledByAdmins = Net_ControledByAdmins;
 						Quad_ControledByAdmins.StyleSelected = Last_ControledByAdmins;
@@ -511,11 +570,16 @@ Void SetML() {
 						Last_ServerForcePlayersToBeControledBySpectators = Net_ServerForcePlayersToBeControledBySpectators;
 						Last_ServerAllowPlayersToBeControledBySpectators = Net_ServerAllowPlayersToBeControledBySpectators;
 
-						if (!Net_PlayerIsAdmin && (Last_ControledByAdmins || (Last_ServerForcePlayersToBeControledBySpectators && !Last_PlayerIsSpectator) || (!Last_ServerForcePlayersToBeControledBySpectators && (!Last_ServerAllowPlayersToBeControledBySpectators || !Last_PlayerAllowToBeControledBySpectators) && Last_PlayerIsSpectator))) {
+						if (!Net_PlayerIsAdmin && 
+							(Last_ControledByAdmins || (Last_ServerForcePlayersToBeControledBySpectators && (!Last_PlayerIsSpectator || (!Net_CanControlPlayers.exists("any") && !Net_CanControlPlayers.exists(Owner.User.Login)))) || 
+							(!Last_ServerForcePlayersToBeControledBySpectators && (!Last_ServerAllowPlayersToBeControledBySpectators || !Last_PlayerAllowToBeControledBySpectators) && Last_PlayerIsSpectator))
+						) 
+							{
 							Label_Warning.Visible = True;
 							Quad_Fg.Visible = True;
 
 							if (Last_ControledByAdmins)	Label_Warning.Value = "Managed by an Admin";
+							else if (Last_ServerForcePlayersToBeControledBySpectators && InputPlayerIsSpectator()) Label_Warning.Value = "You can't control this player";
 							else if (Last_ServerForcePlayersToBeControledBySpectators) Label_Warning.Value = "Can only be controlled by a spectator";
 							else if (!Last_ServerAllowPlayersToBeControledBySpectators) Label_Warning.Value = "Can only be controlled by the player";
 							else Label_Warning.Value = "Player refuses to be managed by a spectator";
