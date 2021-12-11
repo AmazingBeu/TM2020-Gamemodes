@@ -174,8 +174,6 @@ declare Boolean Map_Skipped;
 
 UpdateScoresTableFooter(S_PointsLimit, S_RoundsPerMap, S_MapsPerMatch, Map_ValidRoundsNb, S_SegmentsPerRound);
 
-declare Integer Map_NextEmptyArmorCheckTime;
-
 // Find start blocks
 declare CMapLandmark[] Starts = Map::GetStarts();
 declare CMapLandmark[Integer] SortedStarts;
