@@ -41,6 +41,11 @@ UIModules_Record::SetSpecialVisibility(False);
 
 ***Match_AfterLoadHud***
 ***
+---PhysicsController_UI---
+***
+
+***PhysicsController_UI***
+***
 SetML();
 ***
 
@@ -223,6 +228,7 @@ K_PlayerPhysics InitPlayerPhysicsVariable() {
 
 Boolean SetPhysicsChange(Text _EventName, Text _EventValue, CSmPlayer _Player) {
 	Log::Log("[SetPhysicsChange] _EventName: " ^ _EventName ^" / _EventValue: "^ _EventValue ^ " / _Player: " ^ _Player.User.Name);
+	---PhysicsController_SetPhysicsChange---
 	if (_Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned || _Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning) {
 		while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 		switch (_EventName) {
@@ -561,7 +567,6 @@ Void SetML() {
 						Frame_Admin.Visible = Last_PlayerIsAdmin;
 						Last_PlayerIsSpectator = InputPlayerIsSpectator();
 						Last_Serial_CanControlPlayers = Net_Serial_CanControlPlayers;
-						log(Net_CanControlPlayers);
 						DevLog("[main] Update Warning page");
 						Last_ControledByAdmins = Net_ControledByAdmins;
 						Quad_ControledByAdmins.StyleSelected = Last_ControledByAdmins;
