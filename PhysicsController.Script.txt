@@ -1,7 +1,7 @@
 #Extends "Modes/TrackMania/TM_TimeAttack_Online.Script.txt"
 
 #Setting S_AdminPlayers "" as "Comma separated admin to manage all players physics"
-#Setting S_LinksSpectatorsToPlayers "" as "Comma separated Spectator login linked to a Player login with a colon" // Exemple : "Spectator1Login:Player1Login,Spectator1Login:Player2Login,Spectator2Login:any"
+#Setting S_LinksSpectatorsToPlayers "" as "Comma separated Spectator login linked to a Player login with a colon" // Exemple : "Spectator1Login:Player1Login,Spectator1Login:Player2Login,Spectator2Login:any". To prevent all spectators to control all players, just add a random key:value like "lock:lock"
 #Setting S_ForcePlayersToBeControledBySpectators False as "Force Players to be controlled by Spectators"
 #Setting S_AllowPlayersToBeControledBySpectators True as "Allow Players to be controlled by Spectators"
 
@@ -577,7 +577,7 @@ Void SetML() {
 
 						if (!Net_PlayerIsAdmin && 
 							(Last_ControledByAdmins || (Last_ServerForcePlayersToBeControledBySpectators && (!Last_PlayerIsSpectator || (!Net_CanControlPlayers.exists("any") && !Net_CanControlPlayers.exists(Owner.User.Login)))) || 
-							(!Last_ServerForcePlayersToBeControledBySpectators && (!Last_ServerAllowPlayersToBeControledBySpectators || !Last_PlayerAllowToBeControledBySpectators) && Last_PlayerIsSpectator))
+							(!Last_ServerForcePlayersToBeControledBySpectators && (!Last_ServerAllowPlayersToBeControledBySpectators || !Last_PlayerAllowToBeControledBySpectators) && Last_PlayerIsSpectator) && (!Net_CanControlPlayers.exists("any") && !Net_CanControlPlayers.exists(Owner.User.Login)))
 						) 
 							{
 							Label_Warning.Visible = True;
