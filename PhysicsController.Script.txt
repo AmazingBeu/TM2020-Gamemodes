@@ -23,6 +23,11 @@
 	Boolean SlowMotion;
 }
 
+#Struct K_RespawnStatus {
+	Boolean ResetBeforeAppling;
+	Integer RespawnTime;
+}
+
 ***Match_StartServer***
 ***
 Race::SetupRecord(
@@ -55,7 +60,7 @@ declare K_PlayerPhysics AllPlayersPhysics = InitPlayerPhysicsVariable();
 declare Text Last_AdminPlayers;
 declare Text Last_LinksSpectatorsToPlayers;
 declare Text[][Text] Array_LinksSpectatorsToPlayers ;
-declare Boolean[CSmPlayer] ApplyPhysicsAtRespawn_Queue; // [CSmPlayer => ResetBeforeAppling]
+declare K_RespawnStatus[Text] ApplyPhysicsAtRespawn_Queue;
 
 declare netwrite Text Net_ScriptEnvironment for Teams[0] = S_ScriptEnvironment;
 declare netwrite Boolean Net_ServerForcePlayersToBeControledBySpectators for Teams[0] = S_ForcePlayersToBeControledBySpectators;
@@ -137,20 +142,34 @@ foreach (Event in UIManager.PendingEvents) { // TODO: Add Secure token to admins
 foreach (Event in RacePendingEvents) {
 	Log::Log("[RacePendingEvents] Event.Type: " ^ Event.Type);
 	if (Event.Type == Events::C_Type_StartLine || Event.Type == Events::C_Type_GiveUp || Event.Type == Events::C_Type_SkipOutro) {
-		ApplyPhysicsAtRespawn_Queue[Event.Player] = False;
+		ApplyPhysicsAtRespawn_Queue[Event.Player.User.WebServicesUserId] = K_RespawnStatus {
+			ResetBeforeAppling = False,
+			RespawnTime = Now
+		} ;
 	} else if (Event.Type == Events::C_Type_Respawn) {
 		declare netwrite K_PlayerPhysics Net_PlayerPhysics for Event.Player = InitPlayerPhysicsVariable();
-		ApplyPhysicsAtRespawn_Queue[Event.Player] = True;
+		ApplyPhysicsAtRespawn_Queue[Event.Player.User.WebServicesUserId] = K_RespawnStatus {
+			ResetBeforeAppling = True,
+			RespawnTime = Now
+		} ;
 	}
 }
 
 if (Now % 100 == 0 && ApplyPhysicsAtRespawn_Queue.count > 0) {
-	foreach (Player => HaveToReset in ApplyPhysicsAtRespawn_Queue) {
-		Log::Log("[ApplyPhysicsAtRespawn] Player: " ^ Player.User.Name ^ " / Player.SpawnStatus: " ^ Player.SpawnStatus);
-		if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned || Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning) {
-			if (HaveToReset) SetPhysicsChange("Reset", "", Player);
+	foreach (AccountId => RespawnStatus in ApplyPhysicsAtRespawn_Queue) {
+		declare CSmPlayer Player = ModeUtils::GetPlayerFromAccountId(AccountId);
+		if (Player != Null && (Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned || Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning)) {
+			Log::Log("[ApplyPhysicsAtRespawn] Player: " ^ Player.User.Name);
+			if (RespawnStatus.ResetBeforeAppling) SetPhysicsChange("Reset", "", Player);
 			ApplyPhysicsAtRespawn(Player);
-			ApplyPhysicsAtRespawn_Queue.removekey(Player);
+			ApplyPhysicsAtRespawn_Queue.removekey(AccountId);
+		} else if (RespawnStatus.RespawnTime > Now || RespawnStatus.RespawnTime + 10000 < Now ) { // Clear ApplyPhysicsAtRespawn_Queue array if player is DC 
+			Log::Log("[ApplyPhysicsAtRespawn] Clear from array after 10s: " ^ AccountId);
+			if (Player != Null) {
+				declare netwrite K_PlayerPhysics Net_PlayerPhysics for Player = InitPlayerPhysicsVariable();
+				Net_PlayerPhysics = InitPlayerPhysicsVariable();
+			}
+			ApplyPhysicsAtRespawn_Queue.removekey(AccountId);
 		}
 	}
 }
@@ -323,7 +342,6 @@ Void ApplyPhysicsAtRespawn(CSmPlayer _Player) {
 	if (DefaultPlayerPhysics.NoEngine != Net_PlayerPhysics.NoEngine) SetPhysicsChange("NoEngine", "1", _Player);
 	if (DefaultPlayerPhysics.NoSteer != Net_PlayerPhysics.NoSteer) SetPhysicsChange("NoSteer", "1", _Player);
 	if (DefaultPlayerPhysics.SlowMotion != Net_PlayerPhysics.SlowMotion) SetPhysicsChange("SlowMotion", "1", _Player);
-	log("[ApplyPhysicsAtRespawn] Now After SetPhysics: " ^ Now);
 }
 
 Void SetML() {
