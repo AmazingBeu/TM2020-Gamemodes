@@ -139,40 +139,7 @@ foreach (Event in UIManager.PendingEvents) { // TODO: Add Secure token to admins
 	}
 }
 
-foreach (Event in RacePendingEvents) {
-	Log::Log("[RacePendingEvents] Event.Type: " ^ Event.Type);
-	if (Event.Type == Events::C_Type_StartLine || Event.Type == Events::C_Type_GiveUp || Event.Type == Events::C_Type_SkipOutro) {
-		ApplyPhysicsAtRespawn_Queue[Event.Player.User.WebServicesUserId] = K_RespawnStatus {
-			ResetBeforeAppling = False,
-			RespawnTime = Now
-		} ;
-	} else if (Event.Type == Events::C_Type_Respawn) {
-		declare netwrite K_PlayerPhysics Net_PlayerPhysics for Event.Player = InitPlayerPhysicsVariable();
-		ApplyPhysicsAtRespawn_Queue[Event.Player.User.WebServicesUserId] = K_RespawnStatus {
-			ResetBeforeAppling = True,
-			RespawnTime = Now
-		} ;
-	}
-}
-
-if (Now % 100 == 0 && ApplyPhysicsAtRespawn_Queue.count > 0) {
-	foreach (AccountId => RespawnStatus in ApplyPhysicsAtRespawn_Queue) {
-		declare CSmPlayer Player = ModeUtils::GetPlayerFromAccountId(AccountId);
-		if (Player != Null && (Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned || Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning)) {
-			Log::Log("[ApplyPhysicsAtRespawn] Player: " ^ Player.User.Name);
-			if (RespawnStatus.ResetBeforeAppling) SetPhysicsChange("Reset", "", Player);
-			ApplyPhysicsAtRespawn(Player);
-			ApplyPhysicsAtRespawn_Queue.removekey(AccountId);
-		} else if (RespawnStatus.RespawnTime > Now || RespawnStatus.RespawnTime + 10000 < Now ) { // Clear ApplyPhysicsAtRespawn_Queue array if player is DC 
-			Log::Log("[ApplyPhysicsAtRespawn] Clear from array after 10s: " ^ AccountId);
-			if (Player != Null) {
-				declare netwrite K_PlayerPhysics Net_PlayerPhysics for Player = InitPlayerPhysicsVariable();
-				Net_PlayerPhysics = InitPlayerPhysicsVariable();
-			}
-			ApplyPhysicsAtRespawn_Queue.removekey(AccountId);
-		}
-	}
-}
+---PhysicsController_ApplyPhysicsAtRespawn---
 
 if (Last_AdminPlayers != S_AdminPlayers) {
 	Last_AdminPlayers = S_AdminPlayers;
@@ -232,6 +199,44 @@ if (Net_ServerForcePlayersToBeControledBySpectators != S_ForcePlayersToBeControl
 
 if (Net_ServerAllowPlayersToBeControledBySpectators != S_AllowPlayersToBeControledBySpectators) {
 	Net_ServerAllowPlayersToBeControledBySpectators = S_AllowPlayersToBeControledBySpectators;
+}
+***
+
+***PhysicsController_ApplyPhysicsAtRespawn***
+***
+foreach (Event in RacePendingEvents) {
+	Log::Log("[RacePendingEvents] Event.Type: " ^ Event.Type);
+	if (Event.Type == Events::C_Type_StartLine || Event.Type == Events::C_Type_GiveUp || Event.Type == Events::C_Type_SkipOutro) {
+		ApplyPhysicsAtRespawn_Queue[Event.Player.User.WebServicesUserId] = K_RespawnStatus {
+			ResetBeforeAppling = False,
+			RespawnTime = Now
+		} ;
+	} else if (Event.Type == Events::C_Type_Respawn) {
+		declare netwrite K_PlayerPhysics Net_PlayerPhysics for Event.Player = InitPlayerPhysicsVariable();
+		ApplyPhysicsAtRespawn_Queue[Event.Player.User.WebServicesUserId] = K_RespawnStatus {
+			ResetBeforeAppling = True,
+			RespawnTime = Now
+		} ;
+	}
+}
+
+if (Now % 100 == 0 && ApplyPhysicsAtRespawn_Queue.count > 0) {
+	foreach (AccountId => RespawnStatus in ApplyPhysicsAtRespawn_Queue) {
+		declare CSmPlayer Player = ModeUtils::GetPlayerFromAccountId(AccountId);
+		if (Player != Null && (Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned || Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning)) {
+			Log::Log("[ApplyPhysicsAtRespawn] Player: " ^ Player.User.Name);
+			if (RespawnStatus.ResetBeforeAppling) SetPhysicsChange("Reset", "", Player);
+			ApplyPhysicsAtRespawn(Player);
+			ApplyPhysicsAtRespawn_Queue.removekey(AccountId);
+		} else if (RespawnStatus.RespawnTime > Now || RespawnStatus.RespawnTime + 10000 < Now ) { // Clear ApplyPhysicsAtRespawn_Queue array if player is DC 
+			Log::Log("[ApplyPhysicsAtRespawn] Clear from array after 10s: " ^ AccountId);
+			if (Player != Null) {
+				declare netwrite K_PlayerPhysics Net_PlayerPhysics for Player = InitPlayerPhysicsVariable();
+				Net_PlayerPhysics = InitPlayerPhysicsVariable();
+			}
+			ApplyPhysicsAtRespawn_Queue.removekey(AccountId);
+		}
+	}
 }
 ***
 
