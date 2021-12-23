@@ -1,0 +1,1092 @@
+/** @context CSmMode */
+
+#Extends "Modes/TM2020-Gamemodes/PhysicsController.Script.txt" 
+
+#Setting S_CoolDownBeforeReset 3
+#Setting S_CoolDownForEffects 7
+#Setting S_FloorsInfo "136,256,384,512,648,768,904,1040,1168,1296,1432" as "comma separated floor height" // Default is floors of the map "Bennett Foddy ate my CPs"
+
+#Struct K_PlayerInfo {
+	Text Login;
+	Text Name;
+	Integer PrevRank;
+	Integer CurRank;
+	Integer Altitude;
+	Integer RaceTime;
+	Integer RoundPoints;
+	Boolean Eliminated;
+	Boolean isSpectator;
+}
+
+***Match_InitMap***
+***
+declare Integer[Text] ApplyResetAtRespawn_Queue for This;
+ApplyResetAtRespawn_Queue = [];
+***
+
+***PhysicsController_Yield***
+***
+declare RacePendingEvents = Race::GetPendingEvents();
+foreach (Event in RacePendingEvents) {
+	Log::Log("[RacePendingEvents][Yield] Event.Type: " ^ Event.Type);
+	if (Event.Type == Events::C_Type_StartLine || Event.Type == Events::C_Type_GiveUp || Event.Type == Events::C_Type_SkipOutro || Event.Type == Events::C_Type_Respawn) {
+		if (Event.Player != Null) {
+			declare netwrite Integer Net_CoolDownForEffects for Event.Player;
+			declare netwrite Integer Net_CoolDownBeforeReset for Event.Player;
+			Net_CoolDownForEffects = 0;
+			Net_CoolDownBeforeReset = 0;
+			declare Integer[Text] ApplyResetAtRespawn_Queue for This;
+			ApplyResetAtRespawn_Queue[Event.Player.User.WebServicesUserId] = Now;
+		}
+	}
+}
+MB_Yield();
+***
+
+// I force a reset at respawn to prevent abuse
+***PhysicsController_ApplyPhysicsAtRespawn***
+***
+if (Now % 100 == 0 && ApplyResetAtRespawn_Queue.count > 0) {
+	foreach (AccountId => Time in ApplyResetAtRespawn_Queue) {
+		declare CSmPlayer Player = ModeUtils::GetPlayerFromAccountId(AccountId);
+		if (Player != Null && (Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned || Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning)) {
+			Log::Log("[ApplyPhysicsAtRespawn] Player: " ^ Player.User.Name);
+			SetPhysicsChange("Reset", "", Player);
+			declare netwrite Net_PlayerPhysics for Player = InitPlayerPhysicsVariable();
+			Net_PlayerPhysics = InitPlayerPhysicsVariable();
+			ApplyResetAtRespawn_Queue.removekey(AccountId);
+		} else if (Time > Now || Time + 10000 < Now ) { // Clear ApplyResetAtRespawn_Queue array if player is DC 
+			Log::Log("[ApplyPhysicsAtRespawn] Clear from array after 10s: " ^ AccountId);
+			if (Player != Null) {
+				declare netwrite Net_PlayerPhysics for Player = InitPlayerPhysicsVariable();
+				Net_PlayerPhysics = InitPlayerPhysicsVariable();
+			}
+			ApplyResetAtRespawn_Queue.removekey(AccountId);
+		}
+	}
+}
+foreach (Event in RacePendingEvents) {
+	Log::Log("[RacePendingEvents][MainLoop] Event.Type: " ^ Event.Type);
+	if (Event.Type == Events::C_Type_StartLine || Event.Type == Events::C_Type_GiveUp || Event.Type == Events::C_Type_SkipOutro || Event.Type == Events::C_Type_Respawn) {
+		if (Event.Player != Null) {
+			declare netwrite Integer Net_CoolDownForEffects for Event.Player;
+			declare netwrite Integer Net_CoolDownBeforeReset for Event.Player;
+			Net_CoolDownForEffects = 0;
+			Net_CoolDownBeforeReset = 0;
+			if (Event.Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned || Event.Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning) {
+				SetPhysicsChange("Reset", "", Event.Player);
+				declare netwrite Net_PlayerPhysics for Event.Player = InitPlayerPhysicsVariable();
+				Net_PlayerPhysics = InitPlayerPhysicsVariable();
+			} else {
+				declare Integer[Text] ApplyResetAtRespawn_Queue for This;
+				ApplyResetAtRespawn_Queue[Event.Player.User.WebServicesUserId] = Now;
+			}
+		}
+	}
+}
+***
+
+***PhysicsController_UI***
+***
+SetHolidayShowdownControlML();
+SetHolidayShowdownLiveRaceML();
+
+UIModules::UnloadModules(["UIModule_Rounds_SmallScoresTable","UIModule_Knockout_KnockoutInfo"]);
+***
+
+***PhysicsController_SetPhysicsChange***
+***
+declare netwrite Integer Net_CoolDownForEffects for _Player = 0;
+declare netwrite Integer Net_CoolDownBeforeReset for _Player = 0;
+if (_EventName == "Reset") {
+	Net_CoolDownBeforeReset = 0;
+} else {
+	Net_CoolDownBeforeReset = Now + (S_CoolDownBeforeReset * 1000);
+	Net_CoolDownForEffects = Now + (S_CoolDownForEffects * 1000);
+}
+***
+
+***Match_InitMap***
+***
+declare Integer WaitNextUpdate = 0;
+declare netwrite Text Net_FloorsInfo for Teams[0] = S_ScriptEnvironment;
+declare netwrite K_PlayerInfo[] Net_HolidayShowdown_Ranking for Teams[0];
+declare netwrite Integer Net_HolidayShowdown_RankingSerial for Teams[0];
+***
+
+***Match_PlayLoop***
+***
+if (Now > WaitNextUpdate) {
+	WaitNextUpdate = Now + 500;
+
+	declare Integer[Text] SortedPlayersByRaceTime;
+	declare Integer[Text] SortedPlayersByAltitude;
+	declare Text[] SortedPlayersEliminated;
+	
+	foreach (Player in AllPlayers) {
+		if (!Player.RequestsSpectate || Scores::GetPlayerMatchPoints(Player.Score) > 0) {
+			if (Player.Score.PrevRaceTimes.count > 0 && Player.RaceWaypointTimes.count == Player.Score.PrevRaceTimes.count && Player.RaceWaypointTimes[Player.RaceWaypointTimes.count - 1] == Player.Score.PrevRaceTimes[Player.Score.PrevRaceTimes.count - 1]) {
+				SortedPlayersByRaceTime[Player.User.WebServicesUserId] = Player.Score.PrevRaceTimes[Player.Score.PrevRaceTimes.count - 1];
+			} else if (UIManager.UIAll.UISequence == CUIConfig::EUISequence::Playing && Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) {
+				SortedPlayersEliminated.add(Player.User.WebServicesUserId);
+			} else {
+				SortedPlayersByAltitude[Player.User.WebServicesUserId] = ML::FloorInteger(Player.Position.Y);
+			}
+		}
+	}
+	SortedPlayersByRaceTime = SortedPlayersByRaceTime.sort();
+	SortedPlayersByAltitude = SortedPlayersByAltitude.sortreverse(); //TODO Sort if player have floor equaled altitude
+	
+	declare K_PlayerInfo[] Ranking;
+	declare Integer Rank = 1;
+	
+	foreach (AccountId => RaceTime in SortedPlayersByRaceTime) {
+		if (Rank > 3) break; // TODO Change
+		declare CSmPlayer Player <=> ModeUtils::GetPlayerFromAccountId(AccountId);
+		if (Player != Null) {
+			declare Integer HolidayShowdown_PrevRank for Player = 0;
+			Ranking.add(K_PlayerInfo {
+				Login = Player.User.Login,
+				Name = Player.User.Name,
+				PrevRank = HolidayShowdown_PrevRank,
+				CurRank = Rank,
+				Altitude = -1,
+				RaceTime = RaceTime,
+				RoundPoints = Player.Score.RoundPoints,
+				Eliminated = False,
+				isSpectator = Player.RequestsSpectate
+			});
+			HolidayShowdown_PrevRank = Rank;
+			Rank = Rank + 1;
+		}
+	}
+	
+	foreach (AccountId => PlayerAltitude in SortedPlayersByAltitude) {
+		if (Rank > 3) break;
+		declare CSmPlayer Player <=> ModeUtils::GetPlayerFromAccountId(AccountId);
+		if (Player != Null ) {
+			declare Integer HolidayShowdown_PrevRank for Player = 0;
+			// Add the player to the ranking
+			Ranking.add(K_PlayerInfo {
+				Login = Player.User.Login,
+				Name = Player.User.Name,
+				PrevRank = HolidayShowdown_PrevRank,
+				CurRank = Rank,
+				Altitude = PlayerAltitude,
+				RaceTime = -1,
+				RoundPoints = -1,
+				Eliminated = False,
+				isSpectator = Player.RequestsSpectate
+			});
+			HolidayShowdown_PrevRank = Rank;
+			Rank = Rank + 1;
+		}
+	}
+
+	foreach (AccountId in SortedPlayersEliminated) {
+		if (Rank > 3) break;
+		declare CSmPlayer Player <=> ModeUtils::GetPlayerFromAccountId(AccountId);
+		if (Player != Null) {
+			declare Integer HolidayShowdown_PrevRank for Player = 0;
+			// Add the player to the ranking
+			Ranking.add(K_PlayerInfo {
+				Login = Player.User.Login,
+				Name = Player.User.Name,
+				PrevRank = HolidayShowdown_PrevRank,
+				CurRank = Rank,
+				Altitude = -1,
+				RaceTime = -1,
+				RoundPoints = -1,
+				Eliminated = True,
+				isSpectator = Player.RequestsSpectate
+			});
+			HolidayShowdown_PrevRank = Rank;
+			Rank = Rank + 1;
+		}
+	}
+	Net_HolidayShowdown_Ranking = Ranking;
+	Net_HolidayShowdown_RankingSerial = Net_HolidayShowdown_RankingSerial + 1;
+}
+
+
+if (Net_FloorsInfo != S_FloorsInfo) {
+	Net_FloorsInfo = S_FloorsInfo;
+}
+***
+
+
+
+Void SetHolidayShowdownControlML() {
+	declare Text MLText = """
+	<manialink name="PhysicsDiscovery_ControlUI" version="3">
+		<script><!--
+		#Include "TextLib" as TL
+		#Include "MathLib" as ML
+
+		#Const C_ButtonIcons_PC [
+			"ArrowDown" => "file://Media/Manialinks/Common/PadButtons/PC/ArrowDown.dds",
+			"ArrowLeft" => "file://Media/Manialinks/Common/PadButtons/PC/ArrowLeft.dds",
+			"ArrowRight" => "file://Media/Manialinks/Common/PadButtons/PC/ArrowRight.dds",
+			"ArrowUp" => "file://Media/Manialinks/Common/PadButtons/PC/ArrowUp.dds",
+			"Down" => "file://Media/Manialinks/Common/PadButtons/PC/Down.dds",
+			"Left" => "file://Media/Manialinks/Common/PadButtons/PC/Left.dds",
+			"Right" => "file://Media/Manialinks/Common/PadButtons/PC/Right.dds",
+			"Up" => "file://Media/Manialinks/Common/PadButtons/PC/Up.dds",
+			"Shift" => "file://Media/Manialinks/Common/PadButtons/PC/Maj.dds",
+			"Enter" => "file://Media/Manialinks/Common/PadButtons/PC/Enter.dds",
+			"Backspace" => "file://Media/Manialinks/Common/PadButtons/PC/Backspace.dds",
+			"Space" => "file://Media/Manialinks/Common/PadButtons/PC/Space.dds",
+			"PgUp" => "file://Media/Manialinks/Common/PadButtons/PC/PageUp.dds",
+			"PgDn" => "file://Media/Manialinks/Common/PadButtons/PC/PageDown.dds",
+			"Camera" => "file://Media/Manialinks/Common/PadButtons/PC/CameraMouse.dds",
+			"DirectionnalButtons" => "file://Media/Manialinks/Common/PadButtons/PC/DirectionnalButtons.dds",
+			"Mouse" => "file://Media/Manialinks/Common/PadButtons/PC/Mouse.dds",
+			"LeftClick" => "file://Media/Manialinks/Common/PadButtons/PC/LeftClick.dds",
+			"RightClick" => "file://Media/Manialinks/Common/PadButtons/PC/RightClick.dds",
+			"Wheel" => "file://Media/Manialinks/Common/PadButtons/PC/Wheel.dds"
+		]
+
+		#Const C_ButtonIcons_PlayStation [
+			"::EButton::Left" => "file://Media/Manialinks/Common/PadButtons/PS4/DPadLeft.dds",
+			"::EButton::Right" => "file://Media/Manialinks/Common/PadButtons/PS4/DPadRight.dds",
+			"::EButton::Up" => "file://Media/Manialinks/Common/PadButtons/PS4/DPadUp.dds",
+			"::EButton::Down" => "file://Media/Manialinks/Common/PadButtons/PS4/DPadDown.dds",
+			"::EButton::A" => "file://Media/Manialinks/Common/PadButtons/PS4/Cross.dds",
+			"::EButton::B" => "file://Media/Manialinks/Common/PadButtons/PS4/Circle.dds",
+			"::EButton::X" => "file://Media/Manialinks/Common/PadButtons/PS4/Square.dds",
+			"::EButton::Y" => "file://Media/Manialinks/Common/PadButtons/PS4/Triangle.dds",
+			"::EButton::L1" => "file://Media/Manialinks/Common/PadButtons/PS4/L1.dds",
+			"::EButton::R1" => "file://Media/Manialinks/Common/PadButtons/PS4/R1.dds",
+			"::EButton::LeftStick" => "file://Media/Manialinks/Common/PadButtons/PS4/LStickClick.dds",
+			"::EButton::RightStick" => "file://Media/Manialinks/Common/PadButtons/PS4/RStickClick.dds",
+			"::EButton::Menu" => "file://Media/Manialinks/Common/PadButtons/PS4/Options.dds",
+			"::EButton::View" => "file://Media/Manialinks/Common/PadButtons/PS4/TouchPad.dds",
+			"::EButton::LeftStick_Left" => "file://Media/Manialinks/Common/PadButtons/PS4/LStickLeft.dds",
+			"::EButton::LeftStick_Right" => "file://Media/Manialinks/Common/PadButtons/PS4/LStickRight.dds",
+			"::EButton::LeftStick_Up" => "file://Media/Manialinks/Common/PadButtons/PS4/LStickUp.dds",
+			"::EButton::LeftStick_Down" => "file://Media/Manialinks/Common/PadButtons/PS4/LStickDown.dds",
+			"::EButton::RightStick_Left" => "file://Media/Manialinks/Common/PadButtons/PS4/RStickLeft.dds",
+			"::EButton::RightStick_Right" => "file://Media/Manialinks/Common/PadButtons/PS4/RStickRight.dds",
+			"::EButton::RightStick_Up" => "file://Media/Manialinks/Common/PadButtons/PS4/RStickUp.dds",
+			"::EButton::RightStick_Down" => "file://Media/Manialinks/Common/PadButtons/PS4/RStickDown.dds",
+			"::EButton::L2" => "file://Media/Manialinks/Common/PadButtons/PS4/L2.dds",
+			"::EButton::R2" => "file://Media/Manialinks/Common/PadButtons/PS4/R2.dds"
+		]
+		
+		#Const C_ButtonIcons_XBox [
+			"::EButton::Left" => "file://Media/Manialinks/Common/PadButtons/XB1/DPadLeft.dds",
+			"::EButton::Right" => "file://Media/Manialinks/Common/PadButtons/XB1/DPadRight.dds",
+			"::EButton::Up" => "file://Media/Manialinks/Common/PadButtons/XB1/DPadUp.dds",
+			"::EButton::Down" => "file://Media/Manialinks/Common/PadButtons/XB1/DPadDown.dds",
+			"::EButton::A" => "file://Media/Manialinks/Common/PadButtons/XB1/A.dds",
+			"::EButton::B" => "file://Media/Manialinks/Common/PadButtons/XB1/B.dds",
+			"::EButton::X" => "file://Media/Manialinks/Common/PadButtons/XB1/X.dds",
+			"::EButton::Y" => "file://Media/Manialinks/Common/PadButtons/XB1/Y.dds",
+			"::EButton::L1" => "file://Media/Manialinks/Common/PadButtons/XB1/LB.dds",
+			"::EButton::R1" => "file://Media/Manialinks/Common/PadButtons/XB1/RB.dds",
+			"::EButton::LeftStick" => "file://Media/Manialinks/Common/PadButtons/XB1/LStickClick.dds",
+			"::EButton::RightStick" => "file://Media/Manialinks/Common/PadButtons/XB1/RStickClick.dds",
+			"::EButton::Menu" => "file://Media/Manialinks/Common/PadButtons/XB1/Menu.dds",
+			"::EButton::View" => "file://Media/Manialinks/Common/PadButtons/XB1/View.dds",
+			"::EButton::LeftStick_Left" => "file://Media/Manialinks/Common/PadButtons/XB1/LStickLeft.dds",
+			"::EButton::LeftStick_Right" => "file://Media/Manialinks/Common/PadButtons/XB1/LStickRight.dds",
+			"::EButton::LeftStick_Up" => "file://Media/Manialinks/Common/PadButtons/XB1/LStickUp.dds",
+			"::EButton::LeftStick_Down" => "file://Media/Manialinks/Common/PadButtons/XB1/LStickDown.dds",
+			"::EButton::RightStick_Left" => "file://Media/Manialinks/Common/PadButtons/XB1/RStickLeft.dds",
+			"::EButton::RightStick_Right" => "file://Media/Manialinks/Common/PadButtons/XB1/RStickRight.dds",
+			"::EButton::RightStick_Up" => "file://Media/Manialinks/Common/PadButtons/XB1/RStickUp.dds",
+			"::EButton::RightStick_Down" => "file://Media/Manialinks/Common/PadButtons/XB1/RStickDown.dds",
+			"::EButton::L2" => "file://Media/Manialinks/Common/PadButtons/XB1/LT.dds",
+			"::EButton::R2" => "file://Media/Manialinks/Common/PadButtons/XB1/RT.dds"
+		]
+
+		#Struct K_PlayerPhysics {
+			Real AccelCoef;
+			Real AdherenceCoef;
+			Boolean Boost2Down;
+			Boolean Boost2Up;
+			Boolean BoostDown;
+			Boolean BoostUp;
+			Real ControlCoef;
+			Real Cruise;
+			Boolean ForceEngine;
+			Boolean Fragile;
+			Real GravityCoef;
+			Boolean NoBrakes;
+			Boolean NoEngine;
+			Boolean NoSteer;
+			Boolean SlowMotion;
+		}
+
+		Void DevLog(Text _LogText) {
+			declare netread Text Net_ScriptEnvironment for Teams[0] = "production";
+			if (Net_ScriptEnvironment == "development") log("[HS_PC] " ^_LogText);
+		}
+
+		Void Sleep(Integer _Duration) {
+			declare EndTime = Now + _Duration;
+			while (Now < EndTime) {
+					yield;
+			}
+		}
+
+		Text BooleanToText(Boolean _Value) {
+			if (_Value) return "1";
+			return "0";
+		}
+
+		Boolean InputPlayerIsSpectator() {
+			if (GUIPlayer != Null && InputPlayer != Null && GUIPlayer.User.Login == InputPlayer.User.Login) return False;
+			return True;
+		}
+
+		Void ToggleUI() {
+			declare CMlFrame Frame_UI <=> (Page.GetFirstChild("frame-UI") as CMlFrame);
+			declare CMlQuad Quad_Toggle <=> (Page.GetFirstChild("Toggle_Icon_SettingButton") as CMlQuad);
+
+			AnimMgr.Flush(Frame_UI);
+
+			declare Real GlobalEndPosY;
+			if (Frame_UI.Visible) {
+				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_TOP.dds");
+				GlobalEndPosY = -28.;
+				AnimMgr.Add(Frame_UI, "<frame hidden=\"1\" />", Now, 250, CAnimManager::EAnimManagerEasing::Linear);
+			} else {
+				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_BOTTOM.dds");
+				GlobalEndPosY = 0.;
+				Frame_UI.Visible = True;
+			}
+			AnimMgr.Add(Frame_UI, "<frame pos=\"" ^Frame_UI.RelativePosition_V3.X^" "^GlobalEndPosY^ "\" />", Now, 250, CAnimManager::EAnimManagerEasing::Linear);
+		}
+
+		Void UpdateUIButtons(K_PlayerPhysics _PlayerPhysics) {
+			declare CMlQuad Quad_Boost2Down_EffectButton <=> (Page.GetFirstChild("Boost2Down_EffectButton") as CMlQuad);
+			declare CMlQuad Quad_Boost2Up_EffectButton <=> (Page.GetFirstChild("Boost2Up_EffectButton") as CMlQuad);
+			declare CMlQuad Quad_BoostDown_EffectButton <=> (Page.GetFirstChild("BoostDown_EffectButton") as CMlQuad);
+			declare CMlQuad Quad_BoostUp_EffectButton <=> (Page.GetFirstChild("BoostUp_EffectButton") as CMlQuad);
+
+			if (_PlayerPhysics.Boost2Down) Quad_Boost2Down_EffectButton.ModulateColor= <1., 1., 1.>;
+			else Quad_Boost2Down_EffectButton.ModulateColor= <0., 0., 0.>;
+			if (_PlayerPhysics.Boost2Up) Quad_Boost2Up_EffectButton.ModulateColor= <1., 1., 1.>;
+			else Quad_Boost2Up_EffectButton.ModulateColor= <0., 0., 0.>;
+			if (_PlayerPhysics.BoostDown) Quad_BoostDown_EffectButton.ModulateColor= <1., 1., 1.>;
+			else Quad_BoostDown_EffectButton.ModulateColor= <0., 0., 0.>;
+			if (_PlayerPhysics.BoostUp) Quad_BoostUp_EffectButton.ModulateColor= <1., 1., 1.>;
+			else Quad_BoostUp_EffectButton.ModulateColor= <0., 0., 0.>;
+		}
+
+
+		Text GetValueOfAnEffect(K_PlayerPhysics _PlayerPhysics, Text _Effect) {
+			switch (_Effect) {
+				case "AccelCoef": return TL::ToText(_PlayerPhysics.AccelCoef);
+				case "AdherenceCoef": return TL::ToText(_PlayerPhysics.AdherenceCoef);
+				case "Boost2Down": return BooleanToText(_PlayerPhysics.Boost2Down);
+				case "Boost2Up": return BooleanToText(_PlayerPhysics.Boost2Up);
+				case "BoostDown": return BooleanToText(_PlayerPhysics.BoostDown);
+				case "BoostUp": return BooleanToText(_PlayerPhysics.BoostUp);
+				case "ControlCoef": return TL::ToText(_PlayerPhysics.ControlCoef);
+				case "Cruise": return TL::ToText(ML::FloorInteger(_PlayerPhysics.Cruise));
+				case "ForceEngine": return BooleanToText(_PlayerPhysics.ForceEngine);
+				case "Fragile": return BooleanToText(_PlayerPhysics.Fragile);
+				case "GravityCoef": return TL::ToText(_PlayerPhysics.GravityCoef);
+				case "NoBrakes": return BooleanToText(_PlayerPhysics.NoBrakes);
+				case "NoEngine": return BooleanToText(_PlayerPhysics.NoEngine);
+				case "NoSteer": return BooleanToText(_PlayerPhysics.NoSteer);
+				case "SlowMotion": return BooleanToText(_PlayerPhysics.SlowMotion);
+			}
+			return "";
+		}
+
+		K_PlayerPhysics InitPlayerPhysicsVariable() {
+			return K_PlayerPhysics {
+				AccelCoef = 1.,
+				AdherenceCoef = 1.,
+				ControlCoef = 1.,
+				Cruise = 0.,
+				GravityCoef = 1.
+			};
+		}
+		Void UpdateUIBindingButtons() {
+			declare persistent Text PhysicsController_Binding_BoostDown for UserMgr.MainUser = "";
+			declare persistent Text PhysicsController_Binding_BoostUp for UserMgr.MainUser = "";
+			declare persistent Text PhysicsController_Binding_Boost2Down for UserMgr.MainUser = "";
+			declare persistent Text PhysicsController_Binding_Boost2Up for UserMgr.MainUser= "";
+
+			foreach (Effect in ["BoostDown","BoostUp","Boost2Down","Boost2Up"]) {
+				declare CMlQuad Quad_GamePadButton <=> (Page.GetFirstChild(Effect ^ "_BindedGamepadButton") as CMlQuad);
+				declare CMlLabel Label_KBButton <=> (Page.GetFirstChild(Effect ^ "_BindedKBButton") as CMlLabel);
+
+				declare Text Button = "";
+				switch (Effect) {
+					case "BoostDown": Button = PhysicsController_Binding_BoostDown;
+					case "BoostUp": Button = PhysicsController_Binding_BoostUp;
+					case "Boost2Down": Button = PhysicsController_Binding_Boost2Down;
+					case "Boost2Up": Button = PhysicsController_Binding_Boost2Up;
+					default: {}
+				}
+				if (Button == "") {
+					Quad_GamePadButton.ChangeImageUrl("");
+					Quad_GamePadButton.Visible = False;
+					Label_KBButton.Value = "";
+					Label_KBButton.Visible = False;
+				} else if (TL::Find("::EButton::", Button, True, True)) { // Gamepads
+					declare Text[] Char = TL::Split(" ", Button);
+					if (Char[1] == "PlayStation") Quad_GamePadButton.ChangeImageUrl(C_ButtonIcons_PlayStation[Char[0]]);
+					else Quad_GamePadButton.ChangeImageUrl(C_ButtonIcons_XBox[Char[0]]);
+					Quad_GamePadButton.Visible = True;
+					Label_KBButton.Value = "";
+					Label_KBButton.Visible = False;
+				} else if (C_ButtonIcons_PC.existskey(Button)) { // Keyboard special keys
+					Quad_GamePadButton.ChangeImageUrl(C_ButtonIcons_PC[Button]);
+					Quad_GamePadButton.Visible = True;
+					Label_KBButton.Value = "";
+					Label_KBButton.Visible = False;
+				} else { // Keyboard keys
+					Quad_GamePadButton.ChangeImageUrl("");
+					Quad_GamePadButton.Visible = False;
+					Label_KBButton.Value = Button;
+					if (TL::Length(Button) > 6) Label_KBButton.TextSizeReal = 1.;
+					else Label_KBButton.TextSizeReal = 2.;
+					Label_KBButton.Visible = True;
+				}
+			}
+
+		}
+
+		main() {
+			DevLog("[main] Starting main loop");
+			declare CMlFrame Frame_Global <=> (Page.GetFirstChild("frame-global") as CMlFrame);
+			declare CMlQuad Quad_Bg <=> (Page.GetFirstChild("quad-bg") as CMlQuad);
+			declare CMlQuad Quad_Fg <=> (Page.GetFirstChild("quad-fg") as CMlQuad);
+			declare CMlQuad Quad_AntiClicks_Fg <=> (Page.GetFirstChild("quad-anticlicks-fg") as CMlQuad);
+			declare CMlLabel Frame_Warning <=> (Page.GetFirstChild("frame-Warning") as CMlLabel);
+
+			declare CMlLabel Label_Title <=> (Page.GetFirstChild("label-title") as CMlLabel);
+			
+			declare CMlQuad Quad_BindKey_SettingButton <=> (Page.GetFirstChild("BindKey_SettingButton") as CMlQuad);
+
+			declare K_PlayerPhysics Last_PlayerPhysics = InitPlayerPhysicsVariable();
+
+			declare netread Boolean Net_ServerForcePlayersToBeControledBySpectators for Teams[0] = False;
+			declare netread Boolean Net_ServerAllowPlayersToBeControledBySpectators for Teams[0] = True;
+
+			declare Boolean Last_PlayerIsAdmin = False;
+			declare Boolean Last_PlayerIsSpectator = False;
+			declare Integer Last_Serial_CanControlPlayers = 0;
+
+			declare Boolean Last_ServerForcePlayersToBeControledBySpectators = False;
+			declare Boolean Last_ServerAllowPlayersToBeControledBySpectators = True;
+			declare Boolean Last_PlayerAllowToBeControledBySpectators = True;
+			declare Boolean Last_UIAllowToBeControledBySpectators = False;
+
+			declare Boolean Last_UIisVisible = False;
+
+			declare Boolean Last_IsBindingMode = False;
+			declare Text Last_EffectToBind = "";
+			declare Integer Last_BindingSerial = 0;
+
+			declare persistent Text PhysicsController_Binding_BoostDown for UserMgr.MainUser = "";
+			declare persistent Text PhysicsController_Binding_BoostUp for UserMgr.MainUser = "";
+			declare persistent Text PhysicsController_Binding_Boost2Down for UserMgr.MainUser = "";
+			declare persistent Text PhysicsController_Binding_Boost2Up for UserMgr.MainUser= "";
+			UpdateUIBindingButtons();
+
+			declare CSmPlayer Owner;
+			if (GUIPlayer != Null) Owner <=> GUIPlayer;
+			else Owner <=> InputPlayer;
+
+			UpdateUIButtons(Last_PlayerPhysics);
+
+			while(True) {
+				yield;
+
+				declare CSmPlayer Owner;
+				if (GUIPlayer != Null) Owner <=> GUIPlayer;
+				else Owner <=> InputPlayer;
+
+				if (Owner != Null) {
+					declare netread Integer Net_CoolDownForEffects for Owner;
+					declare netread Integer Net_CoolDownBeforeReset for Owner;
+
+					declare netread Text[] Net_CanControlPlayers for InputPlayer;
+					declare netread Integer Net_Serial_CanControlPlayers for InputPlayer;
+
+					declare CMlFrame Frame <=> (Page.GetFirstChild("frame-Warning") as CMlFrame);
+
+					declare netread K_PlayerPhysics Net_PlayerPhysics for Owner = InitPlayerPhysicsVariable();
+
+					declare netread Boolean Net_PlayerAllowToBeControledBySpectators for Owner = True;
+					declare netread Boolean Net_PlayerIsAdmin for InputPlayer;
+
+					if (Last_PlayerIsAdmin != Net_PlayerIsAdmin ||
+							Last_PlayerIsSpectator != InputPlayerIsSpectator() ||
+							Last_Serial_CanControlPlayers != Net_Serial_CanControlPlayers ||
+							Last_PlayerAllowToBeControledBySpectators != Net_PlayerAllowToBeControledBySpectators || 
+							Last_ServerForcePlayersToBeControledBySpectators != Net_ServerForcePlayersToBeControledBySpectators ||
+							Last_ServerAllowPlayersToBeControledBySpectators != Net_ServerAllowPlayersToBeControledBySpectators
+						) {
+						DevLog("[main] Update Last_PlayerIsAdmin to " ^ Net_PlayerIsAdmin);
+						Last_PlayerIsAdmin = Net_PlayerIsAdmin;
+						Last_PlayerIsSpectator = InputPlayerIsSpectator();
+						Last_Serial_CanControlPlayers = Net_Serial_CanControlPlayers;
+						DevLog("[main] Update Warning page");
+						Last_PlayerAllowToBeControledBySpectators = Net_PlayerAllowToBeControledBySpectators;
+						Last_ServerForcePlayersToBeControledBySpectators = Net_ServerForcePlayersToBeControledBySpectators;
+						Last_ServerAllowPlayersToBeControledBySpectators = Net_ServerAllowPlayersToBeControledBySpectators;
+
+						if (!Net_PlayerIsAdmin && 
+							(Last_ServerForcePlayersToBeControledBySpectators && (!Last_PlayerIsSpectator || (!Net_CanControlPlayers.exists("any") && !Net_CanControlPlayers.exists(Owner.User.Login))) || 
+							(!Last_ServerForcePlayersToBeControledBySpectators && (!Last_ServerAllowPlayersToBeControledBySpectators || !Last_PlayerAllowToBeControledBySpectators) && Last_PlayerIsSpectator && !Net_CanControlPlayers.exists("any") && !Net_CanControlPlayers.exists(Owner.User.Login)))
+						) 
+						{
+							Quad_AntiClicks_Fg.Visible = True;
+						} else {
+							Quad_AntiClicks_Fg.Visible = False;
+						}
+					}
+					if (Net_CoolDownForEffects < ArenaNow && Frame.Visible == True) {
+						DevLog("[main] Hide Cooldown UI for " ^ InputPlayer.User.Name);
+						Frame.Visible = False;
+					} else if (Net_CoolDownBeforeReset != 0 && !InputPlayerIsSpectator() && Net_CoolDownBeforeReset < ArenaNow) {
+						DevLog("[main] Send Reset for " ^ InputPlayer.User.Name);
+						SendCustomEvent("Request.PlayerPhysics.Reset", [Owner.User.Login, "1"]);
+					}  else if (Net_CoolDownForEffects > ArenaNow) {
+						declare CMlFrame Frame <=> (Page.GetFirstChild("frame-Warning") as CMlFrame);
+						declare CMlLabel Label <=> (Page.GetFirstChild("label-warning") as CMlLabel);
+						if (Frame.Visible == False) Frame.Visible = True;
+						Label.Value = "Wait " ^ (Net_CoolDownForEffects - ArenaNow + 1000) / 1000 ^ " secs";
+					}
+
+					if (Last_PlayerPhysics != Net_PlayerPhysics) {
+						DevLog("[main] Update Last_PlayerPhysics UI to " ^ Net_PlayerPhysics);
+						Last_PlayerPhysics = Net_PlayerPhysics;
+						UpdateUIButtons(Last_PlayerPhysics);
+					}
+
+					// Update Setting button background color
+					if (Last_IsBindingMode) {
+						if (Last_EffectToBind != "") {
+							Label_Title.Value = "Press a key to bind";
+							declare CMlQuad Quad <=> (Page.GetFirstChild(Last_EffectToBind ^ "_EffectButton") as CMlQuad);
+							Quad.ModulateColor = <1.,1.,1.>;
+						}
+						else {
+							Label_Title.Value = "Click on an effect";
+						}
+						Quad_BindKey_SettingButton.BgColor = <1.,1.,1.>;
+					} else if (!Last_IsBindingMode && Quad_BindKey_SettingButton.BgColor != <.0,.0,.0>) {
+						Quad_BindKey_SettingButton.BgColor = <.0,.0,.0>;
+						Label_Title.Value = "Gliders";
+						UpdateUIButtons(Last_PlayerPhysics); // Reset buttons colors
+					}
+
+					if (!Last_UIisVisible && GUIPlayer != Null) {
+						Last_UIisVisible = True;
+						Frame_Global.Visible = True;
+					} else if (Last_UIisVisible && GUIPlayer == Null) {
+						Last_UIisVisible = False;
+						Frame_Global.Visible = False;
+					}
+
+					// Events
+					foreach(Event in PendingEvents) {
+						DevLog("[PendingEvents] Event.Type: " ^ Event.Type);
+						if (Owner != Null) {
+							if (Event.Type == CMlScriptEvent::Type::MouseClick) {
+								if (TL::Find("_EffectButton", Event.ControlId, True, True) && GUIPlayer != Null ) {
+									if (Last_IsBindingMode) {
+										declare Text Effect = TL::Replace(Event.ControlId, "_EffectButton", "");
+										Last_EffectToBind = Effect;
+									} else {
+										declare Text Effect = TL::Replace(Event.ControlId, "_EffectButton", "");
+										declare Text Target;
+										Target = Owner.User.Login;
+										DevLog("[PendingEvents] Request of " ^ Effect ^ " to " ^ Target);
+										if (GetValueOfAnEffect(Last_PlayerPhysics, Effect) == "1") SendCustomEvent("Request.PlayerPhysics." ^ Effect, [Target, "0"]);
+										else SendCustomEvent("Request.PlayerPhysics." ^ Effect, [Target, "1"]);
+									}
+								} else if (Event.ControlId == "Toggle_Bg_SettingButton") {
+									DevLog("[PendingEvents] Toggle UI by " ^ Owner.User.Login);
+									ToggleUI();
+									Last_IsBindingMode = False;
+									Last_EffectToBind = "";
+								} else if (Event.ControlId == "BindKey_SettingButton") {
+									Last_IsBindingMode = !Last_IsBindingMode;
+									if (Last_EffectToBind != "") {
+										switch (Last_EffectToBind) {
+											case "BoostDown": PhysicsController_Binding_BoostDown = "";
+											case "BoostUp": PhysicsController_Binding_BoostUp = "";
+											case "Boost2Down": PhysicsController_Binding_Boost2Down = "";
+											case "Boost2Up": PhysicsController_Binding_Boost2Up = "";
+											default: {}
+										}
+										UserMgr.MainUser.PersistentSave();
+										UpdateUIBindingButtons();
+										Last_EffectToBind = "";
+									}
+								}
+							} else if (Event.Type == CMlScriptEvent::Type::KeyPress) {
+								// Events from keyboard
+								DevLog("[PendingEvents KeyPress] Event.KeyName: " ^ Event.KeyName);
+								if (Last_IsBindingMode) {
+									declare Text Keyname = Event.KeyName;
+									if (Keyname == "Escape") {
+										Keyname = "";
+										Last_IsBindingMode = False;
+									}
+									if (Last_EffectToBind != "") {
+										switch (Last_EffectToBind) {
+											case "BoostDown": PhysicsController_Binding_BoostDown = Keyname;
+											case "BoostUp": PhysicsController_Binding_BoostUp = Keyname;
+											case "Boost2Down": PhysicsController_Binding_Boost2Down = Keyname;
+											case "Boost2Up": PhysicsController_Binding_Boost2Up = Keyname;
+											default: {}
+										}
+										UserMgr.MainUser.PersistentSave();
+										UpdateUIBindingButtons();
+										Last_EffectToBind = "";
+										Last_IsBindingMode = False;
+									}
+								} else if (Quad_AntiClicks_Fg.Visible == False && Frame_Warning.Visible == False)  {
+									declare Text Effect = "";
+									switch (Event.KeyName) {
+										case PhysicsController_Binding_BoostDown: Effect = "BoostDown";
+										case PhysicsController_Binding_BoostUp: Effect = "BoostUp";
+										case PhysicsController_Binding_Boost2Down: Effect = "Boost2Down";
+										case PhysicsController_Binding_Boost2Up: Effect = "Boost2Up";
+										default: {}
+									}
+									if (Effect != "") {
+										declare Text Target;
+										Target = Owner.User.Login;
+										DevLog("[PendingEvents] Request of " ^ Effect ^ " to " ^ Target);
+										if (GetValueOfAnEffect(Last_PlayerPhysics, Effect) == "1") SendCustomEvent("Request.PlayerPhysics." ^ Effect, [Target, "0"]);
+										else SendCustomEvent("Request.PlayerPhysics." ^ Effect, [Target, "1"]);
+									}
+								}
+							} else if (Event.Type == CMlScriptEvent::Type::MouseOver && (TL::Find("_EffectButton", Event.ControlId, True, True) || TL::Find("_SettingButton", Event.ControlId, True, True))) {
+								declare Quad <=> (Page.GetFirstChild(Event.ControlId) as CMlQuad);
+								Quad.Opacity = 0.7;
+							} else if (Event.Type == CMlScriptEvent::Type::MouseOut && (TL::Find("_EffectButton", Event.ControlId, True, True) || TL::Find("_SettingButton", Event.ControlId, True, True))) {
+								declare Quad <=> (Page.GetFirstChild(Event.ControlId) as CMlQuad);
+								Quad.Opacity = 0.5;
+							} 
+						}
+					}
+
+					// Event from gamepads
+					foreach (Event in Input.PendingEvents) {
+						if (Event.Pad.Type != CInputPad::EPadType::Keyboard && !Event.IsAutoRepeat) { // Check if IsAutoRepeat have no side effect
+							DevLog("[Input.PendingEvents] Event.Button: " ^ Event.Button);
+							if (Last_IsBindingMode) {
+								if (Last_EffectToBind != "") {
+									declare Text PadType = "XBox"; 
+									if (Event.Pad.Type == CInputPad::EPadType::PlayStation) PadType = "PlayStation";
+									switch (Last_EffectToBind) {
+										case "BoostDown": PhysicsController_Binding_BoostDown = Event.Button ^ " " ^ PadType;
+										case "BoostUp": PhysicsController_Binding_BoostUp = Event.Button ^ " " ^ PadType;
+										case "Boost2Down": PhysicsController_Binding_Boost2Down = Event.Button ^ " " ^ PadType;
+										case "Boost2Up": PhysicsController_Binding_Boost2Up = Event.Button ^ " " ^ PadType;
+										default: {}
+									}
+									UserMgr.MainUser.PersistentSave();
+									UpdateUIBindingButtons();
+									Last_EffectToBind = "";
+									Last_IsBindingMode = False;
+								}
+							} else if (Quad_AntiClicks_Fg.Visible == False && Frame_Warning.Visible == False) {
+								declare Text Effect = "";
+								switch (Event.Button ^"") {
+									case TL::SubText(PhysicsController_Binding_BoostDown, 0 , TL::Length(Event.Button^"")): Effect = "BoostDown";
+									case TL::SubText(PhysicsController_Binding_BoostUp, 0 , TL::Length(Event.Button^"")): Effect = "BoostUp";
+									case TL::SubText(PhysicsController_Binding_Boost2Down, 0 , TL::Length(Event.Button^"")): Effect = "Boost2Down";
+									case TL::SubText(PhysicsController_Binding_Boost2Up, 0 , TL::Length(Event.Button^"")): Effect = "Boost2Up";
+									default: {}
+								}
+								if (Effect != "") {
+									declare Text Target;
+									Target = Owner.User.Login;
+									DevLog("[PendingEvents] Request of " ^ Effect ^ " to " ^ Target);
+									if (GetValueOfAnEffect(Last_PlayerPhysics, Effect) == "1") SendCustomEvent("Request.PlayerPhysics." ^ Effect, [Target, "0"]);
+									else SendCustomEvent("Request.PlayerPhysics." ^ Effect, [Target, "1"]);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		--></script>
+		<stylesheet>
+			<style class="text-basic" textfont="GameFontBlack" textcolor="ffffff" textsize="0.7" halign="center" valign="center" textprefix="$i$t"/>
+			<style class="quad-effects" halign="center" valign="center" />
+		</stylesheet>
+		<frame id="frame-global" hidden="1" pos="-60 -63">
+			<frame pos="-2 -25" id="frame-toggle">
+				<quad id="Toggle_Bg_SettingButton" size="4 4" class="quad-base"  opacity="0.5" halign="center" valign="center" bgcolor="000" scriptevents="1"/>
+				<quad id="Toggle_Icon_SettingButton" size="4 4" class="quad-base" z-index="3" opacity="0.9" halign="center" valign="center" image="file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_BOTTOM.dds" colorize="fff"/>
+			</frame>
+			<frame id="frame-UI">
+				<quad id="quad-bg" z-index="-1" size="27 27" bgcolor="000" opacity="0.5"  pos="0 0"/>
+				<frame pos="-2 -21">
+					<quad id="BindKey_SettingButton" size="4 4" class="quad-base" opacity="0.5" halign="center" valign="center" bgcolor="000" scriptevents="1"/>
+					<quad size="4 4" class="quad-base" z-index="3" opacity="0.9" halign="center" valign="center" image="file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/Icones_128_icon_settings_key_02.dds" colorize="fff"/>
+				</frame>
+				<quad id="quad-anticlicks-fg" z-index="5" size="27 27" bgcolor="000" opacity="0" scriptevents="1" hidden="1"/>
+				<frame id="frame-Warning" hidden="1">
+					<quad id="quad-fg" z-index="5" size="27 27" bgcolor="000" opacity="0.5" scriptevents="1" />
+					<label id="label-warning" class="text-basic" z-index="6" pos="13.5 -13.5" textsize="1" size="23 10" autonewline="1" text="Wait 7 secs"/>
+				</frame>
+				<label id="label-title" class="text-basic" pos="13.5 -3" textsize="1" z-index="0" size="23 6.22" text="Gliders"/>
+				<frame pos="0.5 6">
+					<frame pos="0 -9">
+						<frame pos="0 0">
+							<quad class="quad-effects" pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ReactorBoost.dds" rot="180" />
+							<quad id="BoostUp_BindedGamepadButton" hidden="1" class="quad-effects" pos="11 -11" z-index="2" size="5 5" />
+							<label id="BoostUp_BindedKBButton" hidden="1" class="text-basic" pos="12 -11" z-index="2" size="9 5"  textprefix="$t" halign="right" textsize="2"/>
+							<label id="BoostUp_BindedKBButton" hidden="1" class="text-basic" pos="12 -11" z-index="2" size="9 5"  textprefix="$t" textsize="2"/>
+							<quad id="BoostUp_EffectButton" class="quad-effects" pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+						</frame>
+						<frame pos="11 0">
+							<quad class="quad-effects" pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ReactorBoost2.dds" rot="180" />
+							<quad id="Boost2Up_BindedGamepadButton" hidden="1" class="quad-effects" pos="11 -11" z-index="2" size="5 5" />
+							<label id="Boost2Up_BindedKBButton" hidden="1" class="text-basic" pos="12 -11" z-index="2" size="9 5"  textprefix="$t" halign="right" textsize="2"/>
+							<quad id="Boost2Up_EffectButton" class="quad-effects" pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+						</frame>
+					</frame>
+					<frame pos="0 -19.5">
+						<frame pos="0 0">
+							<quad class="quad-effects" pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ReactorBoost.dds"/>
+							<quad id="BoostDown_BindedGamepadButton" hidden="1" class="quad-effects" pos="11 -11" z-index="2" size="5 5" />
+							<label id="BoostDown_BindedKBButton" hidden="1" class="text-basic" pos="12 -11" z-index="2" size="9 5"  textprefix="$t" halign="right" textsize="2"/>
+							<quad id="BoostDown_EffectButton" class="quad-effects" pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+						</frame>
+						<frame pos="11 0">
+							<quad class="quad-effects" pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ReactorBoost2.dds" />
+							<quad id="Boost2Down_BindedGamepadButton" hidden="1" class="quad-effects" pos="11 -11" z-index="2" size="5 5" />
+							<label id="Boost2Down_BindedKBButton" hidden="1" class="text-basic" pos="12 -11" z-index="2" size="9 5"  textprefix="$t" halign="right" textsize="2"/>
+							<quad id="Boost2Down_EffectButton" class="quad-effects" pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+						</frame>
+					</frame>
+				</frame>
+			</frame>
+		</frame>
+	</manialink>
+""";
+Layers::Create("PhysicsDiscovery_ControlUI", MLText);
+Layers::SetType("PhysicsDiscovery_ControlUI", CUILayer::EUILayerType::Normal);
+Layers::Attach("PhysicsDiscovery_ControlUI");
+    
+}
+
+
+Void SetHolidayShowdownLiveRaceML() {
+	declare Text MLText = """
+	<manialink name="PhysicsDiscovery_LiveRaceUI" version="3">
+		<script><!--
+		#Include "TextLib" as TL
+		#Include "MathLib" as ML
+
+		#Struct K_PlayerInfo {
+			Text Login;
+			Text Name;
+			Integer PrevRank;
+			Integer CurRank;
+			Integer Altitude;
+			Integer RaceTime;
+			Integer RoundPoints;
+			Boolean Eliminated;
+			Boolean isSpectator;
+		}
+
+		Void DevLog(Text _LogText) {
+			declare netread Text Net_ScriptEnvironment for Teams[0] = "production";
+			if (Net_ScriptEnvironment == "development") log("[HS_LR] " ^ _LogText);
+		}
+
+		Void Sleep(Integer _Duration) {
+			declare EndTime = Now + _Duration;
+			while (Now < EndTime) {
+					yield;
+			}
+		}
+
+		Boolean InputPlayerIsSpectator() {
+			if (GUIPlayer != Null && InputPlayer != Null && GUIPlayer.User.Login == InputPlayer.User.Login) return False;
+			return True;
+		}
+
+		Void ToggleUI() {
+			declare CMlFrame Frame_Global <=> (Page.GetFirstChild("frame-global") as CMlFrame);
+			declare CMlFrame Frame_UI <=> (Page.GetFirstChild("frame-UI") as CMlFrame);
+			declare CMlQuad Quad_Toggle <=> (Page.GetFirstChild("Toggle_SettingButton") as CMlQuad);
+
+			AnimMgr.Flush(Frame_Global);
+			AnimMgr.Flush(Frame_UI);
+
+			declare Real GlobalEndPosX;
+			if (Frame_UI.Visible) {
+				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_RIGHT_OBLIQUE.dds");
+				Quad_Toggle.RelativePosition_V3.X = 5.;
+				GlobalEndPosX = -220.;
+				AnimMgr.Add(Frame_UI, "<frame hidden=\"1\" />", Now, 250, CAnimManager::EAnimManagerEasing::Linear);
+			} else {
+				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds");
+				Quad_Toggle.RelativePosition_V3.X = 0.;
+				GlobalEndPosX = -160.;
+				Frame_UI.Visible = True;
+			}
+			AnimMgr.Add(Frame_Global, "<frame pos=\"" ^GlobalEndPosX^" "^Frame_Global.RelativePosition_V3.Y^ "\" />", Now, 250, CAnimManager::EAnimManagerEasing::Linear);
+		}
+
+		Void SpectateLogin(Text _Login) {
+			ClientUI.Spectator_SetForcedTarget_Clear();
+			SetSpectateTarget(_Login);
+			Playground.SetWantedSpectatorCameraType(CPlaygroundClient::ESpectatorCameraType::Replay);
+		}
+		
+		Void UpdateRankingPlayer(CMlFrame _Frame_Player, K_PlayerInfo _PlayerInfo, Boolean _IsVisible) {
+			declare CMlLabel Label_Player_Rank <=> (_Frame_Player.GetFirstChild("label-player-rank") as CMlLabel);
+			Label_Player_Rank.Value = TL::ToText(_PlayerInfo.CurRank);
+			declare CMlLabel Label_Player_Name <=> (_Frame_Player.GetFirstChild("label-player-name") as CMlLabel);
+			Label_Player_Name.Value = _PlayerInfo.Name;
+			declare CMlQuad Quad_Player_Bg <=> (_Frame_Player.GetFirstChild("quad-player-bg") as CMlQuad);
+
+			if (_IsVisible) Quad_Player_Bg.Opacity = 0.3;
+			else Quad_Player_Bg.Opacity = 0.;
+
+			declare CMlLabel Label_Player_PointsValue <=> (_Frame_Player.GetFirstChild("label-player-points-value") as CMlLabel);
+			declare CMlQuad Quad_Player_PointsIcon <=> (_Frame_Player.GetFirstChild("quad-player-points-icon") as CMlQuad);
+			declare CMlQuad Quad_Player_PointsBg <=> (_Frame_Player.GetFirstChild("quad-player-points-bg") as CMlQuad);
+
+			if (_PlayerInfo.RoundPoints > 0) {
+				Label_Player_PointsValue.Value = "+" ^ _PlayerInfo.RoundPoints;
+				Quad_Player_PointsIcon.ChangeImageUrl("file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/256x256/Icones_256_icon_damier_02.dds");
+				Quad_Player_PointsBg.BgColor = <0.839,0.098,0.098>;
+			} else if (_PlayerInfo.RaceTime > 0) {
+				Label_Player_PointsValue.Value = TL::TimeToText(_PlayerInfo.RaceTime, True, True) ;
+				Quad_Player_PointsIcon.ChangeImageUrl("file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/256x256/Icones_256_icon_damier_02.dds");
+				Quad_Player_PointsBg.BgColor = <0.839,0.098,0.098>;
+			} else if (_PlayerInfo.Eliminated) {
+				Label_Player_PointsValue.Value = _("|DidNotFinish|DNF");
+				Quad_Player_PointsIcon.ChangeImageUrl("file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/256x256/Icones_256_icon_cross_01.dds");
+				Quad_Player_PointsBg.BgColor = <0.588,0.588,0.588>;
+			} else {
+				Label_Player_PointsValue.Value = TL::ToText(_PlayerInfo.Altitude);
+				Quad_Player_PointsIcon.ChangeImageUrl("https://files.virtit.fr/TrackMania/UI/altitude_icon.dds");
+				Quad_Player_PointsBg.BgColor = <0.,0.608,0.373>;
+			}
+
+			// Update Position to PrevRank position
+			if (_PlayerInfo.PrevRank > 0 && _PlayerInfo.PrevRank != _PlayerInfo.CurRank) {
+				_Frame_Player.RelativePosition_V3.Y = ML::ToReal((_PlayerInfo.PrevRank - 1) * -6);
+				declare Real NewRankPosY = ML::ToReal((_PlayerInfo.CurRank - 1) * -6);
+				AnimMgr.Flush(_Frame_Player);
+				AnimMgr.Add(_Frame_Player, "<frame pos=\"0 "^NewRankPosY^"\" />", 250, CAnimManager::EAnimManagerEasing::QuadOut);
+				
+				declare CMlLabel Label_Player_ScoreDiff <=> (_Frame_Player.GetFirstChild("label-player-scorediff") as CMlLabel);
+				declare Text Color;
+				if (_PlayerInfo.PrevRank > _PlayerInfo.CurRank) {
+					Label_Player_ScoreDiff.Value = "⏶";
+					Color = "009B5F";
+				} else {
+					Label_Player_ScoreDiff.Value = "⏷";
+					Color = "d61919";
+				}
+				AnimMgr.Flush(Label_Player_ScoreDiff);
+				AnimMgr.Add(Label_Player_ScoreDiff, "<label opacity=\"1\" textcolor=\""^Color^"\" />", Now, 200, CAnimManager::EAnimManagerEasing::QuadOut);
+				AnimMgr.Add(Label_Player_ScoreDiff, "<label opacity=\"0\" textcolor=\""^Color^"\" />", Now + 10000, 200, CAnimManager::EAnimManagerEasing::QuadOut);
+			}
+		}
+		Void UpdateFloorInfo(CMlFrame _Frame_Floor, Integer _FloorNumber, Integer _CurrentPosition, Integer _PreviousPosition) {
+			_Frame_Floor.Visible = True;
+			declare CMlLabel Label_Floor_Info <=> (_Frame_Floor.GetFirstChild("label-floor-info") as CMlLabel);
+			Label_Floor_Info.Value = "Floor "^_FloorNumber;
+
+			// Update Position to PrevRank position
+			if (_PreviousPosition > -1 && _CurrentPosition != _PreviousPosition) {
+				_Frame_Floor.RelativePosition_V3.Y = ML::ToReal((_PreviousPosition) * -6);
+				declare Real NewRankPosY = ML::ToReal((_CurrentPosition) * -6);
+				AnimMgr.Flush(_Frame_Floor);
+				AnimMgr.Add(_Frame_Floor, "<frame pos=\"0 "^NewRankPosY^"\" />", 250, CAnimManager::EAnimManagerEasing::QuadOut);
+			}
+		}
+		main() {
+			DevLog("[main] Starting main loop");
+			declare CMlFrame Frame_Floors <=> (Page.GetFirstChild("frame-floors") as CMlFrame);
+			declare CMlFrame Frame_Players <=> (Page.GetFirstChild("frame-players") as CMlFrame);
+			declare netread Text Net_FloorsInfo for Teams[0];
+			declare netread K_PlayerInfo[] Net_HolidayShowdown_Ranking for Teams[0];
+			declare netread Integer Net_HolidayShowdown_RankingSerial for Teams[0];
+			declare Integer Last_HolidayShowdown_RankingSerial = 0;
+
+			declare Integer[Integer] Last_FloorPrevPosition;
+
+			while(True) {
+				yield;
+				declare CSmPlayer Owner;
+				if (GUIPlayer != Null) Owner <=> GUIPlayer;
+				else Owner <=> InputPlayer;
+
+				if (Owner != Null) {
+
+					// Events
+					foreach(Event in PendingEvents) {
+						DevLog("[PendingEvents] Event.Type: " ^ Event.Type);
+						if (Owner != Null) {
+							if (Event.Type == CMlScriptEvent::Type::MouseClick) {
+								if (TL::Find("player-", Event.ControlId, True, True) && InputPlayerIsSpectator()) {
+									declare Text HolidayShowdown_QuadPlayerButton_Login for Event.Control = "";
+									
+									if (HolidayShowdown_QuadPlayerButton_Login != "") {
+										DevLog("[PendingEvents] Spectator " ^ InputPlayer.User.Login ^" spectate " ^ HolidayShowdown_QuadPlayerButton_Login);
+										SpectateLogin(HolidayShowdown_QuadPlayerButton_Login);
+									}
+								} else if (Event.ControlId == "Toggle_SettingButton") {
+									DevLog("[PendingEvents] Toggle UI by " ^ Owner.User.Login);
+									ToggleUI();
+								}
+							} else if (Event.Type == CMlScriptEvent::Type::MouseOver && TL::Find("quad-player-button", Event.ControlId, True, True) && InputPlayerIsSpectator()) {
+								declare Quad <=> (Event.Control as CMlQuad);
+								Quad.Opacity = .2;
+							} else if (Event.Type == CMlScriptEvent::Type::MouseOut && TL::Find("quad-player-button", Event.ControlId, True, True)) {
+								declare Quad <=> (Event.Control as CMlQuad);
+								Quad.Opacity = 0.;
+							}
+						}
+					}
+				}
+
+				if (Last_HolidayShowdown_RankingSerial != Net_HolidayShowdown_RankingSerial) {
+					Last_HolidayShowdown_RankingSerial = Net_HolidayShowdown_RankingSerial;
+
+					declare Integer PlayerIndex = 0;
+					declare Integer GlobalIndex = 0;
+
+					declare Integer CurrentFloor = -1;
+					declare Integer[] FloorsInfo;
+					if (Net_FloorsInfo != "") {
+						foreach (Heigth in TL::Split(",", Net_FloorsInfo)) {
+							FloorsInfo.add(TL::ToInteger(Heigth));
+						}
+						FloorsInfo = FloorsInfo.sort();
+						CurrentFloor =  FloorsInfo.count;
+					}
+					declare Boolean NeedToAddFloorInfo;
+					declare Integer[Integer] New_FloorPrevPosition;
+
+					foreach (Key => Control in Frame_Players.Controls) {
+						declare CMlFrame Frame_Floor_Model <=> (Frame_Floors.Controls[Key] as CMlFrame);
+						declare CMlFrame Frame_Player_Model <=> (Control as CMlFrame);
+						declare CMlQuad QuadPlayerButton <=> (Frame_Player_Model.GetFirstChild("quad-player-button") as CMlQuad);
+
+						declare Text HolidayShowdown_QuadPlayerButton_Login for QuadPlayerButton = "";
+						if (Net_HolidayShowdown_Ranking.existskey(Key)) {
+							
+							declare K_PlayerInfo PlayerInfo = Net_HolidayShowdown_Ranking[Key];
+							if (PlayerInfo.Altitude > 0) {
+								if (Key == 0) NeedToAddFloorInfo = True;
+								while (FloorsInfo.existskey(CurrentFloor-1) && FloorsInfo[CurrentFloor-1] > PlayerInfo.Altitude) {
+									CurrentFloor -= 1;
+									NeedToAddFloorInfo = True;
+								}
+								if (NeedToAddFloorInfo) {
+									NeedToAddFloorInfo = False;
+									New_FloorPrevPosition[CurrentFloor] = Key;
+									if (Last_FloorPrevPosition.existskey(CurrentFloor)) UpdateFloorInfo(Frame_Floor_Model, CurrentFloor, Key, Last_FloorPrevPosition[CurrentFloor]);
+									else UpdateFloorInfo(Frame_Floor_Model, CurrentFloor, Key, -1);
+								} else {
+									Frame_Floor_Model.Visible = False;
+								}
+							} else {
+								Frame_Floor_Model.Visible = False;
+							}
+							if (GUIPlayer != Null && GUIPlayer.User.Login == PlayerInfo.Login) UpdateRankingPlayer(Frame_Player_Model, PlayerInfo, True);
+							else UpdateRankingPlayer(Frame_Player_Model, PlayerInfo, False);
+							HolidayShowdown_QuadPlayerButton_Login = PlayerInfo.Login;
+							Frame_Player_Model.Visible = True;
+							GlobalIndex += 1;
+						} else {
+							HolidayShowdown_QuadPlayerButton_Login = "";
+							Frame_Player_Model.Visible = False;
+							Frame_Floor_Model.Visible = False;
+						}
+					}
+
+					declare CMlQuad Quad_Bg <=> (Page.GetFirstChild("quad-bg") as CMlQuad);
+					Quad_Bg.Size.Y = ML::ToReal(16 + (GlobalIndex * 6));
+
+					Last_FloorPrevPosition = New_FloorPrevPosition;
+				}
+			}
+		}
+		--></script>
+		<stylesheet>
+			<style class="text-title" textfont="GameFontBlack" textcolor="ffffff" textsize="0.7" halign="center" valign="center" textprefix="$i$t"/>
+		</stylesheet>
+		<framemodel id="floor-model">
+			<quad pos="0 0" opacity="0.8" z-index="1" size="60 0.5" bgcolor="fff" />
+			<quad pos="60 -1.55"  z-index="1" size="2 3" scriptevents="1" style="UICommon64_1" substyle="Play_light"  rot="90" halign="right" valign="center"/>
+			<label id="label-floor-info" pos="61 -0.5" z-index="2"  textsize="0" class="text-title" size="20 6" text="floor 1" halign="left"/>
+		</framemodel>
+		<framemodel id="player-model">
+			<quad id="quad-player-bg" pos="0 0" z-index="0" size="43 6" bgcolor="000" opacity="0" />
+			<quad id="quad-player-button" pos="0 0" z-index="1" size="60 6" bgcolor="000" opacity="0" scriptevents="1"/>
+			<label id="label-player-rank" pos="3 -2.5" z-index="2"  textsize="2" class="text-title" size="20 6" />
+			<label id="label-player-name" pos="7 -2.5" z-index="2"  textsize="2" class="text-title" size="30 6" halign="left" />
+			<label id="label-player-scorediff" pos="40 -2.5" z-index="2" size="6 6" textsize="2" halign="center" valign="center" />
+			<quad id="quad-player-points-bg" pos="43 0" z-index="0" size="17 6" bgcolor="009B5F" opacity="0.7"/>
+			<label id="label-player-points-value" pos="53 -2.5" class="text-title" z-index="2"  textsize="1.5" size="9.5 6" halign="right"/>
+			<quad id="quad-player-points-icon" pos="54.5 -0.5" z-index="2" size="5 5" image="https://files.virtit.fr/TrackMania/UI/altitude_icon.dds" colorize="fff"/>
+		</framemodel>
+		<frame id="frame-global" pos="-160 50">
+			<frame pos="58 -2.5" id="frame-toggle">
+				<quad id="Toggle_SettingButton" pos="0 0" size="4 4" class="quad-base" z-index="3" opacity="0.9" scriptevents="1" halign="center" valign="center" image="file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds" colorize="fff"/>
+			</frame>
+			<frame id="frame-UI">
+				<quad id="quad-bg" pos="0 0" z-index="-1" size="60 14" bgcolor="000" opacity="0.5" /><!-- 16 + (ML::Max(NB_Players,16) * 6) -->
+				<label class="text-title" pos="30 -5" textsize="3" z-index="0" size="50 10" text="Live Race"/>
+				<frame id="frame-floors" pos="0 -12">
+					<frameinstance pos="0 0" hidden="1" modelid="floor-model"/>
+					<frameinstance pos="0 -6" hidden="1" modelid="floor-model"/>
+					<frameinstance pos="0 -12" hidden="1" modelid="floor-model"/>
+					<frameinstance pos="0 -18" hidden="1" modelid="floor-model"/>
+					<frameinstance pos="0 -24" hidden="1" modelid="floor-model"/>
+					<frameinstance pos="0 -30" hidden="1" modelid="floor-model"/>
+					<frameinstance pos="0 -36" hidden="1" modelid="floor-model"/>
+					<frameinstance pos="0 -42" hidden="1" modelid="floor-model"/>
+					<frameinstance pos="0 -48" hidden="1" modelid="floor-model"/>
+					<frameinstance pos="0 -54" hidden="1" modelid="floor-model"/>
+					<frameinstance pos="0 -60" hidden="1" modelid="floor-model"/>
+					<frameinstance pos="0 -66" hidden="1" modelid="floor-model"/>
+					<frameinstance pos="0 -72" hidden="1" modelid="floor-model"/>
+					<frameinstance pos="0 -78" hidden="1" modelid="floor-model"/>
+					<frameinstance pos="0 -84" hidden="1" modelid="floor-model"/>
+					<frameinstance pos="0 -90" hidden="1" modelid="floor-model"/>
+				</frame>
+				<frame id="frame-players" pos="0 -12">
+					<frameinstance pos="0 0" hidden="1" modelid="player-model"/>
+					<frameinstance pos="0 -6" hidden="1" modelid="player-model"/>
+					<frameinstance pos="0 -12" hidden="1" modelid="player-model"/>
+					<frameinstance pos="0 -18" hidden="1" modelid="player-model"/>
+					<frameinstance pos="0 -24" hidden="1" modelid="player-model"/>
+					<frameinstance pos="0 -30" hidden="1" modelid="player-model"/>
+					<frameinstance pos="0 -36" hidden="1" modelid="player-model"/>
+					<frameinstance pos="0 -42" hidden="1" modelid="player-model"/>
+					<frameinstance pos="0 -48" hidden="1" modelid="player-model"/>
+					<frameinstance pos="0 -54" hidden="1" modelid="player-model"/>
+					<frameinstance pos="0 -60" hidden="1" modelid="player-model"/>
+					<frameinstance pos="0 -66" hidden="1" modelid="player-model"/>
+					<frameinstance pos="0 -72" hidden="1" modelid="player-model"/>
+					<frameinstance pos="0 -78" hidden="1" modelid="player-model"/>
+					<frameinstance pos="0 -84" hidden="1" modelid="player-model"/>
+					<frameinstance pos="0 -90" hidden="1" modelid="player-model"/>
+				</frame>
+			</frame>
+		</frame>
+	</manialink>
+""";
+Layers::Create("PhysicsDiscovery_LiveRaceUI", MLText);
+Layers::SetType("PhysicsDiscovery_LiveRaceUI", CUILayer::EUILayerType::Normal);
+Layers::Attach("PhysicsDiscovery_LiveRaceUI");
+}
