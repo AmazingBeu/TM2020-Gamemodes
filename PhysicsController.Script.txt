@@ -212,7 +212,6 @@ foreach (Event in RacePendingEvents) {
 			RespawnTime = Now
 		} ;
 	} else if (Event.Type == Events::C_Type_Respawn) {
-		declare netwrite K_PlayerPhysics Net_PlayerPhysics for Event.Player = InitPlayerPhysicsVariable();
 		ApplyPhysicsAtRespawn_Queue[Event.Player.User.WebServicesUserId] = K_RespawnStatus {
 			ResetBeforeAppling = True,
 			RespawnTime = Now
@@ -240,6 +239,11 @@ if (Now % 100 == 0 && ApplyPhysicsAtRespawn_Queue.count > 0) {
 }
 ***
 
+***PhysicsController_Yield***
+***
+MB_Yield();
+***
+
 K_PlayerPhysics InitPlayerPhysicsVariable() {
 	return K_PlayerPhysics {
 		AccelCoef = 1.,
@@ -250,11 +254,14 @@ K_PlayerPhysics InitPlayerPhysicsVariable() {
 	};
 }
 
+
 Boolean SetPhysicsChange(Text _EventName, Text _EventValue, CSmPlayer _Player) {
 	Log::Log("[SetPhysicsChange] _EventName: " ^ _EventName ^" / _EventValue: "^ _EventValue ^ " / _Player: " ^ _Player.User.Name);
 	---PhysicsController_SetPhysicsChange---
 	if (_Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned || _Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning) {
-		while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
+		while (SetPlayer_DelayedIsFull(_Player)) { 
+			---PhysicsController_Yield--- 
+		}
 		switch (_EventName) {
 			case "AccelCoef": SetPlayer_Delayed_AccelCoef(_Player, TL::ToReal(_EventValue));
 			case "AdherenceCoef": SetPlayer_Delayed_AdherenceCoef(_Player, TL::ToReal(_EventValue));
@@ -277,6 +284,7 @@ Boolean SetPhysicsChange(Text _EventName, Text _EventValue, CSmPlayer _Player) {
 	}
 	return False;
 }
+
 
 K_PlayerPhysics GetUpdatedPlayerPhysicsVariable(Text _EventName, Text _EventValue, K_PlayerPhysics _PlayerPhysics) {
 	declare K_PlayerPhysics NewPlayerPhysics = _PlayerPhysics;
