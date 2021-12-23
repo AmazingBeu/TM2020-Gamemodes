@@ -135,13 +135,13 @@ if (Now > WaitNextUpdate) {
 		}
 	}
 	SortedPlayersByRaceTime = SortedPlayersByRaceTime.sort();
-	SortedPlayersByAltitude = SortedPlayersByAltitude.sortreverse(); //TODO Sort if player have floor equaled altitude
+	SortedPlayersByAltitude = SortedPlayersByAltitude.sortreverse();
 	
 	declare K_PlayerInfo[] Ranking;
 	declare Integer Rank = 1;
 	
 	foreach (AccountId => RaceTime in SortedPlayersByRaceTime) {
-		if (Rank > 3) break; // TODO Change
+		if (Rank > 16) break;
 		declare CSmPlayer Player <=> ModeUtils::GetPlayerFromAccountId(AccountId);
 		if (Player != Null) {
 			declare Integer HolidayShowdown_PrevRank for Player = 0;
@@ -162,7 +162,7 @@ if (Now > WaitNextUpdate) {
 	}
 	
 	foreach (AccountId => PlayerAltitude in SortedPlayersByAltitude) {
-		if (Rank > 3) break;
+		if (Rank > 16) break;
 		declare CSmPlayer Player <=> ModeUtils::GetPlayerFromAccountId(AccountId);
 		if (Player != Null ) {
 			declare Integer HolidayShowdown_PrevRank for Player = 0;
@@ -184,7 +184,7 @@ if (Now > WaitNextUpdate) {
 	}
 
 	foreach (AccountId in SortedPlayersEliminated) {
-		if (Rank > 3) break;
+		if (Rank > 16) break;
 		declare CSmPlayer Player <=> ModeUtils::GetPlayerFromAccountId(AccountId);
 		if (Player != Null) {
 			declare Integer HolidayShowdown_PrevRank for Player = 0;

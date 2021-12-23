@@ -159,7 +159,7 @@ if (Last_LinksSpectatorsToPlayers != S_LinksSpectatorsToPlayers) {
 		foreach (Link in AllLinks) {
 			declare Text[] LinkArray = TL::Split(":", Link);
 			if (LinkArray.count > 1) {
-				log("[Last_LinksSpectatorsToPlayers] LinkArray.count > 1");
+				Log::Log("[Last_LinksSpectatorsToPlayers] LinkArray.count > 1");
 				if (!TemporaryData.existskey(LinkArray[0])) TemporaryData[LinkArray[0]] = [];
 				TemporaryData[LinkArray[0]].add(LinkArray[1]);
 			}
