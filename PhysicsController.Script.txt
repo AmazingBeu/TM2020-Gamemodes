@@ -1,7 +1,7 @@
 #Extends "Modes/TrackMania/TM_TimeAttack_Online.Script.txt"
 
 #Setting S_AdminPlayers "" as "Comma separated admin to manage all players physics"
-#Setting S_LinksSpectatorsToPlayers "" as "Comma separated Spectator login linked to a Player login with a colon" // Exemple : "Spectator1Login:Player1Login] =Spectator1Login:Player2Login] =Spectator2Login:any". To prevent all spectators to control all players] = just add a random key:value like "lock:lock"
+#Setting S_LinksSpectatorsToPlayers "" as "Comma separated Spectator login linked to a Player login with a colon" // Exemple : "Spectator1Login:Player1Login,Spectator1Login:Player2Login,Spectator2Login:any". To prevent all spectators to control all players, just add a random key:value like "lock:lock"
 #Setting S_ForcePlayersToBeControledBySpectators False as "Force Players to be controlled by Spectators"
 #Setting S_AllowPlayersToBeControledBySpectators True as "Allow Players to be controlled by Spectators"
 
@@ -109,24 +109,35 @@ foreach (Event in UIManager.PendingEvents) { // TODO: Add Secure token to admins
 		if (Target == "all") {
 			AllPlayersPhysics = GetUpdatedPlayerPhysicsVariable(EventName, Value, AllPlayersPhysics);
 			foreach (Player in AllPlayers) {
-				if (!ApplyPhysics_Queue.existskey(Player.User.WebServicesUserId)) ApplyPhysics_Queue[Player.User.WebServicesUserId] = [];
-				ApplyPhysics_Queue[Player.User.WebServicesUserId].add(K_NewPhysicsEffect {
-					Time = Now,
-					Effect = EventName,
-					Value = Value
-				});
+				if (!ApplyPhysics_Queue.existskey(Player.User.WebServicesUserId) || EventName == "Reset") {
+					ApplyPhysics_Queue[Player.User.WebServicesUserId] = [];
+				} else {
+					foreach (Key => NewPhysicsEffects in ApplyPhysics_Queue[Player.User.WebServicesUserId]) {
+						if (NewPhysicsEffects.Effect == EventName && NewPhysicsEffects.Value == Value && NewPhysicsEffects.Time == Now) {
+							ApplyPhysics_Queue[Player.User.WebServicesUserId].removekey(Key);
+						}
+					}
+				}
+				---PhysicsController_BeforeAddApplyPhysicsEffect---
+				ApplyPhysics_Queue[Player.User.WebServicesUserId].add(GetPhysics(EventName, Value, Now));
 				declare netwrite K_PlayerPhysics Net_PlayerPhysics for Player = InitPlayerPhysicsVariable();
 				Net_PlayerPhysics = AllPlayersPhysics;
 			}
 		} else {
 			declare CSmPlayer Player = GetPlayer(Target);
 			if (Player != Null && (Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned || Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning)) {
-				if (!ApplyPhysics_Queue.existskey(Player.User.WebServicesUserId)) ApplyPhysics_Queue[Player.User.WebServicesUserId] = [];
-				ApplyPhysics_Queue[Player.User.WebServicesUserId].add(K_NewPhysicsEffect {
-					Time = Now,
-					Effect = EventName,
-					Value = Value
-				});
+				if (!ApplyPhysics_Queue.existskey(Player.User.WebServicesUserId) || EventName == "Reset") {
+					ApplyPhysics_Queue[Player.User.WebServicesUserId] = [];
+				} else {
+					declare Boolean AlreadyPassed;
+					foreach (Key => NewPhysicsEffects in ApplyPhysics_Queue[Player.User.WebServicesUserId]) {
+						if (NewPhysicsEffects.Effect == EventName && NewPhysicsEffects.Value == Value && NewPhysicsEffects.Time == Now) {
+							ApplyPhysics_Queue[Player.User.WebServicesUserId].removekey(Key);
+						}
+					}
+				}
+				---PhysicsController_BeforeAddApplyPhysicsEffect---
+				ApplyPhysics_Queue[Player.User.WebServicesUserId].add(GetPhysics(EventName, Value, Now));
 				declare netwrite K_PlayerPhysics Net_PlayerPhysics for Player = InitPlayerPhysicsVariable();
 				Net_PlayerPhysics = GetUpdatedPlayerPhysicsVariable(EventName, Value, Net_PlayerPhysics);
 			}
@@ -147,7 +158,7 @@ foreach (Event in UIManager.PendingEvents) { // TODO: Add Secure token to admins
 		AllPlayersPhysics = InitPlayerPhysicsVariable();
 		if (Locked) {
 			foreach (Player in AllPlayers) {
-				if (!ApplyPhysics_Queue.existskey(Player.User.WebServicesUserId)) ApplyPhysics_Queue[Player.User.WebServicesUserId] = [];
+				ApplyPhysics_Queue[Player.User.WebServicesUserId] = [];
 				ApplyPhysics_Queue[Player.User.WebServicesUserId].add(K_NewPhysicsEffect {
 					Time = Now,
 					Effect = "Reset"
@@ -228,7 +239,8 @@ if (Net_ServerAllowPlayersToBeControledBySpectators != S_AllowPlayersToBeControl
 foreach (AccountId => ArrayNewPlayerPhysics in ApplyPhysics_Queue) {
 	declare CSmPlayer Player = ModeUtils::GetPlayerFromAccountId(AccountId);
 	foreach (Key => NewPlayerPhysics in ArrayNewPlayerPhysics) {
-		if (Player != Null && (Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned || Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning)) {
+		if (Player != Null && NewPlayerPhysics.Time <= Now && (Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned || Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning)) {
+			Log::Log("[ApplyPhysics] Trying to set Event " ^ NewPlayerPhysics.Effect ^ " for " ^ Player.User.Name);
 			if (SetPlayerPhysics(NewPlayerPhysics.Effect,NewPlayerPhysics.Value,Player)) {
 				ApplyPhysics_Queue[AccountId].removekey(Key);
 				if (ApplyPhysics_Queue[AccountId].count == 0) ApplyPhysics_Queue.removekey(AccountId);
@@ -246,9 +258,8 @@ foreach (AccountId => ArrayNewPlayerPhysics in ApplyPhysics_Queue) {
 foreach (Event in RacePendingEvents) {
 	Log::Log("[RacePendingEvents] Event.Type: " ^ Event.Type);
 	if (Event.Type == Events::C_Type_StartLine || Event.Type == Events::C_Type_GiveUp || Event.Type == Events::C_Type_SkipOutro || Event.Type == Events::C_Type_Respawn) {
-		declare K_NewPhysicsEffect[] NewPhysics = DiffPhysics(Event.Player, (Event.Type == Events::C_Type_Respawn));
+		declare K_NewPhysicsEffect[] NewPhysics = GetDiffPhysics(Event.Player, (Event.Type == Events::C_Type_Respawn));
 		if (NewPhysics.count > 0) {
-			if (!ApplyPhysics_Queue.existskey(Event.Player.User.WebServicesUserId)) ApplyPhysics_Queue[Event.Player.User.WebServicesUserId] = [];
 			ApplyPhysics_Queue[Event.Player.User.WebServicesUserId] = NewPhysics;
 		}
 	}
@@ -269,7 +280,7 @@ K_PlayerPhysics InitPlayerPhysicsVariable() {
 Boolean SetPlayerPhysics(Text _EventName, Text _EventValue, CSmPlayer _Player) {
 	Log::Log("[SetPhysicsChange] _EventName: " ^ _EventName ^" / _EventValue: "^ _EventValue ^ " / _Player: " ^ _Player.User.Name);
 	---PhysicsController_SetPhysicsChange---
-	if (_Player != Null && !SetPlayer_DelayedIsFull(_Player) && _Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned || _Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning) {
+	if (_Player != Null && !SetPlayer_DelayedIsFull(_Player) && (_Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned || _Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning)) {
 		switch (_EventName) {
 			case "AccelCoef": SetPlayer_Delayed_AccelCoef(_Player, TL::ToReal(_EventValue));
 			case "AdherenceCoef": SetPlayer_Delayed_AdherenceCoef(_Player, TL::ToReal(_EventValue));
@@ -344,7 +355,15 @@ K_PlayerPhysics GetUpdatedPlayerPhysicsVariable(Text _EventName, Text _EventValu
 	return NewPlayerPhysics;
 }
 
-K_NewPhysicsEffect[] DiffPhysics(CSmPlayer _Player, Boolean _Reset) {
+K_NewPhysicsEffect GetPhysics(Text _Effect, Text _Value, Integer _Time) {
+	return K_NewPhysicsEffect {
+		Time = _Time,
+		Effect = _Effect,
+		Value = _Value
+	};
+}
+
+K_NewPhysicsEffect[] GetDiffPhysics(CSmPlayer _Player, Boolean _Reset) {
 	declare K_PlayerPhysics DefaultPlayerPhysics = InitPlayerPhysicsVariable();
 	declare netwrite K_PlayerPhysics Net_PlayerPhysics for _Player = InitPlayerPhysicsVariable();
 

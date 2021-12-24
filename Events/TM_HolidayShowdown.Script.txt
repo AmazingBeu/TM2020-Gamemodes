@@ -38,7 +38,7 @@ foreach (Event in RacePendingEvents) {
 			declare netwrite Net_PlayerPhysics for Event.Player = InitPlayerPhysicsVariable();
 			Net_PlayerPhysics = InitPlayerPhysicsVariable();
 			if (!ApplyPhysics_Queue.existskey(Event.Player.User.WebServicesUserId)) ApplyPhysics_Queue[Event.Player.User.WebServicesUserId] = [];
-			ApplyPhysics_Queue[Event.Player.User.WebServicesUserId] = DiffPhysics(Event.Player, True);
+			ApplyPhysics_Queue[Event.Player.User.WebServicesUserId] = GetDiffPhysics(Event.Player, True);
 		}
 	}
 }
@@ -58,10 +58,21 @@ declare netwrite Integer Net_CoolDownForEffects for _Player = 0;
 declare netwrite Integer Net_CoolDownBeforeReset for _Player = 0;
 if (_EventName == "Reset") {
 	Net_CoolDownBeforeReset = 0;
+	if (_Player != Null && !SetPlayer_DelayedIsFull(_Player) && (_Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned || _Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning)) {
+		declare netwrite Net_PlayerPhysics for _Player = InitPlayerPhysicsVariable();
+		Net_PlayerPhysics = InitPlayerPhysicsVariable();
+	}
 } else {
 	Net_CoolDownBeforeReset = Now + (S_CoolDownBeforeReset * 1000);
 	Net_CoolDownForEffects = Now + (S_CoolDownForEffects * 1000);
 }
+***
+
+***PhysicsController_BeforeAddApplyPhysicsEffect***
+***
+ApplyPhysics_Queue[Player.User.WebServicesUserId].add(GetPhysics("Reset", "", Now + (S_CoolDownBeforeReset * 1000) - 50));
+ApplyPhysics_Queue[Player.User.WebServicesUserId].add(GetPhysics("Reset", "", Now + (S_CoolDownBeforeReset * 1000) + 50));
+ApplyPhysics_Queue[Player.User.WebServicesUserId].add(GetPhysics(EventName, Value, Now + 50));
 ***
 
 ***Match_InitMap***
@@ -511,10 +522,7 @@ Void SetHolidayShowdownControlML() {
 					if (Net_CoolDownForEffects < ArenaNow && Frame.Visible == True) {
 						DevLog("[main] Hide Cooldown UI for " ^ InputPlayer.User.Name);
 						Frame.Visible = False;
-					} else if (Net_CoolDownBeforeReset != 0 && !InputPlayerIsSpectator() && Net_CoolDownBeforeReset < ArenaNow) {
-						DevLog("[main] Send Reset for " ^ InputPlayer.User.Name);
-						SendCustomEvent("Request.PlayerPhysics.Reset", [Owner.User.Login, "1"]);
-					}  else if (Net_CoolDownForEffects > ArenaNow) {
+					} else if (Net_CoolDownForEffects > ArenaNow) {
 						declare CMlFrame Frame <=> (Page.GetFirstChild("frame-Warning") as CMlFrame);
 						declare CMlLabel Label <=> (Page.GetFirstChild("label-warning") as CMlLabel);
 						if (Frame.Visible == False) Frame.Visible = True;
@@ -566,8 +574,7 @@ Void SetHolidayShowdownControlML() {
 										declare Text Target;
 										Target = Owner.User.Login;
 										DevLog("[PendingEvents] Request of " ^ Effect ^ " to " ^ Target);
-										if (GetValueOfAnEffect(Last_PlayerPhysics, Effect) == "1") SendCustomEvent("Request.PlayerPhysics." ^ Effect, [Target, "0"]);
-										else SendCustomEvent("Request.PlayerPhysics." ^ Effect, [Target, "1"]);
+										SendCustomEvent("Request.PlayerPhysics." ^ Effect, [Target, "1"]);
 									}
 								} else if (Event.ControlId == "Toggle_Bg_SettingButton") {
 									DevLog("[PendingEvents] Toggle UI by " ^ Owner.User.Login);
