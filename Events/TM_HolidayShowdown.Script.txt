@@ -24,47 +24,9 @@ declare Integer[Text] ApplyResetAtRespawn_Queue for This;
 ApplyResetAtRespawn_Queue = [];
 ***
 
-***PhysicsController_Yield***
+// force a reset at respawn to prevent abuse
+***PhysicsController_PhysicsAtRespawn***
 ***
-declare RacePendingEvents = Race::GetPendingEvents();
-foreach (Event in RacePendingEvents) {
-	Log::Log("[RacePendingEvents][Yield] Event.Type: " ^ Event.Type);
-	if (Event.Type == Events::C_Type_StartLine || Event.Type == Events::C_Type_GiveUp || Event.Type == Events::C_Type_SkipOutro || Event.Type == Events::C_Type_Respawn) {
-		if (Event.Player != Null) {
-			declare netwrite Integer Net_CoolDownForEffects for Event.Player;
-			declare netwrite Integer Net_CoolDownBeforeReset for Event.Player;
-			Net_CoolDownForEffects = 0;
-			Net_CoolDownBeforeReset = 0;
-			declare Integer[Text] ApplyResetAtRespawn_Queue for This;
-			ApplyResetAtRespawn_Queue[Event.Player.User.WebServicesUserId] = Now;
-		}
-	}
-}
-MB_Yield();
-***
-
-// I force a reset at respawn to prevent abuse
-***PhysicsController_ApplyPhysicsAtRespawn***
-***
-if (Now % 100 == 0 && ApplyResetAtRespawn_Queue.count > 0) {
-	foreach (AccountId => Time in ApplyResetAtRespawn_Queue) {
-		declare CSmPlayer Player = ModeUtils::GetPlayerFromAccountId(AccountId);
-		if (Player != Null && (Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned || Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning)) {
-			Log::Log("[ApplyPhysicsAtRespawn] Player: " ^ Player.User.Name);
-			SetPhysicsChange("Reset", "", Player);
-			declare netwrite Net_PlayerPhysics for Player = InitPlayerPhysicsVariable();
-			Net_PlayerPhysics = InitPlayerPhysicsVariable();
-			ApplyResetAtRespawn_Queue.removekey(AccountId);
-		} else if (Time > Now || Time + 10000 < Now ) { // Clear ApplyResetAtRespawn_Queue array if player is DC 
-			Log::Log("[ApplyPhysicsAtRespawn] Clear from array after 10s: " ^ AccountId);
-			if (Player != Null) {
-				declare netwrite Net_PlayerPhysics for Player = InitPlayerPhysicsVariable();
-				Net_PlayerPhysics = InitPlayerPhysicsVariable();
-			}
-			ApplyResetAtRespawn_Queue.removekey(AccountId);
-		}
-	}
-}
 foreach (Event in RacePendingEvents) {
 	Log::Log("[RacePendingEvents][MainLoop] Event.Type: " ^ Event.Type);
 	if (Event.Type == Events::C_Type_StartLine || Event.Type == Events::C_Type_GiveUp || Event.Type == Events::C_Type_SkipOutro || Event.Type == Events::C_Type_Respawn) {
@@ -73,14 +35,10 @@ foreach (Event in RacePendingEvents) {
 			declare netwrite Integer Net_CoolDownBeforeReset for Event.Player;
 			Net_CoolDownForEffects = 0;
 			Net_CoolDownBeforeReset = 0;
-			if (Event.Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned || Event.Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning) {
-				SetPhysicsChange("Reset", "", Event.Player);
-				declare netwrite Net_PlayerPhysics for Event.Player = InitPlayerPhysicsVariable();
-				Net_PlayerPhysics = InitPlayerPhysicsVariable();
-			} else {
-				declare Integer[Text] ApplyResetAtRespawn_Queue for This;
-				ApplyResetAtRespawn_Queue[Event.Player.User.WebServicesUserId] = Now;
-			}
+			declare netwrite Net_PlayerPhysics for Event.Player = InitPlayerPhysicsVariable();
+			Net_PlayerPhysics = InitPlayerPhysicsVariable();
+			if (!ApplyPhysics_Queue.existskey(Event.Player.User.WebServicesUserId)) ApplyPhysics_Queue[Event.Player.User.WebServicesUserId] = [];
+			ApplyPhysics_Queue[Event.Player.User.WebServicesUserId] = DiffPhysics(Event.Player, True);
 		}
 	}
 }
@@ -109,9 +67,15 @@ if (_EventName == "Reset") {
 ***Match_InitMap***
 ***
 declare Integer WaitNextUpdate = 0;
-declare netwrite Text Net_FloorsInfo for Teams[0] = S_ScriptEnvironment;
+declare netwrite Text Net_FloorsInfo for Teams[0] = S_FloorsInfo;
 declare netwrite K_PlayerInfo[] Net_HolidayShowdown_Ranking for Teams[0];
 declare netwrite Integer Net_HolidayShowdown_RankingSerial for Teams[0];
+***
+
+***Match_InitPlayLoop***
+***
+WaitNextUpdate = 0;
+Net_HolidayShowdown_RankingSerial = 0;
 ***
 
 ***Match_PlayLoop***
@@ -610,7 +574,7 @@ Void SetHolidayShowdownControlML() {
 									ToggleUI();
 									Last_IsBindingMode = False;
 									Last_EffectToBind = "";
-								} else if (Event.ControlId == "BindKey_SettingButton") {
+								} else if (Event.ControlId == "BindKey_SettingButton" && Quad_AntiClicks_Fg.Visible == False && Frame_Warning.Visible == False) {
 									Last_IsBindingMode = !Last_IsBindingMode;
 									if (Last_EffectToBind != "") {
 										switch (Last_EffectToBind) {
