@@ -31,10 +31,12 @@ foreach (Event in RacePendingEvents) {
 	Log::Log("[RacePendingEvents][MainLoop] Event.Type: " ^ Event.Type);
 	if (Event.Type == Events::C_Type_StartLine || Event.Type == Events::C_Type_GiveUp || Event.Type == Events::C_Type_SkipOutro || Event.Type == Events::C_Type_Respawn) {
 		if (Event.Player != Null) {
-			declare netwrite Integer Net_CoolDownForEffects for Event.Player;
-			declare netwrite Integer Net_CoolDownBeforeReset for Event.Player;
-			Net_CoolDownForEffects = 0;
-			Net_CoolDownBeforeReset = 0;
+			if (Event.Type != Events::C_Type_Respawn) {
+				declare netwrite Integer Net_CoolDownForEffects for Event.Player;
+				declare netwrite Integer Net_CoolDownBeforeReset for Event.Player;
+				Net_CoolDownForEffects = 0;
+				Net_CoolDownBeforeReset = 0;
+			}
 			declare netwrite Net_PlayerPhysics for Event.Player = InitPlayerPhysicsVariable();
 			Net_PlayerPhysics = InitPlayerPhysicsVariable();
 			if (!ApplyPhysics_Queue.existskey(Event.Player.User.WebServicesUserId)) ApplyPhysics_Queue[Event.Player.User.WebServicesUserId] = [];
