@@ -479,7 +479,7 @@ Void SetHolidayShowdownControlML() {
 				if (GUIPlayer != Null) Owner <=> GUIPlayer;
 				else Owner <=> InputPlayer;
 
-				if (Owner != Null) {
+				if (Owner != Null && InputPlayer != Null) {
 					declare netread Integer Net_CoolDownForEffects for Owner;
 					declare netread Integer Net_CoolDownBeforeReset for Owner;
 
