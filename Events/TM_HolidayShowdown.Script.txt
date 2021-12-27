@@ -2,8 +2,8 @@
 
 #Extends "Modes/TM2020-Gamemodes/PhysicsController.Script.txt" 
 
-#Setting S_CoolDownBeforeReset 3
-#Setting S_CoolDownForEffects 7
+#Setting S_CoolDownBeforeReset 4
+#Setting S_CoolDownForEffects 180
 #Setting S_FloorsInfo "136,256,384,512,648,768,904,1040,1168,1296,1432" as "comma separated floor height" // Default is floors of the map "Bennett Foddy ate my CPs"
 
 #Struct K_PlayerInfo {
@@ -22,6 +22,32 @@
 ***
 declare Integer[Text] ApplyResetAtRespawn_Queue for This;
 ApplyResetAtRespawn_Queue = [];
+
+if (Map.MapInfo.MapUid == "3tMeImoOvcb0hnryDZ9nbw9YVY6") { // Only upload record on the right map 
+	Race::SetupRecord(
+		MenuConsts::C_ScopeType_Season,
+		MenuConsts::C_ScopeType_PersonalBest,
+		MenuConsts::C_GameMode_TimeAttack,
+		"",
+		True, //C_UploadRecord
+		False, //C_DisplayRecordGhost
+		False, //C_DisplayRecordMedal
+		False, //C_CelebrateRecordGhost
+		False //C_CelebrateRecordMedal
+	);
+} else {
+	Race::SetupRecord(
+		MenuConsts::C_ScopeType_Season,
+		MenuConsts::C_ScopeType_PersonalBest,
+		MenuConsts::C_GameMode_TimeAttack,
+		"",
+		False, //C_UploadRecord
+		False, //C_DisplayRecordGhost
+		False, //C_DisplayRecordMedal
+		False, //C_CelebrateRecordGhost
+		False //C_CelebrateRecordMedal
+	);
+}
 ***
 
 // force a reset at respawn to prevent abuse
@@ -72,9 +98,17 @@ if (_EventName == "Reset") {
 
 ***PhysicsController_BeforeAddApplyPhysicsEffect***
 ***
+ApplyPhysics_Queue[Player.User.WebServicesUserId] = [];
 ApplyPhysics_Queue[Player.User.WebServicesUserId].add(GetPhysics("Reset", "", Now + (S_CoolDownBeforeReset * 1000) - 50));
 ApplyPhysics_Queue[Player.User.WebServicesUserId].add(GetPhysics("Reset", "", Now + (S_CoolDownBeforeReset * 1000) + 50));
+ApplyPhysics_Queue[Player.User.WebServicesUserId].add(GetPhysics("Reset", "", Now + (S_CoolDownBeforeReset * 1000) + 100));
+ApplyPhysics_Queue[Player.User.WebServicesUserId].add(GetPhysics("Reset", "", Now + (S_CoolDownBeforeReset * 1000) + 200));
+ApplyPhysics_Queue[Player.User.WebServicesUserId].add(GetPhysics("Reset", "", Now + (S_CoolDownBeforeReset * 1000) + 500));
+ApplyPhysics_Queue[Player.User.WebServicesUserId].add(GetPhysics("Reset", "", Now + (S_CoolDownBeforeReset * 1000) + 1000));
 ApplyPhysics_Queue[Player.User.WebServicesUserId].add(GetPhysics(EventName, Value, Now + 50));
+ApplyPhysics_Queue[Player.User.WebServicesUserId].add(GetPhysics(EventName, Value, Now + 100));
+ApplyPhysics_Queue[Player.User.WebServicesUserId].add(GetPhysics(EventName, Value, Now + 200));
+ApplyPhysics_Queue[Player.User.WebServicesUserId].add(GetPhysics(EventName, Value, Now + 500));
 ***
 
 ***Match_InitMap***
