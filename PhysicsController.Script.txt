@@ -168,6 +168,7 @@ foreach (Event in UIManager.PendingEvents) { // TODO: Add Secure token to admins
 			}
 		}
 	}
+	---PhysicsController_NewCustomEvents---
 }
 
 ---PhysicsController_ApplyPhysics---
