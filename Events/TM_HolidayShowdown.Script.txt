@@ -139,7 +139,11 @@ if (Now > WaitNextUpdate) {
 			if (Player.Score.PrevRaceTimes.count > 0 && Player.RaceWaypointTimes.count == Player.Score.PrevRaceTimes.count && Player.RaceWaypointTimes[Player.RaceWaypointTimes.count - 1] == Player.Score.PrevRaceTimes[Player.Score.PrevRaceTimes.count - 1]) {
 				SortedPlayersByRaceTime[Player.User.WebServicesUserId] = Player.Score.PrevRaceTimes[Player.Score.PrevRaceTimes.count - 1];
 			} else if (UIManager.UIAll.UISequence == CUIConfig::EUISequence::Playing && Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) {
-				SortedPlayersEliminated.add(Player.User.WebServicesUserId);
+				declare netwrite Integer Net_Knockout_KnockoutInfo_PlayersNb for Teams[0] = 0;
+				declare netwrite Boolean Net_Knockout_PlayerIsAlive for Player.Score = False;
+				if (Net_Knockout_KnockoutInfo_PlayersNb == 0 || Net_Knockout_PlayerIsAlive) {
+					SortedPlayersEliminated.add(Player.User.WebServicesUserId);
+				}
 			} else {
 				SortedPlayersByAltitude[Player.User.WebServicesUserId] = ML::FloorInteger(Player.Position.Y);
 			}
@@ -167,6 +171,7 @@ if (Now > WaitNextUpdate) {
 				Eliminated = False,
 				isSpectator = Player.RequestsSpectate
 			});
+			if (Rank != HolidayShowdown_PrevRank) CarRank::SetRank(Player, Rank);
 			HolidayShowdown_PrevRank = Rank;
 			Rank = Rank + 1;
 		}
@@ -189,6 +194,7 @@ if (Now > WaitNextUpdate) {
 				Eliminated = False,
 				isSpectator = Player.RequestsSpectate
 			});
+			if (Rank != HolidayShowdown_PrevRank) CarRank::SetRank(Player, Rank);
 			HolidayShowdown_PrevRank = Rank;
 			Rank = Rank + 1;
 		}
@@ -211,6 +217,7 @@ if (Now > WaitNextUpdate) {
 				Eliminated = True,
 				isSpectator = Player.RequestsSpectate
 			});
+			if (Rank != HolidayShowdown_PrevRank) CarRank::SetRank(Player, Rank);
 			HolidayShowdown_PrevRank = Rank;
 			Rank = Rank + 1;
 		}
@@ -222,6 +229,21 @@ if (Now > WaitNextUpdate) {
 
 if (Net_FloorsInfo != S_FloorsInfo) {
 	Net_FloorsInfo = S_FloorsInfo;
+}
+***
+
+***PhysicsController_NewCustomEvents***
+***
+if (Event.CustomEventType == "Request.ResetCD") { 
+	declare Text Target = Event.CustomEventData[0];
+	Log::Log("[UIManager] Admin send reset CD to : " ^ Target);
+	declare CSmPlayer Player = GetPlayer(Target);
+	if (Player != Null) {
+		declare netwrite Integer Net_CoolDownForEffects for Player = 0;
+		declare netwrite Integer Net_CoolDownBeforeReset for Player = 0;
+		Net_CoolDownForEffects=0;
+		Net_CoolDownBeforeReset=0;
+	}
 }
 ***
 
@@ -471,6 +493,7 @@ Void SetHolidayShowdownControlML() {
 			declare CMlQuad Quad_Fg <=> (Page.GetFirstChild("quad-fg") as CMlQuad);
 			declare CMlQuad Quad_AntiClicks_Fg <=> (Page.GetFirstChild("quad-anticlicks-fg") as CMlQuad);
 			declare CMlLabel Frame_Warning <=> (Page.GetFirstChild("frame-Warning") as CMlLabel);
+			declare CMlFrame Frame_Admin <=> (Page.GetFirstChild("Admin_Frame") as CMlFrame);
 
 			declare CMlLabel Label_Title <=> (Page.GetFirstChild("label-title") as CMlLabel);
 			
@@ -596,6 +619,10 @@ Void SetHolidayShowdownControlML() {
 						Frame_Global.Visible = False;
 					}
 
+					if (Frame_Admin.Visible != Last_PlayerIsAdmin) {
+						Frame_Admin.Visible = Last_PlayerIsAdmin;
+					}
+
 					// Events
 					foreach(Event in PendingEvents) {
 						DevLog("[PendingEvents] Event.Type: " ^ Event.Type);
@@ -612,6 +639,10 @@ Void SetHolidayShowdownControlML() {
 										DevLog("[PendingEvents] Request of " ^ Effect ^ " to " ^ Target);
 										SendCustomEvent("Request.PlayerPhysics." ^ Effect, [Target, "1"]);
 									}
+								} else if (Event.ControlId == "ResetCD_SettingButton") {
+									declare Text Target = Owner.User.Login;
+									DevLog("[PendingEvents] Request reset CD to " ^ Target);
+									SendCustomEvent("Request.ResetCD", [Target]);
 								} else if (Event.ControlId == "Toggle_Bg_SettingButton") {
 									DevLog("[PendingEvents] Toggle UI by " ^ Owner.User.Login);
 									ToggleUI();
@@ -739,6 +770,16 @@ Void SetHolidayShowdownControlML() {
 					<quad id="BindKey_SettingButton" size="4 4" class="quad-base" opacity="0.5" halign="center" valign="center" bgcolor="000" scriptevents="1"/>
 					<quad size="4 4" class="quad-base" z-index="3" opacity="0.9" halign="center" valign="center" image="file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/Icones_128_icon_settings_key_02.dds" colorize="fff"/>
 				</frame>
+				<frame id="Admin_Frame" pos="-2 -13">
+					<frame pos="0 0">
+						<quad id="Reset_EffectButton" size="4 4" class="quad-base" opacity="0.5" halign="center" valign="center" bgcolor="000" scriptevents="1"/>
+						<quad size="3 3" class="quad-base" z-index="3" opacity="0.9" halign="center" valign="center" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/Reset.dds" />
+					</frame>
+					<frame pos="0 -4">
+						<quad id="ResetCD_SettingButton" size="4 4" class="quad-base" opacity="0.5" halign="center" valign="center" bgcolor="000" scriptevents="1"/>
+						<quad size="4 4" class="quad-base" z-index="3" opacity="0.9" halign="center" valign="center" style="UICommon64_1" substyle="Chrono_light" />
+					</frame>
+				</frame>
 				<quad id="quad-anticlicks-fg" z-index="5" size="27 27" bgcolor="000" opacity="0" scriptevents="1" hidden="1"/>
 				<frame id="frame-Warning" hidden="1">
 					<quad id="quad-fg" z-index="5" size="27 27" bgcolor="000" opacity="0.5" scriptevents="1" />
@@ -852,7 +893,7 @@ Void SetHolidayShowdownLiveRaceML() {
 			Playground.SetWantedSpectatorCameraType(CPlaygroundClient::ESpectatorCameraType::Replay);
 		}
 		
-		Void UpdateRankingPlayer(CMlFrame _Frame_Player, K_PlayerInfo _PlayerInfo, Boolean _IsVisible) {
+		Void UpdateRankingPlayer(CMlFrame _Frame_Player, K_PlayerInfo _PlayerInfo, Boolean _IsVisible, Boolean _IsEliminated) {
 			declare CMlLabel Label_Player_Rank <=> (_Frame_Player.GetFirstChild("label-player-rank") as CMlLabel);
 			Label_Player_Rank.Value = TL::ToText(_PlayerInfo.CurRank);
 			declare CMlLabel Label_Player_Name <=> (_Frame_Player.GetFirstChild("label-player-name") as CMlLabel);
@@ -861,6 +902,9 @@ Void SetHolidayShowdownLiveRaceML() {
 
 			if (_IsVisible) Quad_Player_Bg.Opacity = 0.3;
 			else Quad_Player_Bg.Opacity = 0.;
+
+			if (_IsEliminated) Label_Player_Name.TextColor = <1.,0.,0.>;
+			else Label_Player_Name.TextColor = <1.,1.,1.>;
 
 			declare CMlLabel Label_Player_PointsValue <=> (_Frame_Player.GetFirstChild("label-player-points-value") as CMlLabel);
 			declare CMlQuad Quad_Player_PointsIcon <=> (_Frame_Player.GetFirstChild("quad-player-points-icon") as CMlQuad);
@@ -927,6 +971,9 @@ Void SetHolidayShowdownLiveRaceML() {
 			declare netread Integer Net_HolidayShowdown_RankingSerial for Teams[0];
 			declare Integer Last_HolidayShowdown_RankingSerial = 0;
 
+			declare netread Integer Net_Knockout_KnockoutInfo_KOsNumber for Teams[0] = 0;
+			declare netread Integer Net_Knockout_KnockoutInfo_PlayersNb for Teams[0] = 0;
+
 			declare Integer[Integer] Last_FloorPrevPosition;
 
 			while(True) {
@@ -982,6 +1029,8 @@ Void SetHolidayShowdownLiveRaceML() {
 					declare Boolean NeedToAddFloorInfo;
 					declare Integer[Integer] New_FloorPrevPosition;
 
+					declare NBStillAlive = Net_Knockout_KnockoutInfo_PlayersNb - Net_Knockout_KnockoutInfo_KOsNumber;
+
 					foreach (Key => Control in Frame_Players.Controls) {
 						declare CMlFrame Frame_Floor_Model <=> (Frame_Floors.Controls[Key] as CMlFrame);
 						declare CMlFrame Frame_Player_Model <=> (Control as CMlFrame);
@@ -1008,8 +1057,8 @@ Void SetHolidayShowdownLiveRaceML() {
 							} else {
 								Frame_Floor_Model.Visible = False;
 							}
-							if (GUIPlayer != Null && GUIPlayer.User.Login == PlayerInfo.Login) UpdateRankingPlayer(Frame_Player_Model, PlayerInfo, True);
-							else UpdateRankingPlayer(Frame_Player_Model, PlayerInfo, False);
+							if (GUIPlayer != Null && GUIPlayer.User.Login == PlayerInfo.Login) UpdateRankingPlayer(Frame_Player_Model, PlayerInfo, True, (NBStillAlive>0 && NBStillAlive<Key+1));
+							else UpdateRankingPlayer(Frame_Player_Model, PlayerInfo, False, (NBStillAlive>0 && NBStillAlive<Key+1));
 							HolidayShowdown_QuadPlayerButton_Login = PlayerInfo.Login;
 							Frame_Player_Model.Visible = True;
 							GlobalIndex += 1;
