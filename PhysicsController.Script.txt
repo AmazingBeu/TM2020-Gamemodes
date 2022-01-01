@@ -398,6 +398,83 @@ Void SetML() {
 		#Include "TextLib" as TL
 		#Include "MathLib" as ML
 
+		#Const C_ButtonIcons_PC [
+			"ArrowDown" => "file://Media/Manialinks/Common/PadButtons/PC/ArrowDown.dds",
+			"ArrowLeft" => "file://Media/Manialinks/Common/PadButtons/PC/ArrowLeft.dds",
+			"ArrowRight" => "file://Media/Manialinks/Common/PadButtons/PC/ArrowRight.dds",
+			"ArrowUp" => "file://Media/Manialinks/Common/PadButtons/PC/ArrowUp.dds",
+			"Down" => "file://Media/Manialinks/Common/PadButtons/PC/Down.dds",
+			"Left" => "file://Media/Manialinks/Common/PadButtons/PC/Left.dds",
+			"Right" => "file://Media/Manialinks/Common/PadButtons/PC/Right.dds",
+			"Up" => "file://Media/Manialinks/Common/PadButtons/PC/Up.dds",
+			"Shift" => "file://Media/Manialinks/Common/PadButtons/PC/Maj.dds",
+			"Enter" => "file://Media/Manialinks/Common/PadButtons/PC/Enter.dds",
+			"Backspace" => "file://Media/Manialinks/Common/PadButtons/PC/Backspace.dds",
+			"Space" => "file://Media/Manialinks/Common/PadButtons/PC/Space.dds",
+			"PgUp" => "file://Media/Manialinks/Common/PadButtons/PC/PageUp.dds",
+			"PgDn" => "file://Media/Manialinks/Common/PadButtons/PC/PageDown.dds",
+			"Camera" => "file://Media/Manialinks/Common/PadButtons/PC/CameraMouse.dds",
+			"DirectionnalButtons" => "file://Media/Manialinks/Common/PadButtons/PC/DirectionnalButtons.dds",
+			"Mouse" => "file://Media/Manialinks/Common/PadButtons/PC/Mouse.dds",
+			"LeftClick" => "file://Media/Manialinks/Common/PadButtons/PC/LeftClick.dds",
+			"RightClick" => "file://Media/Manialinks/Common/PadButtons/PC/RightClick.dds",
+			"Wheel" => "file://Media/Manialinks/Common/PadButtons/PC/Wheel.dds"
+		]
+
+		#Const C_ButtonIcons_PlayStation [
+			"::EButton::Left" => "file://Media/Manialinks/Common/PadButtons/PS4/DPadLeft.dds",
+			"::EButton::Right" => "file://Media/Manialinks/Common/PadButtons/PS4/DPadRight.dds",
+			"::EButton::Up" => "file://Media/Manialinks/Common/PadButtons/PS4/DPadUp.dds",
+			"::EButton::Down" => "file://Media/Manialinks/Common/PadButtons/PS4/DPadDown.dds",
+			"::EButton::A" => "file://Media/Manialinks/Common/PadButtons/PS4/Cross.dds",
+			"::EButton::B" => "file://Media/Manialinks/Common/PadButtons/PS4/Circle.dds",
+			"::EButton::X" => "file://Media/Manialinks/Common/PadButtons/PS4/Square.dds",
+			"::EButton::Y" => "file://Media/Manialinks/Common/PadButtons/PS4/Triangle.dds",
+			"::EButton::L1" => "file://Media/Manialinks/Common/PadButtons/PS4/L1.dds",
+			"::EButton::R1" => "file://Media/Manialinks/Common/PadButtons/PS4/R1.dds",
+			"::EButton::LeftStick" => "file://Media/Manialinks/Common/PadButtons/PS4/LStickClick.dds",
+			"::EButton::RightStick" => "file://Media/Manialinks/Common/PadButtons/PS4/RStickClick.dds",
+			"::EButton::Menu" => "file://Media/Manialinks/Common/PadButtons/PS4/Options.dds",
+			"::EButton::View" => "file://Media/Manialinks/Common/PadButtons/PS4/TouchPad.dds",
+			"::EButton::LeftStick_Left" => "file://Media/Manialinks/Common/PadButtons/PS4/LStickLeft.dds",
+			"::EButton::LeftStick_Right" => "file://Media/Manialinks/Common/PadButtons/PS4/LStickRight.dds",
+			"::EButton::LeftStick_Up" => "file://Media/Manialinks/Common/PadButtons/PS4/LStickUp.dds",
+			"::EButton::LeftStick_Down" => "file://Media/Manialinks/Common/PadButtons/PS4/LStickDown.dds",
+			"::EButton::RightStick_Left" => "file://Media/Manialinks/Common/PadButtons/PS4/RStickLeft.dds",
+			"::EButton::RightStick_Right" => "file://Media/Manialinks/Common/PadButtons/PS4/RStickRight.dds",
+			"::EButton::RightStick_Up" => "file://Media/Manialinks/Common/PadButtons/PS4/RStickUp.dds",
+			"::EButton::RightStick_Down" => "file://Media/Manialinks/Common/PadButtons/PS4/RStickDown.dds",
+			"::EButton::L2" => "file://Media/Manialinks/Common/PadButtons/PS4/L2.dds",
+			"::EButton::R2" => "file://Media/Manialinks/Common/PadButtons/PS4/R2.dds"
+		]
+		
+		#Const C_ButtonIcons_XBox [
+			"::EButton::Left" => "file://Media/Manialinks/Common/PadButtons/XB1/DPadLeft.dds",
+			"::EButton::Right" => "file://Media/Manialinks/Common/PadButtons/XB1/DPadRight.dds",
+			"::EButton::Up" => "file://Media/Manialinks/Common/PadButtons/XB1/DPadUp.dds",
+			"::EButton::Down" => "file://Media/Manialinks/Common/PadButtons/XB1/DPadDown.dds",
+			"::EButton::A" => "file://Media/Manialinks/Common/PadButtons/XB1/A.dds",
+			"::EButton::B" => "file://Media/Manialinks/Common/PadButtons/XB1/B.dds",
+			"::EButton::X" => "file://Media/Manialinks/Common/PadButtons/XB1/X.dds",
+			"::EButton::Y" => "file://Media/Manialinks/Common/PadButtons/XB1/Y.dds",
+			"::EButton::L1" => "file://Media/Manialinks/Common/PadButtons/XB1/LB.dds",
+			"::EButton::R1" => "file://Media/Manialinks/Common/PadButtons/XB1/RB.dds",
+			"::EButton::LeftStick" => "file://Media/Manialinks/Common/PadButtons/XB1/LStickClick.dds",
+			"::EButton::RightStick" => "file://Media/Manialinks/Common/PadButtons/XB1/RStickClick.dds",
+			"::EButton::Menu" => "file://Media/Manialinks/Common/PadButtons/XB1/Menu.dds",
+			"::EButton::View" => "file://Media/Manialinks/Common/PadButtons/XB1/View.dds",
+			"::EButton::LeftStick_Left" => "file://Media/Manialinks/Common/PadButtons/XB1/LStickLeft.dds",
+			"::EButton::LeftStick_Right" => "file://Media/Manialinks/Common/PadButtons/XB1/LStickRight.dds",
+			"::EButton::LeftStick_Up" => "file://Media/Manialinks/Common/PadButtons/XB1/LStickUp.dds",
+			"::EButton::LeftStick_Down" => "file://Media/Manialinks/Common/PadButtons/XB1/LStickDown.dds",
+			"::EButton::RightStick_Left" => "file://Media/Manialinks/Common/PadButtons/XB1/RStickLeft.dds",
+			"::EButton::RightStick_Right" => "file://Media/Manialinks/Common/PadButtons/XB1/RStickRight.dds",
+			"::EButton::RightStick_Up" => "file://Media/Manialinks/Common/PadButtons/XB1/RStickUp.dds",
+			"::EButton::RightStick_Down" => "file://Media/Manialinks/Common/PadButtons/XB1/RStickDown.dds",
+			"::EButton::L2" => "file://Media/Manialinks/Common/PadButtons/XB1/LT.dds",
+			"::EButton::R2" => "file://Media/Manialinks/Common/PadButtons/XB1/RT.dds"
+		]
+
 		#Struct K_PlayerPhysics {
 			Real AccelCoef;
 			Real AdherenceCoef;
@@ -414,6 +491,13 @@ Void SetML() {
 			Boolean NoEngine;
 			Boolean NoSteer;
 			Boolean SlowMotion;
+		}
+
+		#Struct K_Binding {
+			Text PadType;
+			Text Button;
+			Text Effect;
+			Text Value;
 		}
 
 		Void DevLog(Text _LogText) {
@@ -535,6 +619,16 @@ Void SetML() {
 			UpdateSliderValues();
 		}
 
+		K_PlayerPhysics InitPlayerPhysicsVariable() {
+			return K_PlayerPhysics {
+				AccelCoef = 1.,
+				AdherenceCoef = 1.,
+				ControlCoef = 1.,
+				Cruise = 0.,
+				GravityCoef = 1.
+			};
+		}
+
 		Text GetValueOfAnEffect(K_PlayerPhysics _PlayerPhysics, Text _Effect) {
 			switch (_Effect) {
 				case "AccelCoef": return TL::ToText(_PlayerPhysics.AccelCoef);
@@ -555,15 +649,46 @@ Void SetML() {
 			}
 			return "";
 		}
+		Text GetDefaultValueOfAnEffect(Text _Effect) {
+			return GetValueOfAnEffect(InitPlayerPhysicsVariable(), _Effect);
+		}
 
-		K_PlayerPhysics InitPlayerPhysicsVariable() {
-			return K_PlayerPhysics {
-				AccelCoef = 1.,
-				AdherenceCoef = 1.,
-				ControlCoef = 1.,
-				Cruise = 0.,
-				GravityCoef = 1.
-			};
+		Void UpdateUIBindingButtons() {
+			declare persistent K_Binding[] PhysicsController_Bindings for UserMgr.MainUser;
+
+			Page.GetClassChildren("KBButton", Page.MainFrame, True);
+			foreach(Control in Page.GetClassChildren_Result) { 
+				declare CMlLabel Label = (Control as CMlLabel);
+				Label.Value = "";
+				Label.Visible = False;
+			}
+			Page.GetClassChildren("GamepadButton", Page.MainFrame, True);
+			foreach(Control in Page.GetClassChildren_Result) { 
+				declare CMlQuad Quad = (Control as CMlQuad);
+				Quad.ChangeImageUrl("");
+				Quad.Visible = False;
+			}
+
+			foreach (Binding in PhysicsController_Bindings) {
+				declare CMlQuad Quad_GamePadButton <=> (Page.GetFirstChild(Binding.Effect ^ "_BindedGamepadButton") as CMlQuad);
+				declare CMlLabel Label_KBButton <=> (Page.GetFirstChild(Binding.Effect ^ "_BindedKBButton") as CMlLabel);
+
+				declare Text Button = Binding.Button;
+
+				if (Binding.PadType == "PlayStation" || Binding.PadType == "XBox" ) { // Gamepads
+					if (Binding.PadType == "PlayStation") Quad_GamePadButton.ChangeImageUrl(C_ButtonIcons_PlayStation[Button]);
+					else Quad_GamePadButton.ChangeImageUrl(C_ButtonIcons_XBox[Button]);
+					Quad_GamePadButton.Visible = True;
+				} else if (C_ButtonIcons_PC.existskey(Button)) { // Keyboard special keys
+					Quad_GamePadButton.ChangeImageUrl(C_ButtonIcons_PC[Button]);
+					Quad_GamePadButton.Visible = True;
+				} else { // Keyboard keys
+					Label_KBButton.Value = Button;
+					if (TL::Length(Button) > 6) Label_KBButton.TextSizeReal = 1.;
+					else Label_KBButton.TextSizeReal = 2.;
+					Label_KBButton.Visible = True;
+				}
+			}
 		}
 
 		main() {
@@ -571,16 +696,26 @@ Void SetML() {
 			declare Frame_Global <=> (Page.GetFirstChild("frame-global") as CMlFrame);
 			declare Quad_Bg <=> (Page.GetFirstChild("quad-bg") as CMlQuad);
 			declare Quad_Fg <=> (Page.GetFirstChild("quad-fg") as CMlQuad);
+			declare CMlLabel Label_SubTitle <=> (Page.GetFirstChild("SubTitle") as CMlLabel);
 			declare Label_Warning <=> (Page.GetFirstChild("label-warning") as CMlLabel);
 			declare Quad_ControledByAdmins <=> (Page.GetFirstChild("ControledByAdmins_SettingButton") as CMlQuad);
 			declare Quad_AllowSpectatorsControl <=> (Page.GetFirstChild("AllowSpectatorsControl_SettingButton") as CMlQuad);
+
+			declare CMlQuad Quad_BindKey_SettingButton <=> (Page.GetFirstChild("BindKey_SettingButton") as CMlQuad);
 
 			declare Frame_AllowSpectatorsControl <=> (Page.GetFirstChild("AllowSpectatorsControl_Frame") as CMlFrame);
 			declare Frame_Admin <=> (Page.GetFirstChild("Admin_Frame") as CMlFrame);
 
 			declare K_PlayerPhysics Last_PlayerPhysics = InitPlayerPhysicsVariable();
 
+			declare persistent K_Binding[] PhysicsController_Bindings for UserMgr.MainUser;
+			UpdateUIBindingButtons();
+
 			declare Boolean Last_UIisVisible = False;
+
+			declare Boolean Last_IsBindingMode = False;
+			declare Text Last_EffectToBind = "";
+			declare Text Last_EffectToBind_Value = "";
 			
 			declare netread Boolean Net_ServerForcePlayersToBeControledBySpectators for Teams[0] = False;
 			declare netread Boolean Net_ServerAllowPlayersToBeControledBySpectators for Teams[0] = True;
@@ -612,7 +747,7 @@ Void SetML() {
 				if (GUIPlayer != Null) Owner <=> GUIPlayer;
 				else Owner <=> InputPlayer;
 
-				if (Owner != Null) {
+				if (Owner != Null && InputPlayer != Null) {
 					declare netread Boolean Net_PlayerAllowToBeControledBySpectators for Owner = True;
 					declare netread Boolean Net_PlayerIsAdmin for InputPlayer;
 					declare netread Text[] Net_CanControlPlayers for InputPlayer;
@@ -640,19 +775,22 @@ Void SetML() {
 						Last_ServerForcePlayersToBeControledBySpectators = Net_ServerForcePlayersToBeControledBySpectators;
 						Last_ServerAllowPlayersToBeControledBySpectators = Net_ServerAllowPlayersToBeControledBySpectators;
 
-						if (!Net_PlayerIsAdmin && 
-							(Last_ControledByAdmins || (Last_ServerForcePlayersToBeControledBySpectators && (!Last_PlayerIsSpectator || (!Net_CanControlPlayers.exists("any") && !Net_CanControlPlayers.exists(Owner.User.Login)))) || 
+						if ((Last_ControledByAdmins || (Last_ServerForcePlayersToBeControledBySpectators && (!Last_PlayerIsSpectator || (!Net_CanControlPlayers.exists("any") && !Net_CanControlPlayers.exists(Owner.User.Login)))) || 
 							(!Last_ServerForcePlayersToBeControledBySpectators && (!Last_ServerAllowPlayersToBeControledBySpectators || !Last_PlayerAllowToBeControledBySpectators) && Last_PlayerIsSpectator) && (!Net_CanControlPlayers.exists("any") && !Net_CanControlPlayers.exists(Owner.User.Login)))
 						) 
 							{
-							Label_Warning.Visible = True;
-							Quad_Fg.Visible = True;
-
-							if (Last_ControledByAdmins)	Label_Warning.Value = "Managed by an Admin";
-							else if (Last_ServerForcePlayersToBeControledBySpectators && InputPlayerIsSpectator()) Label_Warning.Value = "You can't control this player";
-							else if (Last_ServerForcePlayersToBeControledBySpectators) Label_Warning.Value = "Can only be controlled by a spectator";
-							else if (!Last_ServerAllowPlayersToBeControledBySpectators) Label_Warning.Value = "Can only be controlled by the player";
-							else Label_Warning.Value = "Player refuses to be managed by a spectator";
+							if (Last_PlayerIsAdmin) {
+								Label_SubTitle.Value = "Only because you're admin";
+							} else {
+								Label_Warning.Visible = True;
+								Quad_Fg.Visible = True;
+	
+								if (Last_ControledByAdmins)	Label_Warning.Value = "Managed by an Admin";
+								else if (Last_ServerForcePlayersToBeControledBySpectators && InputPlayerIsSpectator()) Label_Warning.Value = "You can't control this player";
+								else if (Last_ServerForcePlayersToBeControledBySpectators) Label_Warning.Value = "Can only be controlled by a spectator";
+								else if (!Last_ServerAllowPlayersToBeControledBySpectators) Label_Warning.Value = "Can only be controlled by the player";
+								else Label_Warning.Value = "Player refuses to be managed by a spectator";
+							}
 						} else {
 							Label_Warning.Visible = False;
 							Quad_Fg.Visible = False;
@@ -678,6 +816,23 @@ Void SetML() {
 						UpdateUISlider(Last_PlayerPhysics);
 					}
 
+					// Update Setting button background color
+					if (Last_IsBindingMode) {
+						if (Last_EffectToBind != "") {
+							Label_SubTitle.Value = "Press a key to bind";
+							declare CMlQuad Quad <=> (Page.GetFirstChild(Last_EffectToBind ^ "_EffectButton") as CMlQuad);
+							if (Quad != Null) Quad.ModulateColor = <1.,1.,1.>;
+						}
+						else {
+							Label_SubTitle.Value = "Click on an effect";
+						}
+						Quad_BindKey_SettingButton.Opacity = .5;
+					} else if (!Last_IsBindingMode && Quad_BindKey_SettingButton.Opacity != .0) {
+						Quad_BindKey_SettingButton.Opacity = .0;
+						Label_SubTitle.Value = "";
+						UpdateUIButtons(Last_PlayerPhysics); // Reset buttons colors
+					}
+
 					if (!Last_UIisVisible && (GUIPlayer != Null || Last_PlayerIsAdmin || Last_ControledByAdmins)) {
 						Last_UIisVisible = True;
 						Frame_Global.Visible = True;
@@ -692,28 +847,60 @@ Void SetML() {
 						if (Owner != Null) {
 							if (Event.Type == CMlScriptEvent::Type::MouseClick) {
 								if (TL::Find("_EffectButton", Event.ControlId, True, True) && (GUIPlayer != Null || Last_ControledByAdmins)) {
-									declare Text Effect = TL::Replace(Event.ControlId, "_EffectButton", "");
-									declare Text Target;
-									if (Net_PlayerIsAdmin && Last_ControledByAdmins) Target = "all";
-									else Target = Owner.User.Login;
-									DevLog("[PendingEvents] Request of " ^ Effect ^ " to " ^ Target);
-									if (GetValueOfAnEffect(Last_PlayerPhysics, Effect) == "1") SendCustomEvent("Request.PlayerPhysics." ^ Effect, [Target, "0"]);
-									else SendCustomEvent("Request.PlayerPhysics." ^ Effect, [Target, "1"]);
+									if (Last_IsBindingMode) {
+										declare Text Effect = TL::Replace(Event.ControlId, "_EffectButton", "");
+										Last_EffectToBind = Effect;
+										Last_EffectToBind_Value = "1";
+									} else {
+										declare Text Effect = TL::Replace(Event.ControlId, "_EffectButton", "");
+										declare Text Target;
+										if (Net_PlayerIsAdmin && Last_ControledByAdmins) Target = "all";
+										else Target = Owner.User.Login;
+										DevLog("[PendingEvents] Request of " ^ Effect ^ " to " ^ Target);
+										if (GetValueOfAnEffect(Last_PlayerPhysics, Effect) == "1") SendCustomEvent("Request.PlayerPhysics." ^ Effect, [Target, "0"]);
+										else SendCustomEvent("Request.PlayerPhysics." ^ Effect, [Target, "1"]);
+									}
 								} else if (TL::Find("_Slider", Event.ControlId, True, True) && (GUIPlayer != Null || Last_ControledByAdmins)) {
-									Timer_NeedToSendCommandSlider = Now + 100;
-									Last_SliderValueToSend = Event.ControlId;
+									if (Last_IsBindingMode) {
+										declare Slider <=> (Event.Control as CMlSlider);
+										declare Text Effect = TL::Replace(Event.ControlId, "_Slider", "");
+										Last_EffectToBind = Effect;
+										Last_EffectToBind_Value = TL::ToText(Slider.Value);
+									} else {
+										Timer_NeedToSendCommandSlider = Now + 100;
+										Last_SliderValueToSend = Event.ControlId;
+									}
 									UpdateSliderValues();
 								} else if (Event.ControlId == "AllowSpectatorsControl_SettingButton" && (GUIPlayer != Null || Last_ControledByAdmins)) {
 									DevLog("[PendingEvents] Request ControlBySpectators " ^ !Last_PlayerAllowToBeControledBySpectators ^ " to " ^ Owner.User.Login);
 									if (Last_PlayerAllowToBeControledBySpectators) SendCustomEvent("Request.ControlBySpectators", [Owner.User.Login, "0"]);
 									else SendCustomEvent("Request.ControlBySpectators", [Owner.User.Login, "1"]);
+									Last_IsBindingMode = False;
+									Last_EffectToBind = "";
 								} else if (Event.ControlId == "ControledByAdmins_SettingButton") {
 									DevLog("[PendingEvents] Request ControledByAdmins " ^ !Last_ControledByAdmins ^ " by " ^ Owner.User.Login);
 									if (Last_ControledByAdmins) SendCustomEvent("Request.AdminLock", ["", "0"]); // TODO: Secure with a token
 									else SendCustomEvent("Request.AdminLock", ["", "1"]);
+									Last_IsBindingMode = False;
+									Last_EffectToBind = "";
+								} else if (Event.ControlId == "BindKey_SettingButton") {
+									Last_IsBindingMode = !Last_IsBindingMode;
+									if (Last_EffectToBind != "") {
+										foreach (Key => Binding in PhysicsController_Bindings) {
+											if (Binding.Effect == Last_EffectToBind ) {
+												PhysicsController_Bindings.removekey(Key);
+												break;
+											}
+										}
+										UserMgr.MainUser.PersistentSave();
+										UpdateUIBindingButtons();
+										Last_EffectToBind = "";
+									}
 								} else if (Event.ControlId == "Toggle_SettingButton") {
 									DevLog("[PendingEvents] Toggle UI by " ^ Owner.User.Login);
 									ToggleUI();
+									Last_IsBindingMode = False;
+									Last_EffectToBind = "";
 								} else {
 									UpdateUISlider(Last_PlayerPhysics); // To update Slider Right Value
 								}
@@ -729,6 +916,11 @@ Void SetML() {
 
 								if (Event.ControlId == "Cruise_Entry") {
 									if ((Value != -1 && Value > -1000 && Value < 1000) || Entry.Value == "-1") {
+										if (Last_IsBindingMode) {
+											DevLog("[PendingEvents] Update Binding key of " ^ Effect ^ " with value " ^ Value);
+											Last_EffectToBind = Effect;
+											Last_EffectToBind_Value = TL::ToText(Value);
+										}
 										DevLog("[PendingEvents] Send Entry value for " ^ Effect ^ " with value " ^ Value ^ " to " ^ Target);
 										SendCustomEvent("Request.PlayerPhysics." ^ Effect, [Target, TL::ToText(Value)]);
 									} else {
@@ -737,6 +929,11 @@ Void SetML() {
 									}
 								} else {
 									if (Value != -1 && Value > 0 && Value <= 100) {
+										if (Last_IsBindingMode) {
+											DevLog("[PendingEvents] Update Binding key of " ^ Effect ^ " with value " ^ Value);
+											Last_EffectToBind = Effect;
+											Last_EffectToBind_Value = TL::ToText(ML::ToReal(Value)/100);
+										}
 										DevLog("[PendingEvents] Send Entry value for " ^ Effect ^ " with value " ^ Value ^ " to " ^ Target);
 										Slider.Value = ML::ToReal(Value)/100;
 										SendCustomEvent("Request.PlayerPhysics." ^ Effect, [Target, TL::ToText(ML::ToReal(Value)/100)]);
@@ -745,7 +942,56 @@ Void SetML() {
 										Entry.Value = TL::ToText(ML::FloorInteger(Slider.Value * 100));
 									}
 								}
-							} else if (Event.Type == CMlScriptEvent::Type::MouseOver && TL::Find("_EffectButton", Event.ControlId, True, True)) {
+							} else if (Event.Type == CMlScriptEvent::Type::KeyPress) {
+								// Events from keyboard
+								DevLog("[PendingEvents KeyPress] Event.KeyName: " ^ Event.KeyName);
+								if (Last_IsBindingMode) {
+									declare Text Keyname = Event.KeyName;
+									if (Keyname == "Escape") {
+										Keyname = "";
+										Last_IsBindingMode = False;
+									}
+									if (Last_EffectToBind != "") {
+										foreach (Key => Binding in PhysicsController_Bindings) {
+											if (Binding.Effect == Last_EffectToBind || Binding.Button == Keyname) {
+												PhysicsController_Bindings.removekey(Key);
+											}
+										}
+										PhysicsController_Bindings.add(K_Binding {
+											PadType = "Keyboard",
+											Button = Keyname,
+											Effect = Last_EffectToBind,
+											Value = Last_EffectToBind_Value
+										});
+										UserMgr.MainUser.PersistentSave();
+										UpdateUIBindingButtons();
+										UpdateUISlider(Last_PlayerPhysics);
+										UpdateUIButtons(Last_PlayerPhysics);
+										Last_EffectToBind = "";
+										Last_IsBindingMode = False;
+									}
+								} else if (Label_Warning.Visible == False)  {
+									declare Text Effect = "";
+									declare Text Value = "";
+									foreach (Binding in PhysicsController_Bindings) {
+										if (Binding.Button == Event.KeyName) {
+											Effect = Binding.Effect;
+											Value = Binding.Value;
+											break;
+										}
+									}
+									if (Effect != "") {
+										declare Text Target;
+
+										if (Net_PlayerIsAdmin && Last_ControledByAdmins) Target = "all";
+										else Target = Owner.User.Login;
+
+										DevLog("[PendingEvents] Request of " ^ Effect ^ " to " ^ Target);
+										if (GetValueOfAnEffect(Last_PlayerPhysics, Effect) == GetDefaultValueOfAnEffect(Effect)) SendCustomEvent("Request.PlayerPhysics." ^ Effect, [Target, Value]);
+										else SendCustomEvent("Request.PlayerPhysics." ^ Effect, [Target, GetDefaultValueOfAnEffect(Effect)]);
+									}
+								}
+							}	else if (Event.Type == CMlScriptEvent::Type::MouseOver && TL::Find("_EffectButton", Event.ControlId, True, True)) {
 								declare Quad <=> (Page.GetFirstChild(Event.ControlId) as CMlQuad);
 								Quad.Opacity = 0.7;
 							} else if (Event.Type == CMlScriptEvent::Type::MouseOut && TL::Find("_EffectButton", Event.ControlId, True, True)) {
@@ -756,6 +1002,56 @@ Void SetML() {
 							UpdateUISlider(Last_PlayerPhysics); // To update Slider Right Value
 						}
 						
+					}
+
+					// Event from gamepads
+					foreach (Event in Input.PendingEvents) {
+						if (Event.Pad.Type != CInputPad::EPadType::Keyboard && !Event.IsAutoRepeat) { // Check if IsAutoRepeat have no side effect
+							DevLog("[Input.PendingEvents] Event.Button: " ^ Event.Button);
+							if (Last_IsBindingMode) {
+								if (Last_EffectToBind != "") {
+									declare Text PadType = "XBox"; 
+									if (Event.Pad.Type == CInputPad::EPadType::PlayStation) PadType = "PlayStation";
+									foreach (Key => Binding in PhysicsController_Bindings) {
+										if (Binding.Effect == Last_EffectToBind || Binding.Button == ""^Event.Button) {
+											PhysicsController_Bindings.removekey(Key);
+										}
+									}
+									PhysicsController_Bindings.add(K_Binding {
+										PadType = PadType,
+										Button = ""^Event.Button,
+										Effect = Last_EffectToBind,
+										Value = Last_EffectToBind_Value
+									});
+									UserMgr.MainUser.PersistentSave();
+									UpdateUIBindingButtons();
+									UpdateUISlider(Last_PlayerPhysics);
+									UpdateUIButtons(Last_PlayerPhysics);
+									Last_EffectToBind = "";
+									Last_IsBindingMode = False;
+								}
+							} else if (Label_Warning.Visible == False) {
+								declare Text Effect = "";
+								declare Text Value = "";
+								foreach (Binding in PhysicsController_Bindings) {
+									if (Binding.Button == ""^Event.Button) {
+										Effect = Binding.Effect;
+										Value = Binding.Value;
+										break;
+									}
+								}
+								if (Effect != "") {
+									declare Text Target;
+
+									if (Net_PlayerIsAdmin && Last_ControledByAdmins) Target = "all";
+									else Target = Owner.User.Login;
+
+									DevLog("[PendingEvents] Request of " ^ Effect ^ " to " ^ Target);
+									if (GetValueOfAnEffect(Last_PlayerPhysics, Effect) == GetDefaultValueOfAnEffect(Effect)) SendCustomEvent("Request.PlayerPhysics." ^ Effect, [Target, Value]);
+									else SendCustomEvent("Request.PlayerPhysics." ^ Effect, [Target, GetDefaultValueOfAnEffect(Effect)]);
+								}
+							}
+						}
 					}
 
 					if (Timer_NeedToSendCommandSlider > 0 && Now > Timer_NeedToSendCommandSlider ) {
@@ -787,54 +1083,81 @@ Void SetML() {
 				<quad id="quad-fg" pos="0 0" z-index="5" size="60 74" bgcolor="000" opacity="0.5" hidden="1" scriptevents="1" />
 				<label id="label-warning" class="text-suffix" hidden="1" z-index="6" pos="30 -35" textsize="2.5" size="50 10" autonewline="1"/>
 				<label class="text-suffix" pos="30 -5" textsize="3" z-index="0" size="50 10" text="Physics Control"/>
+				<label class="text-suffix" pos="30 -9" textsize="1.5" z-index="0" size="50 10" id="SubTitle" text=""/>
+				<frame pos="58 -6">
+					<quad id="BindKey_SettingButton" size="4 4" z-index="1" class="quad-base" opacity="0" halign="center" valign="center" bgcolor="fff" scriptevents="1"/>
+					<quad size="4 4" class="quad-base" z-index="3" opacity="0.9" halign="center" valign="center" image="file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/Icones_128_icon_settings_key_02.dds" colorize="fff"/>
+				</frame>
 				<frame pos="0.5 -6">
 					<frame pos="30 0">
 						<quad class="quad-effects" pos="-3 -7.5" z-index="1" size="3 3'" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/Reset.dds" />
 						<label class="text-suffix" pos="3 -7.2" z-index="0" size="20 5" text="RESET"/>
 						<quad id="Reset_EffectButton" class="quad-effects" pos="0 -7.5" z-index="0" size="52.5 5" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+						<quad id="Reset_BindedGamepadButton" hidden="1" class="quad-effects GamepadButton" pos="26 -7" z-index="2" size="5 5" />
+						<label id="Reset_BindedKBButton" hidden="1" class="text-suffix KBButton" pos="27 -7" z-index="2" size="9 5"  textprefix="$t" halign="right" textsize="2"/>
 					</frame>
 					<frame pos="0 -9">
 						<frame pos="0 0">
 							<quad class="quad-effects" pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ReactorBoost.dds" rot="180" />
 							<quad id="BoostUp_EffectButton" class="quad-effects" pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+							<quad id="BoostUp_BindedGamepadButton" hidden="1" class="quad-effects GamepadButton" pos="11 -11" z-index="2" size="5 5" />
+							<label id="BoostUp_BindedKBButton" hidden="1" class="text-suffix KBButton" pos="12 -11" z-index="2" size="9 5"  textprefix="$t" halign="right" textsize="2"/>
 						</frame>
 						<frame pos="11 0">
 							<quad class="quad-effects" pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ReactorBoost2.dds" rot="180" />
 							<quad id="Boost2Up_EffectButton" class="quad-effects" pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+							<quad id="Boost2Up_BindedGamepadButton" hidden="1" class="quad-effects GamepadButton" pos="11 -11" z-index="2" size="5 5" />
+							<label id="Boost2Up_BindedKBButton" hidden="1" class="text-suffix KBButton" pos="12 -11" z-index="2" size="9 5"  textprefix="$t" halign="right" textsize="2"/>
 						</frame>
 						<frame pos="22 0">
 							<quad class="quad-effects" pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/NoBrakes.dds" />
 							<quad id="NoBrakes_EffectButton" class="quad-effects" pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+							<quad id="NoBrakes_BindedGamepadButton" hidden="1" class="quad-effects GamepadButton" pos="11 -11" z-index="2" size="5 5" />
+							<label id="NoBrakes_BindedKBButton" hidden="1" class="text-suffix KBButton" pos="12 -11" z-index="2" size="9 5"  textprefix="$t" halign="right" textsize="2"/>
 						</frame>
 						<frame pos="33 0">
 							<quad class="quad-effects" pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/FreeWheeling.dds" />
 							<quad id="NoEngine_EffectButton" class="quad-effects" pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+							<quad id="NoEngine_BindedGamepadButton" hidden="1" class="quad-effects GamepadButton" pos="11 -11" z-index="2" size="5 5" />
+							<label id="NoEngine_BindedKBButton" hidden="1" class="text-suffix KBButton" pos="12 -11" z-index="2" size="9 5"  textprefix="$t" halign="right" textsize="2"/>
 						</frame>
 						<frame pos="44 0">
 							<quad class="quad-effects" pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ForceAcceleration.dds"/>
 							<quad id="ForceEngine_EffectButton" class="quad-effects" pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+							<quad id="ForceEngine_BindedGamepadButton" hidden="1" class="quad-effects GamepadButton" pos="11 -11" z-index="2" size="5 5" />
+							<label id="ForceEngine_BindedKBButton" hidden="1" class="text-suffix KBButton" pos="12 -11" z-index="2" size="9 5"  textprefix="$t" halign="right" textsize="2"/>
 						</frame>
 					</frame>
 					<frame pos="0 -20">
 						<frame pos="0 0">
 							<quad class="quad-effects" pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ReactorBoost.dds"/>
 							<quad id="BoostDown_EffectButton" class="quad-effects" pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+							<quad id="BoostDown_BindedGamepadButton" hidden="1" class="quad-effects GamepadButton" pos="11 -11" z-index="2" size="5 5" />
+							<label id="BoostDown_BindedKBButton" hidden="1" class="text-suffix KBButton" pos="12 -11" z-index="2" size="9 5"  textprefix="$t" halign="right" textsize="2"/>
 						</frame>
 						<frame pos="11 0">
 							<quad class="quad-effects" pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/ReactorBoost2.dds" />
 							<quad id="Boost2Down_EffectButton" class="quad-effects" pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+							<quad id="Boost2Down_BindedGamepadButton" hidden="1" class="quad-effects GamepadButton" pos="11 -11" z-index="2" size="5 5" />
+							<label id="Boost2Down_BindedKBButton" hidden="1" class="text-suffix KBButton" pos="12 -11" z-index="2" size="9 5"  textprefix="$t" halign="right" textsize="2"/>
 						</frame>
 						<frame pos="22 0">
 							<quad class="quad-effects" pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/NoSteering.dds" />
 							<quad id="NoSteer_EffectButton" class="quad-effects" pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+							<quad id="NoSteer_BindedGamepadButton" hidden="1" class="quad-effects GamepadButton" pos="11 -11" z-index="2" size="5 5" />
+							<label id="NoSteer_BindedKBButton" hidden="1" class="text-suffix KBButton" pos="12 -11" z-index="2" size="9 5"  textprefix="$t" halign="right" textsize="2"/>
 						</frame>
 						<frame pos="33 0">
 							<quad class="quad-effects" pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/SlowMotion.dds" />
 							<quad id="SlowMotion_EffectButton" class="quad-effects" pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+							<quad id="SlowMotion_BindedGamepadButton" hidden="1" class="quad-effects GamepadButton" pos="11 -11" z-index="2" size="5 5" />
+							<label id="SlowMotion_BindedKBButton" hidden="1" class="text-suffix KBButton" pos="12 -11" z-index="2" size="9 5"  textprefix="$t" halign="right" textsize="2"/>
 						</frame>
 						<frame pos="44 0">
 							<quad class="quad-effects" pos="7.5 -7.5" z-index="1" size="7 7" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/Fragile.dds" />
 							<quad id="Fragile_EffectButton" class="quad-effects" pos="7.5 -7.5" z-index="0" size="9 9" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
+							<quad id="Fragile_BindedGamepadButton" hidden="1" class="quad-effects GamepadButton" pos="11 -11" z-index="2" size="5 5" />
+							<label id="Fragile_BindedKBButton" hidden="1" class="text-suffix KBButton" pos="12 -11" z-index="2" size="9 5"  textprefix="$t" halign="right" textsize="2"/>
 						</frame>
 					</frame>
 				</frame>
@@ -842,30 +1165,40 @@ Void SetML() {
 					<frame pos="0 0">
 						<label class="text-label" pos="0 0" z-index="0" size="22 5" text="Cruise" />
 						<slider id="Cruise_Slider" class="slider" pos="34 -0.3" value="0." range="-999 999" size="21 5" z-index="1" scriptevents="1" tooltip="test"/>
+						<quad id="Cruise_BindedGamepadButton" hidden="1" class="quad-effects GamepadButton" pos="56 -2" z-index="2" size="5 5" />
+						<label id="Cruise_BindedKBButton" hidden="1" class="text-suffix KBButton" pos="57 -2" z-index="2" size="9 5"  textprefix="$t" halign="right" textsize="2"/>
 						<entry id="Cruise_Entry" class="text-value" pos="53 0" z-index="0" size="8 5" default="0" focusareacolor1="00000000" focusareacolor2="00000000"/>
 						<label class="text-suffix" pos="55 0" z-index="0" size="4 4" text="kph" />
 					</frame>
 					<frame pos="0 -7">
 						<label class="text-label" pos="0 0" z-index="0" size="22 5" text="Acceleration" />
 						<slider id="AccelCoef_Slider" class="slider" pos="34 -0.3" value="1." range="0.01 1." size="21 5" z-index="1" scriptevents="1" tooltip="test"/>
+						<quad id="AccelCoef_BindedGamepadButton" hidden="1" class="quad-effects GamepadButton" pos="56 -2" z-index="2" size="5 5" />
+						<label id="AccelCoef_BindedKBButton" hidden="1" class="text-suffix KBButton" pos="57 -2" z-index="2" size="9 5"  textprefix="$t" halign="right" textsize="2"/>
 						<entry id="AccelCoef_Entry" class="text-value" pos="53 0" z-index="0" size="8 5" default="100"/>
 						<label class="text-suffix" pos="55 0" z-index="0" size="4 4" text="%" />
 					</frame>
 					<frame pos="0 -14">
 						<label class="text-label" pos="0 0" z-index="0" size="22 5" text="Adherence" />
 						<slider id="AdherenceCoef_Slider" class="slider" pos="34 -0.3" value="1." range="0.01 1." size="21 5" z-index="1" scriptevents="1" tooltip="test"/>
+						<quad id="AdherenceCoef_BindedGamepadButton" hidden="1" class="quad-effects GamepadButton" pos="56 -2" z-index="2" size="5 5" />
+						<label id="AdherenceCoef_BindedKBButton" hidden="1" class="text-suffix KBButton" pos="57 -2" z-index="2" size="9 5"  textprefix="$t" halign="right" textsize="2"/>
 						<entry id="AdherenceCoef_Entry" class="text-value" pos="53 0" z-index="0" size="8 5" default="100"/>
 						<label class="text-suffix" pos="55 0" z-index="0" size="10 5" text="%" />
 					</frame>
 					<frame pos="0 -21">
 						<label class="text-label" pos="0 0" z-index="0" size="22 5" text="Control" />
 						<slider id="ControlCoef_Slider" class="slider" pos="34 -0.3" value="1." range="0.01 1." size="21 5" z-index="1" scriptevents="1" tooltip="test"/>
+						<quad id="ControlCoef_BindedGamepadButton" hidden="1" class="quad-effects GamepadButton" pos="56 -2" z-index="2" size="5 5" />
+						<label id="ControlCoef_BindedKBButton" hidden="1" class="text-suffix KBButton" pos="57 -2" z-index="2" size="9 5"  textprefix="$t" halign="right" textsize="2"/>
 						<entry id="ControlCoef_Entry" class="text-value" pos="53 0" z-index="0" size="8 5" default="100"/>
 						<label class="text-suffix" pos="55 0" z-index="0" size="10 5" text="%" />
 					</frame>
 					<frame pos="0 -28">
 						<label class="text-label" pos="0 0" z-index="0" size="22 5" text="Gravity" />
 						<slider id="GravityCoef_Slider" class="slider" pos="34 -0.3" value="1." range="0.01 1." size="21 5" z-index="1" scriptevents="1" tooltip="test"/>
+						<quad id="GravityCoef_BindedGamepadButton" hidden="1" class="quad-effects GamepadButton" pos="56 -2" z-index="2" size="5 5" />
+						<label id="GravityCoef_BindedKBButton" hidden="1" class="text-suffix KBButton" pos="57 -2" z-index="2" size="9 5"  textprefix="$t" halign="right" textsize="2"/>
 						<entry id="GravityCoef_Entry" class="text-value" pos="53 0" z-index="0" size="8 5" default="100"/>
 						<label class="text-suffix" pos="55 0" z-index="0" size="10 5" text="%" />
 					</frame>
