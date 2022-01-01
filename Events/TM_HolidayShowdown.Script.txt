@@ -517,7 +517,6 @@ Void SetHolidayShowdownControlML() {
 
 			declare Boolean Last_IsBindingMode = False;
 			declare Text Last_EffectToBind = "";
-			declare Integer Last_BindingSerial = 0;
 
 			declare persistent Text PhysicsController_Binding_BoostDown for UserMgr.MainUser = "";
 			declare persistent Text PhysicsController_Binding_BoostUp for UserMgr.MainUser = "";
