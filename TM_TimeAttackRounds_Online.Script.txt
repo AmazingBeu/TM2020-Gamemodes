@@ -226,6 +226,12 @@ Map_MapsPerMatch = S_MapsPerMatch;
 UpdateScoresTableFooterAndTimeLimit(StartTime, S_TimeLimit, S_MapsPerMatch);
 ***
 
+***Match_StartRound***
+***
+StartTime = Now + Race::C_SpawnDuration;
+UpdateScoresTableFooterAndTimeLimit(StartTime, S_TimeLimit, S_MapsPerMatch);
+***
+
 ***Match_InitPlayLoop***
 ***
 Round_Skipped = False;
@@ -325,6 +331,20 @@ if (Map_TimeLimit != S_TimeLimit || Map_MapsPerMatch != S_MapsPerMatch ) {
 }
 if (Net_ScriptEnvironment != S_ScriptEnvironment) {
 	Net_ScriptEnvironment = S_ScriptEnvironment;
+}
+***
+
+***Rounds_CheckStopRound***
+***
+// If time limit is reached
+if (EndTime > 0 && Now >= EndTime) {
+	MB_StopRound();
+	Round_Skipped = False;
+}
+// If forced end round or round skipped after pause
+if (Round_ForceEndRound || Round_SkipPauseRound) {
+	MB_StopRound();
+	Round_Skipped = False;
 }
 ***
 
