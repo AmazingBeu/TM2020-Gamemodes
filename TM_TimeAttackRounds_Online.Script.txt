@@ -30,8 +30,6 @@
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Settings
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
-#Setting S_UseTheWorstTimeForDNF True as "" 
-#Setting S_MalusTimeForDNF 10000 as "Time to add (or substract) in ms for who DNF" 
 #Setting S_MapsPerMatch 3 as _("Number of maps per match") ///< Number of maps to play before finishing the match
 #Setting S_TimeLimit 300 as _("Time limit") ///< Time limit before going to the next map
 #Setting S_WarmUpNb 0 as _("Number of warm up")
@@ -190,9 +188,7 @@ declare Boolean Map_Skipped;
 
 declare Integer Map_TimeLimit;
 declare Integer Map_MapStartTime;
-declare Integer Map_MalusTimeForDNF;
 declare Integer Map_MapsPerMatch;
-declare Boolean Map_UseTheWorstTimeForDNF;
 ***
 
 ***Match_StartMap***
@@ -322,9 +318,7 @@ if (PlayersNbDead > 0) { //< Check for unspawned players only if at least one pl
 }
 
 // Update the map duration setting
-if (Map_TimeLimit != S_TimeLimit || Map_MalusTimeForDNF != S_MalusTimeForDNF || Map_MapsPerMatch != S_MapsPerMatch || Map_UseTheWorstTimeForDNF != S_UseTheWorstTimeForDNF) {
-	Map_UseTheWorstTimeForDNF = S_UseTheWorstTimeForDNF;
-	Map_MalusTimeForDNF = S_MalusTimeForDNF;
+if (Map_TimeLimit != S_TimeLimit || Map_MapsPerMatch != S_MapsPerMatch ) {
 	Map_TimeLimit = S_TimeLimit;
 	Map_MapsPerMatch = S_MapsPerMatch;
 	UpdateScoresTableFooterAndTimeLimit(StartTime, S_TimeLimit, S_MapsPerMatch);
