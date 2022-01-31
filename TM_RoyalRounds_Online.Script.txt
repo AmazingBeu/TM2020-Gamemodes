@@ -153,7 +153,7 @@ declare Integer Server_SegmentsPerRound;
 Clans::SetClansNb(0);
 Scores::SaveInScore(Scores::C_Points_Match);
 StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
-UsePvECollisions = True; //< Synchronize obstacles between all players
+UsePvECollisions = False; //< Synchronize obstacles between all players
 WarmUp::SetAvailability(False); // (Impossible at the moment https://forum.nadeo.com/viewtopic.php?f=51&p=8745#p8745)
 Race::UseAutomaticDossardColor(False);
 
