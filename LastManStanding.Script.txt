@@ -610,7 +610,6 @@ Boolean SetMalus(CSmPlayer _Player, Integer _Type) {
 		}
 		switch (_Type) {
 			case C_Malus_Reset: {
-				_Player.TrustClientSimu = True;
 				SetPlayerVehicle_ControlledByMode(_Player, False);
 				SetPlayerVehicle_ResetControlledModeValues(_Player);
 				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
@@ -657,7 +656,6 @@ Boolean SetMalus(CSmPlayer _Player, Integer _Type) {
 				SetPlayer_Delayed_Boost2Up(_Player,True);
 			}
 			case C_Malus_LockPlayer: {
-				_Player.TrustClientSimu = False;
 				SetPlayerVehicle_ControlledByMode(_Player, True);
 			}
 			case C_Malus_AccelCoef25: {
@@ -678,7 +676,6 @@ Boolean SetMalus(CSmPlayer _Player, Integer _Type) {
 			}
 			// The goal is to kill all Players
 			case C_Malus_Nightmare: {
-				_Player.TrustClientSimu = False;
 				SetPlayerVehicle_ControlledByMode(_Player, True);
 				SetPlayerVehicle_TargetSpeedValue(_Player, ML::Rand(-500.,500.));
 				SetPlayerVehicle_SteerValue(_Player,ML::Rand(-1.,1.));
