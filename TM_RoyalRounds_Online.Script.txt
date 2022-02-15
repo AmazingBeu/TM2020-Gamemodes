@@ -36,6 +36,8 @@
 #Setting S_StrictPointDistribution False as "Give points only to players who complete all segments"
 #Setting S_AllowCam7DuringWaitingScreen False as ""
 #Setting S_RoundWaitingScreenDuration 20 as _("Round waiting screen duration") //< Maximum time spent waiting for players at the beginning of each round
+#Setting S_FinisherBonusBase 5 as "Base of Bonus for finishers"
+#Setting S_FinisherBonusNumber 10 as "if only one player finish, they get S_FinisherBonusBase x This value. if 2, it's This - 1, etc..."
 
 #Setting S_WarmUpNb 0	as _("Number of warm up")
 #Setting S_WarmUpDuration 0 as _("Duration of one warm up")
@@ -211,7 +213,7 @@ if (WaitingScreenDuration >= 0) {
 	// If all players are connected before the end of the countdown start immediatly
 	declare Integer WaitEndTime = Now + (WaitingScreenDuration * 1000);
 	
-	while (S_RoundWaitingScreenDuration - WaitingScreenDuration > 0) {
+	while (MB_MapIsRunning() && S_RoundWaitingScreenDuration - WaitingScreenDuration > 0) {
 		if (S_RoundWaitingScreenDuration - WaitingScreenDuration > 3) {
 			UIModules_BigMessage::SetMessage("""The map starts in {{{S_RoundWaitingScreenDuration - WaitingScreenDuration}}} seconds""");
 		} else {
@@ -328,7 +330,7 @@ CurrentRanking[0] = Integer[Text]; // Init white section
 declare Boolean IsStartRound = True;
 
 // Reset players for the race
-foreach (Score in Scores) { // TODO Change segment for spectators alwell (Test if change works)
+foreach (Score in Scores) {
 	declare Integer CurrentSegment for Score = -1;
 	CurrentSegment = 1;
 	CurrentRanking[0][Score.User.WebServicesUserId] = 0;
@@ -656,17 +658,27 @@ Integer GetFinishTimeout(Integer _FinishTimeout) {
 		}
 	}
 
+	declare Integer BonusForFinishers = 0;
+	if (S_FinisherBonusBase > 0 && S_FinisherBonusNumber > 0 && CurrentRanking.existskey(S_SegmentsPerRound)) {
+		BonusForFinishers = S_FinisherBonusBase * (S_FinisherBonusNumber + 1 - CurrentRanking[S_SegmentsPerRound].count);
+	}
+
 	if (PointsRepartition.count > 0) {
 		CustomTimes = CustomTimes.sort();
 		declare Integer I = 0;
-		foreach (ID => Time in CustomTimes) {
-			declare CSmPlayer Player = ModeUtils::GetPlayerFromAccountId(ID);
+		foreach (AccountId => DummyVar in CustomTimes) {
+			declare CSmPlayer Player = ModeUtils::GetPlayerFromAccountId(AccountId);
 			if (Player == Null) continue;
+			
 			declare Integer Points = 0;
 			if (PointsRepartition.existskey(I)) {
 				Points = PointsRepartition[I];
 			} else {
 				Points = PointsRepartition[PointsRepartition.count - 1];
+			}
+			declare Integer CurrentSegment for Player.Score;
+			if (CurrentSegment == S_SegmentsPerRound) {
+				Points += BonusForFinishers;
 			}
 			Scores::SetPlayerRoundPoints(Player.Score, Points);
 			I += 1;
