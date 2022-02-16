@@ -156,7 +156,6 @@ Clans::SetClansNb(0);
 Scores::SaveInScore(Scores::C_Points_Match);
 StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
 UsePvECollisions = False; //< Synchronize obstacles between all players
-WarmUp::SetAvailability(False); // (Impossible at the moment https://forum.nadeo.com/viewtopic.php?f=51&p=8745#p8745)
 Race::UseAutomaticDossardColor(False);
 
 Server_PointsLimit = S_PointsLimit - 1;
@@ -660,7 +659,10 @@ Integer GetFinishTimeout(Integer _FinishTimeout) {
 
 	declare Integer BonusForFinishers = 0;
 	if (S_FinisherBonusBase > 0 && S_FinisherBonusNumber > 0 && CurrentRanking.existskey(S_SegmentsPerRound)) {
-		BonusForFinishers = S_FinisherBonusBase * (S_FinisherBonusNumber + 1 - CurrentRanking[S_SegmentsPerRound].count);
+		BonusForFinishers = ML::Max(0, S_FinisherBonusBase * (S_FinisherBonusNumber + 1 - CurrentRanking[S_SegmentsPerRound].count));		
+		if (_Player == Null && BonusForFinishers > 0) {// If End round
+			UIManager.UIAll.SendChat("$<$ff3$> " ^ CurrentRanking[S_SegmentsPerRound].count ^ " players received " ^ BonusForFinishers ^ " bonus points for being the only finishers" );
+		}
 	}
 
 	if (PointsRepartition.count > 0) {
