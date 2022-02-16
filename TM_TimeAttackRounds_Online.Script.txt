@@ -215,8 +215,6 @@ StateMgr::ForcePlayersStates([StateMgr::C_State_Playing]);
 CarRank::Update(CarRank::C_SortCriteria_BestRace);
 Race::EnableIntroDuringMatch(True);
 
-Race::SortScores(Race::C_Sort_BestRaceTime);
-
 declare netwrite Integer Net_SerialNeedToUpdate for Teams[0];
 Net_SerialNeedToUpdate = 0;
 
@@ -230,6 +228,7 @@ UpdateScoresTableFooterAndTimeLimit(StartTime, S_TimeLimit, S_MapsPerMatch);
 ***
 StartTime = Now + Race::C_SpawnDuration;
 UpdateScoresTableFooterAndTimeLimit(StartTime, S_TimeLimit, S_MapsPerMatch);
+Race::SortScores(Race::C_Sort_BestRaceTime);
 ***
 
 ***Match_InitPlayLoop***
@@ -379,7 +378,6 @@ if (Round_ForceEndRound || Round_SkipPauseRound || Round_Skipped) {
 	Scores::EndRound();
 	Race::SortScores(Race::C_Sort_TotalPoints);
 	MB_Sleep(3000);
-	Race::SortScores(Race::C_Sort_BestRaceTime);
 	SetScoresTableScoreMode(False);
 	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
@@ -403,7 +401,6 @@ Match_MatchDuration = ML::Max(0, Now - Map_MapStartTime);
 StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
 Race::EnableIntroDuringMatch(False);
 
-Race::SortScores(Race::C_Sort_BestRaceTime);
 TrophyRanking::UpdateUsersRank();
 CarRank::Update(CarRank::C_SortCriteria_BestRace);
 
