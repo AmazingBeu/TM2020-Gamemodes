@@ -790,7 +790,7 @@ Boolean MapIsOver(Boolean _UseTieBreak, Integer _PointsLimit, Integer _ValidRoun
 		#Include "TextLib" as TL
 
 		main() {
-			declare Integer TimeToDisplay = 0;
+			declare Ident Last_GUIPlayerId;
 			declare Integer LastUpdate = 0;
 
 			declare Frame_Global <=> (Page.GetFirstChild("frame-global") as CMlFrame);
@@ -815,20 +815,19 @@ Boolean MapIsOver(Boolean _UseTieBreak, Integer _PointsLimit, Integer _ValidRoun
 							Label_Time.Value = TL::TimeToText(GUIPlayer.RaceWaypointTimes[0], True, True);
 							Label_Rank.Value = TL::FormatRank(Net_RoyalRounds_CheckpointUI_Rank, False);
 							Label_Segments.Value = TL::Compose("Segment %1/%2", TL::ToText(Net_RoyalRounds_CheckpointUI_CurrentNbSegments), TL::ToText(Net_RoyalRounds_CheckpointUI_TotalNbSegments));
+
 							Frame_Global.Visible = True;
-							TimeToDisplay = Now + 3000;
-						} else {
-							TimeToDisplay = -1; // Force hide UI
+							AnimMgr.Flush(Frame_Global);
+							AnimMgr.Add(Frame_Global, "<frame hidden=\"1\" />", Now, 3000, CAnimManager::EAnimManagerEasing::Linear);
 						}
 					}
-	
-					if (TimeToDisplay != 0 && TimeToDisplay < Now) {
-						Frame_Global.Visible = False;
-						TimeToDisplay = 0;
+					if (Last_GUIPlayerId != GUIPlayer.Id) {
+						Last_GUIPlayerId = GUIPlayer.Id;
+						if (Frame_Global.Visible) {
+							AnimMgr.Flush(Frame_Global);
+							Frame_Global.Visible = False;
+						}
 					}
-				} else if (Frame_Global.Visible) {
-					Frame_Global.Visible = False;
-					TimeToDisplay = 0;
 				}
 			}
 		}
