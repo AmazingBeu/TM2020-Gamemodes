@@ -92,7 +92,6 @@ StateMgr::Unload();
 ***
 MB_Settings_UseDefaultTimer = False;
 MB_Settings_UseDefaultHud = (C_HudModulePath == "");
-MB_Settings_UseDefaultPodiumSequence = False;
 ***
 
 ***Match_Rules***
@@ -393,7 +392,6 @@ if (Round_ForceEndRound || Round_SkipPauseRound || Round_Skipped) {
 ***Match_EndMap***
 ***
 EndTime = -1;
-
 
 Scores::SetPlayerWinner(Scores::GetBestPlayer(Scores::C_Sort_MatchPoints));
 
