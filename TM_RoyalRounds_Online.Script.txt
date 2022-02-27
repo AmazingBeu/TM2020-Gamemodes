@@ -36,6 +36,8 @@
 #Setting S_StrictPointDistribution False as "Give points only to players who complete all segments"
 #Setting S_AllowCam7DuringWaitingScreen False as ""
 #Setting S_RoundWaitingScreenDuration 20 as _("Round waiting screen duration") //< Maximum time spent waiting for players at the beginning of each round
+#Setting S_FinisherBonusBase 5 as "Base of Bonus for finishers"
+#Setting S_FinisherBonusNumber 10 as "if only one player finish, they get S_FinisherBonusBase x This value. if 2, it's This - 1, etc..."
 
 #Setting S_WarmUpNb 0	as _("Number of warm up")
 #Setting S_WarmUpDuration 0 as _("Duration of one warm up")
@@ -153,7 +155,7 @@ declare Integer Server_SegmentsPerRound;
 Clans::SetClansNb(0);
 Scores::SaveInScore(Scores::C_Points_Match);
 StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
-UsePvECollisions = True; //< Synchronize obstacles between all players
+UsePvECollisions = False; //< Synchronize obstacles between all players
 WarmUp::SetAvailability(False); // (Impossible at the moment https://forum.nadeo.com/viewtopic.php?f=51&p=8745#p8745)
 Race::UseAutomaticDossardColor(False);
 
@@ -211,7 +213,7 @@ if (WaitingScreenDuration >= 0) {
 	// If all players are connected before the end of the countdown start immediatly
 	declare Integer WaitEndTime = Now + (WaitingScreenDuration * 1000);
 	
-	while (S_RoundWaitingScreenDuration - WaitingScreenDuration > 0) {
+	while (MB_MapIsRunning() && S_RoundWaitingScreenDuration - WaitingScreenDuration > 0) {
 		if (S_RoundWaitingScreenDuration - WaitingScreenDuration > 3) {
 			UIModules_BigMessage::SetMessage("""The map starts in {{{S_RoundWaitingScreenDuration - WaitingScreenDuration}}} seconds""");
 		} else {
@@ -328,7 +330,7 @@ CurrentRanking[0] = Integer[Text]; // Init white section
 declare Boolean IsStartRound = True;
 
 // Reset players for the race
-foreach (Score in Scores) { // TODO Change segment for spectators alwell (Test if change works)
+foreach (Score in Scores) {
 	declare Integer CurrentSegment for Score = -1;
 	CurrentSegment = 1;
 	CurrentRanking[0][Score.User.WebServicesUserId] = 0;
@@ -656,17 +658,27 @@ Integer GetFinishTimeout(Integer _FinishTimeout) {
 		}
 	}
 
+	declare Integer BonusForFinishers = 0;
+	if (S_FinisherBonusBase > 0 && S_FinisherBonusNumber > 0 && CurrentRanking.existskey(S_SegmentsPerRound)) {
+		BonusForFinishers = S_FinisherBonusBase * (S_FinisherBonusNumber + 1 - CurrentRanking[S_SegmentsPerRound].count);
+	}
+
 	if (PointsRepartition.count > 0) {
 		CustomTimes = CustomTimes.sort();
 		declare Integer I = 0;
-		foreach (ID => Time in CustomTimes) {
-			declare CSmPlayer Player = ModeUtils::GetPlayerFromAccountId(ID);
+		foreach (AccountId => DummyVar in CustomTimes) {
+			declare CSmPlayer Player = ModeUtils::GetPlayerFromAccountId(AccountId);
 			if (Player == Null) continue;
+			
 			declare Integer Points = 0;
 			if (PointsRepartition.existskey(I)) {
 				Points = PointsRepartition[I];
 			} else {
 				Points = PointsRepartition[PointsRepartition.count - 1];
+			}
+			declare Integer CurrentSegment for Player.Score;
+			if (CurrentSegment == S_SegmentsPerRound) {
+				Points += BonusForFinishers;
 			}
 			Scores::SetPlayerRoundPoints(Player.Score, Points);
 			I += 1;
@@ -778,7 +790,7 @@ Boolean MapIsOver(Boolean _UseTieBreak, Integer _PointsLimit, Integer _ValidRoun
 		#Include "TextLib" as TL
 
 		main() {
-			declare Integer TimeToDisplay = 0;
+			declare Ident Last_GUIPlayerId;
 			declare Integer LastUpdate = 0;
 
 			declare Frame_Global <=> (Page.GetFirstChild("frame-global") as CMlFrame);
@@ -803,20 +815,19 @@ Boolean MapIsOver(Boolean _UseTieBreak, Integer _PointsLimit, Integer _ValidRoun
 							Label_Time.Value = TL::TimeToText(GUIPlayer.RaceWaypointTimes[0], True, True);
 							Label_Rank.Value = TL::FormatRank(Net_RoyalRounds_CheckpointUI_Rank, False);
 							Label_Segments.Value = TL::Compose("Segment %1/%2", TL::ToText(Net_RoyalRounds_CheckpointUI_CurrentNbSegments), TL::ToText(Net_RoyalRounds_CheckpointUI_TotalNbSegments));
+
 							Frame_Global.Visible = True;
-							TimeToDisplay = Now + 3000;
-						} else {
-							TimeToDisplay = -1; // Force hide UI
+							AnimMgr.Flush(Frame_Global);
+							AnimMgr.Add(Frame_Global, "<frame hidden=\"1\" />", Now, 3000, CAnimManager::EAnimManagerEasing::Linear);
 						}
 					}
-	
-					if (TimeToDisplay != 0 && TimeToDisplay < Now) {
-						Frame_Global.Visible = False;
-						TimeToDisplay = 0;
+					if (Last_GUIPlayerId != GUIPlayer.Id) {
+						Last_GUIPlayerId = GUIPlayer.Id;
+						if (Frame_Global.Visible) {
+							AnimMgr.Flush(Frame_Global);
+							Frame_Global.Visible = False;
+						}
 					}
-				} else if (Frame_Global.Visible) {
-					Frame_Global.Visible = False;
-					TimeToDisplay = 0;
 				}
 			}
 		}
