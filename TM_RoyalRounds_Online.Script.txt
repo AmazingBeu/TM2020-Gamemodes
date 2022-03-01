@@ -246,6 +246,11 @@ MB_WarmUp(S_WarmUpNb, S_WarmUpDuration * 1000, S_WarmUpTimeout * 1000);
 ***
 declare netwrite Boolean Net_RoyalRounds_WarmUpUI_IsActive for Teams[0];
 Net_RoyalRounds_WarmUpUI_IsActive = True;
+
+foreach (Player in Players) {
+	declare netwrite Integer Net_RoyalRounds_WarmUpUI_SelectedSegment for Player = 1;
+	Player.LandmarkOrderSelector_Race = Net_RoyalRounds_WarmUpUI_SelectedSegment;
+}
 ***
 
 ***Match_WarmUpLoop***
