@@ -17,6 +17,7 @@
 #Include "Libs/Nadeo/TMNext/TrackMania/Modes/TrophyRanking.Script.txt" as TrophyRanking
 #Include "Libs/Nadeo/TMNext/TrackMania/Menu/Constants.Script.txt" as MenuConsts
 #Include "Libs/Nadeo/ModeLibs/Common/Utils.Script.txt" as ModeUtils
+#Include "Libs/Nadeo/CommonLibs/Common/Semver.Script.txt" as Semver
 
 // UI from Race
 #Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/TimeGap_Server.Script.txt" as UIModules_TimeGap
@@ -123,7 +124,7 @@ foreach (Event in PendingEvents) {
 			StateMgr::InitializePlayer(Event.Player);
 			CarRank::InitializePlayer(Event.Player);
 			if (Event.Player != Null) {
-				Log::Log("[Match_Yield][PendingEvents] New player added: " ^ Event.Player.Name);
+				Log::Log("[Match_Yield][PendingEvents] New player added: " ^ Event.Player.User.Name);
 				declare Boolean Match_CanForceTrophyRankUpdate for This;
 				TrophyRanking::InitializeUser(Event.Player.User, Match_CanForceTrophyRankUpdate);
 				if (Scores::GetPlayerMatchPoints(Event.Player.Score) == 0) {
@@ -246,7 +247,7 @@ foreach (Event in PendingEvents) {
 	Log::Log("[PlayLoop][PendingEvents] Event.Type: " ^ Event.Type);
 	if (Event.Type == CSmModeEvent::EType::OnPlayerAdded) {
 		if (Event.Player != Null) {
-			Log::Log("[PlayLoop][PendingEvents] New player added: " ^ Event.Player.Name);
+			Log::Log("[PlayLoop][PendingEvents] New player added: " ^ Event.Player.User.Name);
 			UpdateCustomRanking(Event.Player);
 		}
 	}
@@ -357,8 +358,13 @@ if (EndTime > 0 && Now >= EndTime) {
 }
 ***
 
-***Match_EndMap***
+***Match_EndRound***
 ***
+if (Semver::Compare(XmlRpc::GetApiVersion(), ">=", "2.1.1")) {
+	Scores::XmlRpc_SendScores(Scores::C_Section_PreEndRound, "");
+}
+
+UpdateCustomRanking(Null);
 EndTime = -1;
 
 declare Integer WorstTime for This;
@@ -376,6 +382,10 @@ CarRank::Update(CarRank::C_SortCriteria_BestRace);
 Race::StopSkipOutroAll();
 
 Scores::EndRound();
+***
+
+***Match_EndMap***
+***
 
 if (MB_GetMapCount() >= S_MapsPerMatch) {
 	Log::Log("[Match_EndMap] Stop Match");
