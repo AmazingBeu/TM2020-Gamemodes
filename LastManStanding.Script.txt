@@ -4,8 +4,8 @@
 #Extends "Libs/Nadeo/TMNext/TrackMania/Modes/TMNextRoundsBase.Script.txt"
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2021-06-14"
-#Const	ScriptName					"Modes/TrackMania/LastManStanding.Script.txt"
+#Const	Version							"2022-03-08"
+#Const	ScriptName					"Modes/TM2020-Gamemodes/LastManStanding.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Libraries
