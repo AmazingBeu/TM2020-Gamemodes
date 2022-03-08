@@ -129,6 +129,8 @@ UIManager.UIAll.OverlayHideCountdown = True;
 Markers::SetDefaultMarker_HudVisibility(CUIConfigMarker::EHudVisibility::Always);
 UIManager.UIAll.LabelsVisibility = CUIConfig::EHudVisibility::Everything ;
 
+UIModules::UnloadModules(["UIModule_Race_LapsCounter"]);
+
 SetML();
 ***
 
