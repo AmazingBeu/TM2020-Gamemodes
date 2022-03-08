@@ -26,6 +26,7 @@
 #Setting S_ForceLapsNb 1
 #Setting S_RoundsPerMap 1 as _("Number of rounds per map") ///< Number of round to play on one map before going to the next one
 
+#Setting S_IntroTime 5 as "Time of the map intro"
 #Setting S_TimeBeforeMalus 10 as "Time Before Malus"
 #Setting S_TimeBeforeNightmare 150 as "Time Before Nightmare"
 #Setting S_MalusEveryNSecs 10 as "Roll a new Malus every N Sec"
@@ -100,6 +101,7 @@ MB_Settings_UseDefaultTimer = False;
 MB_Settings_UseDefaultHud = (C_HudModulePath == "");
 MB_Settings_UseDefaultPodiumSequence = False;
 Rounds_Settings_UseDefaultSpawnManagement = False;
+MB_Settings_UseDefaultIntroSequence = False;
 ***
 
 ***Match_Rules***
@@ -189,6 +191,16 @@ declare netwrite Integer Net_NextMalus for Teams[0] = -1;
 declare netwrite Integer Net_TimeBeforeMalus for Teams[0] = -1;
 declare netwrite Integer Net_RoundsPerMap for Teams[0] = 0;
 declare netwrite Integer Net_CurrentRoundNb for Teams[0] = 0;
+
+// Map Intro
+declare Integer WaitingScreenDuration = 0;
+StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
+ModeUtils::PushAndApplyUISequence(UIManager.UIAll, CUIConfig::EUISequence::RollingBackgroundIntro);
+while (MB_MapIsRunning() && S_IntroTime - WaitingScreenDuration > 0) {
+	WaitingScreenDuration = WaitingScreenDuration + 1;
+	MB_Sleep(1000);
+}
+ModeUtils::PopAndApplyUISequence(UIManager.UIAll);
 ***
 
 ***Match_StartMap***
