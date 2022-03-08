@@ -221,48 +221,62 @@ Net_CurrentRoundNb = Map_ValidRoundsNb + 1;
 
 declare Text[] AccountIdsOfPlayers for This = [];
 declare CMapLandmark[] Landmarks = Map::GetFinishesAndMultilaps();
-declare CMapLandmark PlayerLM;
-declare Integer LandmarkIndex for This = 0;
-AccountIdsOfPlayers = [];
 
-// Suffle Players list to randomise spawn
-declare CSmPlayer[] ShuffledPlayers = Players;
-declare Integer i=0;
-while(i<ShuffledPlayers.count) { // this should be enough, you can use arbitrary values, should the need arise
-	// find a pair (a,b) of valid indices to swap
-	declare a=ML::Rand(0, ShuffledPlayers.count-1);
-	declare b=ML::Rand(0, ShuffledPlayers.count-1);
-	
-	// now swap them
-	declare tmp=ShuffledPlayers[b];
-	ShuffledPlayers[b]=ShuffledPlayers[a];
-	ShuffledPlayers[a]=tmp;
-	
-	i=i+1;
-}
-
-foreach (Player in ShuffledPlayers) {
-	PlayerLM = Null;
-	while (PlayerLM == Null) {
-		if (LandmarkIndex > Landmarks.count - 1 ) {
-			LandmarkIndex = 0;
-		}
-		if (Map::IsMultilap(Landmarks[LandmarkIndex])) {
-			PlayerLM = Landmarks[LandmarkIndex];
-		}
-		LandmarkIndex = LandmarkIndex + 1 ;
+declare Boolean MapIsCompatible;
+foreach (Landmark in Landmarks) {
+	if (Map::IsMultilap(Landmark)) {
+		MapIsCompatible = True;
+		break;
 	}
-	Race::Start(Player, PlayerLM , StartTime);
-	AccountIdsOfPlayers.add(Player.User.WebServicesUserId);
 }
-
-Net_NBPlayers = AccountIdsOfPlayers.count;
-
-UpdateCustomRanking(Null, -1);
-StateMgr::ForcePlayersStates([StateMgr::C_State_Playing]);
-CarRank::Update(CarRank::C_SortCriteria_BestRace);
-Race::EnableIntroDuringMatch(False);
-UIManager.UIAll.SendChat("$<$ff3$> Stay the most time on the structure. $<$ff9GL HF!$>");
+if (!MapIsCompatible) {
+	UIManager.UIAll.QueueMessage(3000, 1, CUIConfig::EMessageDisplay::Big, _("This map is not valid"));
+	MB_Sleep(3000);
+	MB_StopMap();
+} else {
+	declare CMapLandmark PlayerLM;
+	declare Integer LandmarkIndex for This = 0;
+	AccountIdsOfPlayers = [];
+	
+	// Suffle Players list to randomise spawn
+	declare CSmPlayer[] ShuffledPlayers = Players;
+	declare Integer i=0;
+	while(i<ShuffledPlayers.count) { // this should be enough, you can use arbitrary values, should the need arise
+		// find a pair (a,b) of valid indices to swap
+		declare a=ML::Rand(0, ShuffledPlayers.count-1);
+		declare b=ML::Rand(0, ShuffledPlayers.count-1);
+		
+		// now swap them
+		declare tmp=ShuffledPlayers[b];
+		ShuffledPlayers[b]=ShuffledPlayers[a];
+		ShuffledPlayers[a]=tmp;
+		
+		i=i+1;
+	}
+	
+	foreach (Player in ShuffledPlayers) {
+		PlayerLM = Null;
+		while (PlayerLM == Null) {
+			if (LandmarkIndex > Landmarks.count - 1 ) {
+				LandmarkIndex = 0;
+			}
+			if (Map::IsMultilap(Landmarks[LandmarkIndex])) {
+				PlayerLM = Landmarks[LandmarkIndex];
+			}
+			LandmarkIndex = LandmarkIndex + 1 ;
+		}
+		Race::Start(Player, PlayerLM , StartTime);
+		AccountIdsOfPlayers.add(Player.User.WebServicesUserId);
+	}
+	
+	Net_NBPlayers = AccountIdsOfPlayers.count;
+	
+	UpdateCustomRanking(Null, -1);
+	StateMgr::ForcePlayersStates([StateMgr::C_State_Playing]);
+	CarRank::Update(CarRank::C_SortCriteria_BestRace);
+	Race::EnableIntroDuringMatch(False);
+	UIManager.UIAll.SendChat("$<$ff3$> Stay the most time on the structure. $<$ff9GL HF!$>");
+}
 ***
 
 ***Match_PlayLoop***
