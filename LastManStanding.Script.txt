@@ -214,6 +214,9 @@ if (!MapIsCompatible) {
 	} else {
 		ModeUtils::PushAndApplyUISequence(UIManager.UIAll, CUIConfig::EUISequence::Playing);
 	}
+
+	if (MB_MapIsRunning() && AllPlayers.count <= 0) MB_Yield();
+
 	declare Integer WaitingScreenDuration = 0;
 	while (MB_MapIsRunning() && S_IntroTime - WaitingScreenDuration > 0) {
 		WaitingScreenDuration = WaitingScreenDuration + 1;
@@ -384,6 +387,13 @@ foreach (Event in RacePendingEvents) {
 			Net_PlayersNbAlive = PlayersNbAlive;
 		}
 		UpdateCustomRanking(Event.Player, Event.Type);
+	} else if (Event.Type == Events::C_Type_Eliminated) {
+		Race::StopSkipOutro(Event.Player);
+		foreach (Player in Players) { 
+			CarRank::SetRank(Player, PlayersNbAlive);
+			Net_PlayersNbAlive = PlayersNbAlive;
+		}
+		UpdateCustomRanking(Event.Player, Event.Type);
 	}
 }
 
@@ -393,25 +403,11 @@ foreach (Event in PendingEvents) {
 	Events::Invalid(Event);
 }
 
-if (PlayersNbAlive <= 1 && PlayersNbDead >= 1) { //TODO just respawn in case of 1 player
+if (PlayersNbAlive <= 1 && AccountIdsOfPlayers.count >= 2) { //TODO just respawn in case of 1 player
 	Net_TimeBeforeMalus = -1;
 	MB_StopRound();
 }
 
-
-// Check if a player is crushed
-if (Now%1000 == 0) {
-	foreach (Player in Players) {
-		if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned && Player.Armor == 0) {
-			Race::StopSkipOutro(Player);
-			foreach (Player in Players) { 
-				CarRank::SetRank(Player, PlayersNbAlive);
-				Net_PlayersNbAlive = PlayersNbAlive;
-			}
-			UpdateCustomRanking(Player, Events::C_Type_GiveUp);
-		}
-	}
-}
 
 // Update the map duration setting
 if (Map_TimeBeforeMalus != S_TimeBeforeMalus || Map_TimeBeforeMalus != S_TimeBeforeNightmare || Map_MalusEveryNSecs != S_MalusEveryNSecs || Map_NextMalusPreparationTime != S_NextMalusPreparationTime || Map_MalusDuration != S_MalusDuration || Map_RoundsPerMap != S_RoundsPerMap) {
@@ -614,7 +610,7 @@ if (Round_ForceEndRound || Round_SkipPauseRound) {
 
 			Scores::UpdatePlayerBestRaceIfBetter(Player);
 			if (_EliminatedPlayer != Null && _EliminatedPlayer == Player) {
-				if (_EventType == Events::C_Type_GiveUp) {
+				if (_EventType == Events::C_Type_GiveUp || _EventType == Events::C_Type_Eliminated) {
 					CustomTimes[Score.User.WebServicesUserId] = Now - StartTime;
 				}
 				UIManager.UIAll.SendChat("""$<$ff3$> Player $<$ff9{{{Player.User.Name}}}$> is eliminated""");
