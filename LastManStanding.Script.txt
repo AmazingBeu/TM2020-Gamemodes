@@ -538,8 +538,11 @@ if (Round_ForceEndRound || Round_SkipPauseRound) {
 	if (WinnerScore == Null) {
 		foreach (Score in Scores) {
 			if (Score.BestRaceTimes.count <= 0 && Score.User != Null && AccountIdsOfPlayers.exists(Score.User.WebServicesUserId)) {
-				WinnerScore <=> Score;
-				break;
+				declare CSmPlayer Player = GetPlayer(Score.User.Login);
+				if (Player != Null && !Player.RequestsSpectate) {
+					WinnerScore <=> Score;
+					break;
+				}
 			}
 		}
 	}
