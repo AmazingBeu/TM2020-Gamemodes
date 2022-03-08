@@ -129,7 +129,7 @@ UIManager.UIAll.OverlayHideCountdown = True;
 Markers::SetDefaultMarker_HudVisibility(CUIConfigMarker::EHudVisibility::Always);
 UIManager.UIAll.LabelsVisibility = CUIConfig::EHudVisibility::Everything ;
 
-SetML(Null);
+SetML();
 ***
 
 ***Match_Yield***
@@ -711,7 +711,7 @@ Boolean SetMalus(CSmPlayer _Player, Integer _Type) {
  *
  *	@param	_Player									Malus Index
  */
-Void SetML(CSmPlayer _Player) {
+Void SetML() {
 	declare TotalWidth = 44.5;
 
 	declare Text MLText = """
@@ -837,11 +837,7 @@ Void SetML(CSmPlayer _Player) {
 """;
 	Layers::Create("LMS_UI", MLText);
 	Layers::SetType("LMS_UI", CUILayer::EUILayerType::Normal);
-	if (_Player == Null) {
-		Layers::Attach("LMS_UI");
-	} else {
-		Layers::Attach("LMS_UI", _Player);
-	}
+	Layers::Attach("LMS_UI");
 }
 
 
