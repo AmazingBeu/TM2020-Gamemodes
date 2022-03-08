@@ -287,6 +287,7 @@ if (!MapIsCompatible) {
 		}
 		Race::Start(Player, PlayerLM , StartTime);
 		AccountIdsOfPlayers.add(Player.User.WebServicesUserId);
+		MalusQueue[Player.User.WebServicesUserId] = GetNewMalus(C_Malus_Reset);
 	}
 	
 	Net_NBPlayers = AccountIdsOfPlayers.count;
@@ -527,19 +528,29 @@ if (Round_ForceEndRound || Round_SkipPauseRound) {
 	}
 } else {
 	Map_ValidRoundsNb += 1;
-	Scores::SetPlayerWinner(Scores::GetBestPlayer(Race::C_Sort_RoundPoints));
-	Race::SortScores(Race::C_Sort_TotalPoints);
-	Scores::EndRound();
-	UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::EndRound;
-	UIManager.UIAll.BigMessageSoundVariant = 0;
+
+	declare CSmScore WinnerScore <=> Scores::GetBestPlayer(Race::C_Sort_RoundPoints);
+	if (WinnerScore == Null) {
+		foreach (Score in Scores) {
+			if (Score.BestRaceTimes.count <= 0 && AccountIdsOfPlayers.exists(Score.User.WebServicesUserId)) {
+				WinnerScore <=> Score;
+				break;
+			}
+		}
+	}
+	Scores::SetPlayerWinner(WinnerScore);
 
 	declare Text Message = _("|Match|Draw");
-	declare CSmScore WinnerScore <=> Scores::GetBestPlayer(Race::C_Sort_RoundPoints);
 	if (WinnerScore != Null) {
 		Message = TL::Compose(_("$<%1$> wins the match!"), Tools::GetNameWithClubTag(WinnerScore.User)); // TODO CHeck why display draw when someone leave
 	}
 	
+	UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::EndRound;
+	UIManager.UIAll.BigMessageSoundVariant = 0;
 	UIManager.UIAll.BigMessage = Message;
+
+	Scores::EndRound();
+	Race::SortScores(Race::C_Sort_TotalPoints);
 
 	MB_Sleep(5000);
 	UIManager.UIAll.BigMessage = "";
