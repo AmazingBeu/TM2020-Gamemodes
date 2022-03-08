@@ -4,8 +4,8 @@
 #Extends "Libs/Nadeo/TMNext/TrackMania/Modes/TMNextRoundsBase.Script.txt"
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2021-06-14"
-#Const	ScriptName					"Modes/TrackMania/LastManStanding.Script.txt"
+#Const	Version							"2022-03-08"
+#Const	ScriptName					"Modes/TM2020-Gamemodes/LastManStanding.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Libraries
@@ -20,14 +20,13 @@
 #Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/ScoresTable_Server.Script.txt" as UIModules_ScoresTable
 #Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/PauseMenuOnline_Server.Script.txt" as UIModules_PauseMenu_Online
 
-#Include "Libs/Nadeo/ModeLibs/Common/Debug.Script.txt" as Debug
-
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Settings
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 #Setting S_ForceLapsNb 1
 #Setting S_RoundsPerMap 1 as _("Number of rounds per map") ///< Number of round to play on one map before going to the next one
 
+#Setting S_IntroTime 5 as "Time of the map intro"
 #Setting S_TimeBeforeMalus 10 as "Time Before Malus"
 #Setting S_TimeBeforeNightmare 150 as "Time Before Nightmare"
 #Setting S_MalusEveryNSecs 10 as "Roll a new Malus every N Sec"
@@ -72,6 +71,11 @@
 12 => "25% AccelCoef", 13 => "25% Adherence", 14 => "25% Control", 
 15 => "25% Gravity", 99 => "NightMare"]
 
+#Struct K_Malus {
+	Integer Time;
+	Integer MalusIndex;
+}
+
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Extends
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -97,6 +101,7 @@ MB_Settings_UseDefaultTimer = False;
 MB_Settings_UseDefaultHud = (C_HudModulePath == "");
 MB_Settings_UseDefaultPodiumSequence = False;
 Rounds_Settings_UseDefaultSpawnManagement = False;
+MB_Settings_UseDefaultIntroSequence = False;
 ***
 
 ***Match_Rules***
@@ -126,7 +131,9 @@ UIManager.UIAll.OverlayHideCountdown = True;
 Markers::SetDefaultMarker_HudVisibility(CUIConfigMarker::EHudVisibility::Always);
 UIManager.UIAll.LabelsVisibility = CUIConfig::EHudVisibility::Everything ;
 
-SetML(Null);
+UIModules::UnloadModules(["UIModule_Race_LapsCounter"]);
+
+SetML();
 ***
 
 ***Match_Yield***
@@ -153,9 +160,6 @@ UsePvECollisions = True;
 StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
 WarmUp::SetAvailability(True);
 CarRank::Reset();
-
-Debug::AddFakeUsers(C_FakeUsersNb);
-//Debug::SetTargetSpeed([10.0, 100.0]);
 ***
 
 ***Match_InitMap***
@@ -173,6 +177,7 @@ declare Integer Map_RoundsPerMap;
 declare Text[] AccountIdsOfPlayers for This = [];
 declare Integer LandmarkIndex for This = 0;
 declare Integer[Text] CustomTimes for This = [];
+declare K_Malus[Text] MalusQueue;
 
 declare Boolean ActiveMalus = False;
 declare Boolean PendingMalus = False;
@@ -186,25 +191,46 @@ declare netwrite Integer Net_NextMalus for Teams[0] = -1;
 declare netwrite Integer Net_TimeBeforeMalus for Teams[0] = -1;
 declare netwrite Integer Net_RoundsPerMap for Teams[0] = 0;
 declare netwrite Integer Net_CurrentRoundNb for Teams[0] = 0;
+
+// Map Intro
+declare Boolean MapIsCompatible;
+declare CMapLandmark[] Landmarks = Map::GetFinishesAndMultilaps();
+foreach (Landmark in Landmarks) {
+	if (Map::IsMultilap(Landmark)) {
+		MapIsCompatible = True;
+		break;
+	}
+}
+if (!MapIsCompatible) {
+	UIManager.UIAll.QueueMessage(3000, 1, CUIConfig::EMessageDisplay::Big, _("This map is not valid"));
+	MB_Sleep(3000);
+	MB_StopMap();
+} else if (S_IntroTime > 0) {
+	declare netwrite Boolean Net_LMS_IsIntro for Teams[0];
+	Net_LMS_IsIntro = True;
+	StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
+	ModeUtils::PushAndApplyUISequence(UIManager.UIAll, CUIConfig::EUISequence::RollingBackgroundIntro);
+	declare Integer WaitingScreenDuration = 0;
+	while (MB_MapIsRunning() && S_IntroTime - WaitingScreenDuration > 0) {
+		WaitingScreenDuration = WaitingScreenDuration + 1;
+		MB_Sleep(1000);
+	}
+	ModeUtils::PopAndApplyUISequence(UIManager.UIAll);
+	Net_LMS_IsIntro = False;
+}
+
 ***
 
 ***Match_StartMap***
 ***
-// Add bot when necessary
-//Users_SetNbFakeUsers(C_FakeUsersNb, 0);
 Race::SetRespawnBehaviour(Race::C_RespawnBehaviour_AlwaysGiveUp);
 
 CarRank::Reset();
-
-// Warm up
-/*UIModules_ScoresTable::SetFooterInfo(_("Warm up"));
-MB_WarmUp(S_WarmUpNb, S_WarmUpDuration * 1000, S_WarmUpTimeout * 1000);*/
 ***
 
 ***Match_StartRound***
 ***
 Scores::Clear();
-SetMalusToAll(C_Malus_Reset);
 
 // WorkAround for longloading
 declare StartMapTime = Now;
@@ -226,12 +252,13 @@ Net_TimeBeforeMalus = MalusTime;
 Net_NextMalus = -1;
 Net_RoundsPerMap = Map_RoundsPerMap;
 Net_CurrentRoundNb = Map_ValidRoundsNb + 1;
+MalusQueue = [];
 
 // Spawn players for the race
 ---Rounds_CanSpawn---
 
 declare Text[] AccountIdsOfPlayers for This = [];
-declare CMapLandmark[] Landmarks = Map::GetFinishesAndMultilaps();
+
 declare CMapLandmark PlayerLM;
 declare Integer LandmarkIndex for This = 0;
 AccountIdsOfPlayers = [];
@@ -265,6 +292,7 @@ foreach (Player in ShuffledPlayers) {
 	}
 	Race::Start(Player, PlayerLM , StartTime);
 	AccountIdsOfPlayers.add(Player.User.WebServicesUserId);
+	MalusQueue[Player.User.WebServicesUserId] = GetNewMalus(C_Malus_Reset);
 }
 
 Net_NBPlayers = AccountIdsOfPlayers.count;
@@ -274,7 +302,13 @@ StateMgr::ForcePlayersStates([StateMgr::C_State_Playing]);
 CarRank::Update(CarRank::C_SortCriteria_BestRace);
 Race::EnableIntroDuringMatch(False);
 UIManager.UIAll.SendChat("$<$ff3$> Stay the most time on the structure. $<$ff9GL HF!$>");
+
 ***
+
+/***Match_InitPlayLoop***
+***
+MalusQueue = [];
+***/
 
 ***Match_PlayLoop***
 ***
@@ -310,8 +344,7 @@ if (Now < StartTime + 3000) {
 				Race::Start(Player, PlayerLM , StartTime);
 				AccountIdsOfPlayers.add(Player.User.WebServicesUserId);
 
-				MB_Sleep(100);
-				while (!SetMalus(Player, C_Malus_Reset)) MB_Yield();
+				MalusQueue[Player.User.WebServicesUserId] = GetNewMalus(C_Malus_Reset);
 			}
 		}
 	}
@@ -329,8 +362,7 @@ if (Now < StartTime + 3000) {
 // Manage race events
 declare RacePendingEvents = Race::GetPendingEvents();
 foreach (Event in RacePendingEvents) {
-	//log("""Event.Type: {{{Event.Type}}} / Event.IsEndRace: {{{TL::ToText(Event.IsEndRace)}}} / Event.IsEndLap: {{{TL::ToText(Event.IsEndLap)}}} / Event.Player.User.Login: {{{Event.Player.User.Login}}}""");
-	Race::ValidEvent(Event);// TODO : Check why event not regitered in NightMare (bot?)
+	Race::ValidEvent(Event);
 
 	// Waypoint
 	if (Event.Type == Events::C_Type_Waypoint) {
@@ -426,7 +458,9 @@ if (Players.count > 0 && S_MalusDuration > 0 && MalusTime != -1 && Now > MalusTi
 			Net_NextMalus = MalusIndex;
 			Net_TimeBeforeMalus = NextStepMalusTime;
 		} else if (PendingMalus && !ActiveMalus) {
-			SetMalusToAll(MalusIndex);
+			foreach (Player in Players) {
+				MalusQueue[Player.User.WebServicesUserId] = GetNewMalus(MalusIndex);
+			}
 			PendingMalus = False;
 			ActiveMalus = True;
 			NextStepMalusTime = Now + (S_MalusDuration*1000);
@@ -439,7 +473,9 @@ if (Players.count > 0 && S_MalusDuration > 0 && MalusTime != -1 && Now > MalusTi
 			Net_TimeBeforeMalus = NextStepMalusTime;
 		} else if (!PendingMalus && ActiveMalus) {
 			if (MalusIndex != 99) {
-				SetMalusToAll(C_Malus_Reset);
+				foreach (Player in Players) {
+					MalusQueue[Player.User.WebServicesUserId] = GetNewMalus(C_Malus_Reset);
+				}
 				PendingMalus = False;
 				ActiveMalus = False;
 
@@ -452,15 +488,26 @@ if (Players.count > 0 && S_MalusDuration > 0 && MalusTime != -1 && Now > MalusTi
 				Net_NextMalus = -1;
 				Net_TimeBeforeMalus = NextStepMalusTime;
 			} else {
-				SetMalusToAll(C_Malus_Nightmare);
+				foreach (Player in Players) {
+					MalusQueue[Player.User.WebServicesUserId] = GetNewMalus(C_Malus_Nightmare);
+				}
 				NextStepMalusTime = Now + (S_MalusDuration*1000);
 			}
 		}
 	}
 }
 
-//Debug::Yield();
-
+foreach (AccountId => Malus in MalusQueue) {
+	declare CSmPlayer Player = ModeUtils::GetPlayerFromAccountId(AccountId);
+	if (Malus.Time + 1000 < Now) { // Clear old entry
+		MalusQueue.removekey(AccountId);
+	} else if (Player != Null && (Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned || Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning)) {
+		Log::Log("[ApplyPhysics] Trying to set Event " ^ C_Malus_Name[Malus.MalusIndex] ^ " for " ^ Player.User.Name);
+		if (SetMalus(Player, Malus.MalusIndex)) {
+			MalusQueue.removekey(AccountId);
+		}
+	}
+}
 ***
 
 ***Match_EndRound***
@@ -486,19 +533,29 @@ if (Round_ForceEndRound || Round_SkipPauseRound) {
 	}
 } else {
 	Map_ValidRoundsNb += 1;
-	Scores::SetPlayerWinner(Scores::GetBestPlayer(Race::C_Sort_RoundPoints));
-	Race::SortScores(Race::C_Sort_TotalPoints);
-	Scores::EndRound();
-	UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::EndRound;
-	UIManager.UIAll.BigMessageSoundVariant = 0;
+
+	declare CSmScore WinnerScore <=> Scores::GetBestPlayer(Race::C_Sort_RoundPoints);
+	if (WinnerScore == Null) {
+		foreach (Score in Scores) {
+			if (Score.BestRaceTimes.count <= 0 && Score.User != Null && AccountIdsOfPlayers.exists(Score.User.WebServicesUserId)) {
+				WinnerScore <=> Score;
+				break;
+			}
+		}
+	}
+	Scores::SetPlayerWinner(WinnerScore);
 
 	declare Text Message = _("|Match|Draw");
-	declare CSmScore WinnerScore <=> Scores::GetBestPlayer(Race::C_Sort_RoundPoints);
 	if (WinnerScore != Null) {
 		Message = TL::Compose(_("$<%1$> wins the match!"), Tools::GetNameWithClubTag(WinnerScore.User)); // TODO CHeck why display draw when someone leave
 	}
 	
+	UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::EndRound;
+	UIManager.UIAll.BigMessageSoundVariant = 0;
 	UIManager.UIAll.BigMessage = Message;
+
+	Scores::EndRound();
+	Race::SortScores(Race::C_Sort_TotalPoints);
 
 	MB_Sleep(5000);
 	UIManager.UIAll.BigMessage = "";
@@ -596,13 +653,20 @@ if (Round_ForceEndRound || Round_SkipPauseRound) {
 	UIModules_ScoresTable::SetFooterInfo(Footer);
 }
 
+K_Malus GetNewMalus(Integer _MalusIndex) {
+	return K_Malus {
+		Time = Now,
+		MalusIndex = _MalusIndex
+	};
+}
+
 /** Set Malus to a specific Players
  *
  *	@param	_Player									Player
  *	@param	_Type									Malus Index
  */
 Boolean SetMalus(CSmPlayer _Player, Integer _Type) {
-	if (_Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned) {
+	if (_Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned && !SetPlayer_DelayedIsFull(_Player)) {
 		if (_Type > 0) {
 			_Player.Dossard_Color = <1., 0., 0.>;
 		} else {
@@ -612,66 +676,51 @@ Boolean SetMalus(CSmPlayer _Player, Integer _Type) {
 			case C_Malus_Reset: {
 				SetPlayerVehicle_ControlledByMode(_Player, False);
 				SetPlayerVehicle_ResetControlledModeValues(_Player);
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_Reset(_Player);
 			}
 			case C_Malus_ForceEngine: {
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_ForceEngine(_Player,True);
 			}
 			case C_Malus_NoEngine: {
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_NoEngine(_Player,True);
 			}
 			case C_Malus_BackwardOnly: {
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_Cruise(_Player,True,-999.);
 			}
 			case C_Malus_NoBrakes: {
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_NoBrakes(_Player,True);
 			}
 			case C_Malus_NoSteer: {
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_NoSteer(_Player,True);
 			}
 			case C_Malus_SlowMotion: {
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_SlowMotion(_Player,True);
 			}
 			case C_Malus_BoostDown: {
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_BoostDown(_Player,True);
 			}
 			case C_Malus_BoostUp: {
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_BoostUp(_Player,True);
 			}
 			case C_Malus_Boost2Down: {
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_Boost2Down(_Player,True);
 			}
 			case C_Malus_Boost2Up: {
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_Boost2Up(_Player,True);
 			}
 			case C_Malus_LockPlayer: {
 				SetPlayerVehicle_ControlledByMode(_Player, True);
 			}
 			case C_Malus_AccelCoef25: {
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_AccelCoef(_Player,0.25);
 			}
 			case C_Malus_AdherenceCoef25: {
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_AdherenceCoef(_Player,0.25);
 			}
 			case C_Malus_ControlCoef25: {
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_ControlCoef(_Player,0.25);
 			}
 			case C_Malus_GravityCoef25: {
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_GravityCoef(_Player,0.25);
 			}
 			// The goal is to kill all Players
@@ -679,9 +728,7 @@ Boolean SetMalus(CSmPlayer _Player, Integer _Type) {
 				SetPlayerVehicle_ControlledByMode(_Player, True);
 				SetPlayerVehicle_TargetSpeedValue(_Player, ML::Rand(-500.,500.));
 				SetPlayerVehicle_SteerValue(_Player,ML::Rand(-1.,1.));
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_Boost2Up(_Player,True);
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_AdherenceCoef(_Player,0.1);
 			}
 		}
@@ -690,25 +737,15 @@ Boolean SetMalus(CSmPlayer _Player, Integer _Type) {
 	return False;
 }
 
-/** Set Malus to all Players
- *
- *	@param	_Type									Malus Index
- */
- Void SetMalusToAll(Integer _Type) {
-	foreach (Player in Players) {
-		SetMalus(Player, _Type);
-	}
-}
-
 /** Set the UI
  *
  *	@param	_Player									Malus Index
  */
-Void SetML(CSmPlayer _Player) {
+Void SetML() {
 	declare TotalWidth = 44.5;
 
 	declare Text MLText = """
-	<manialink name="LMS_UI" version="3">
+	<manialink name="LMS_InfoPanel" version="3">
 		<script><!--
 		#Include "TextLib" as TL
 
@@ -828,13 +865,58 @@ Void SetML(CSmPlayer _Player) {
 
 	</manialink>
 """;
-	Layers::Create("LMS_UI", MLText);
-	Layers::SetType("LMS_UI", CUILayer::EUILayerType::Normal);
-	if (_Player == Null) {
-		Layers::Attach("LMS_UI");
-	} else {
-		Layers::Attach("LMS_UI", _Player);
-	}
+	Layers::Create("LMS_InfoPanel", MLText);
+	Layers::SetType("LMS_InfoPanel", CUILayer::EUILayerType::Normal);
+	Layers::Attach("LMS_InfoPanel");
+
+
+	MLText = """
+	<manialink name="LMS_MapInfo" version="3">
+		<script><!--
+		#Include "TextLib" as TL
+
+		main() {
+			declare netread Boolean Net_LMS_IsIntro for Teams[0];
+			declare Boolean Last_IsIntro;
+
+			declare CMlFrame Frame_Global = (Page.GetFirstChild("frame-global") as CMlFrame);
+			declare CMlLabel Label_MapInfo_Name = (Page.GetFirstChild("label-mapinfo-name") as CMlLabel);
+			declare CMlLabel Label_MapInfo_Author = (Page.GetFirstChild("label-mapinfo-author") as CMlLabel);
+
+			while(True) {
+				yield;
+
+				if (Last_IsIntro != Net_LMS_IsIntro) {
+					Last_IsIntro = Net_LMS_IsIntro;
+					if (Last_IsIntro) {
+						Label_MapInfo_Name.Value = Map.MapName;
+						Label_MapInfo_Author.Value = "by " ^ Map.AuthorNickName;
+
+						AnimMgr.Flush(Frame_Global);
+						AnimMgr.Add(Frame_Global, "<anim hidden=\"0\" pos=\"0 60\"/>", 200 , CAnimManager::EAnimManagerEasing::SineInOut);
+					} else {
+						AnimMgr.Flush(Frame_Global);
+						AnimMgr.Add(Frame_Global, "<anim hidden=\"1\" pos=\"0 115\"/>", 200 , CAnimManager::EAnimManagerEasing::SineInOut);	
+					}
+				}
+			}
+		}
+		--></script>
+		<stylesheet>
+			<style class="text" textfont="GameFontBlack" textcolor="ffffffff" textsize="8" valign="center2" halign="center"/>
+		</stylesheet>
+
+		<frame id="frame-global" pos="0 115" hidden="1">
+			<quad size="150 25" halign="center" z-index="-1" bgcolor="000" opacity="0.7"/>
+			<label id="label-mapinfo-name" class="text" pos="0 -8" size="140 10"/>
+			<label id="label-mapinfo-author" class="text" pos="0 -18" size="140 10" textsize="6"/>
+		</frame>
+
+	</manialink>
+""";
+	Layers::Create("LMS_MapInfo", MLText);
+	Layers::SetType("LMS_MapInfo", CUILayer::EUILayerType::Normal);
+	Layers::Attach("LMS_MapInfo");
 }
 
 
