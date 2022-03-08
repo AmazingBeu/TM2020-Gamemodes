@@ -209,7 +209,7 @@ if (!MapIsCompatible) {
 	declare netwrite Boolean Net_LMS_IsIntro for Teams[0];
 	Net_LMS_IsIntro = True;
 	StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
-	ModeUtils::PushAndApplyUISequence(UIManager.UIAll, CUIConfig::EUISequence::RollingBackgroundIntro);
+	ModeUtils::PushAndApplyUISequence(UIManager.UIAll, CUIConfig::EUISequence::Intro);
 	declare Integer WaitingScreenDuration = 0;
 	while (MB_MapIsRunning() && S_IntroTime - WaitingScreenDuration > 0) {
 		WaitingScreenDuration = WaitingScreenDuration + 1;
