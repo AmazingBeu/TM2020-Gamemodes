@@ -532,7 +532,7 @@ if (Round_ForceEndRound || Round_SkipPauseRound) {
 	declare CSmScore WinnerScore <=> Scores::GetBestPlayer(Race::C_Sort_RoundPoints);
 	if (WinnerScore == Null) {
 		foreach (Score in Scores) {
-			if (Score.BestRaceTimes.count <= 0 && AccountIdsOfPlayers.exists(Score.User.WebServicesUserId)) {
+			if (Score.BestRaceTimes.count <= 0 && Score.User != Null && AccountIdsOfPlayers.exists(Score.User.WebServicesUserId)) {
 				WinnerScore <=> Score;
 				break;
 			}
