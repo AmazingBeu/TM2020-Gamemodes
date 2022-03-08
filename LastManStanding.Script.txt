@@ -193,14 +193,32 @@ declare netwrite Integer Net_RoundsPerMap for Teams[0] = 0;
 declare netwrite Integer Net_CurrentRoundNb for Teams[0] = 0;
 
 // Map Intro
-declare Integer WaitingScreenDuration = 0;
-StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
-ModeUtils::PushAndApplyUISequence(UIManager.UIAll, CUIConfig::EUISequence::RollingBackgroundIntro);
-while (MB_MapIsRunning() && S_IntroTime - WaitingScreenDuration > 0) {
-	WaitingScreenDuration = WaitingScreenDuration + 1;
-	MB_Sleep(1000);
+declare Boolean MapIsCompatible;
+declare CMapLandmark[] Landmarks = Map::GetFinishesAndMultilaps();
+foreach (Landmark in Landmarks) {
+	if (Map::IsMultilap(Landmark)) {
+		MapIsCompatible = True;
+		break;
+	}
 }
-ModeUtils::PopAndApplyUISequence(UIManager.UIAll);
+if (!MapIsCompatible) {
+	UIManager.UIAll.QueueMessage(3000, 1, CUIConfig::EMessageDisplay::Big, _("This map is not valid"));
+	MB_Sleep(3000);
+	MB_StopMap();
+} else if (S_IntroTime > 0) {
+	declare netwrite Boolean Net_LMS_IsIntro for Teams[0];
+	Net_LMS_IsIntro = True;
+	StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
+	ModeUtils::PushAndApplyUISequence(UIManager.UIAll, CUIConfig::EUISequence::RollingBackgroundIntro);
+	declare Integer WaitingScreenDuration = 0;
+	while (MB_MapIsRunning() && S_IntroTime - WaitingScreenDuration > 0) {
+		WaitingScreenDuration = WaitingScreenDuration + 1;
+		MB_Sleep(1000);
+	}
+	ModeUtils::PopAndApplyUISequence(UIManager.UIAll);
+	Net_LMS_IsIntro = False;
+}
+
 ***
 
 ***Match_StartMap***
@@ -240,64 +258,51 @@ MalusQueue = [];
 ---Rounds_CanSpawn---
 
 declare Text[] AccountIdsOfPlayers for This = [];
-declare CMapLandmark[] Landmarks = Map::GetFinishesAndMultilaps();
 
-declare Boolean MapIsCompatible;
-foreach (Landmark in Landmarks) {
-	if (Map::IsMultilap(Landmark)) {
-		MapIsCompatible = True;
-		break;
-	}
+declare CMapLandmark PlayerLM;
+declare Integer LandmarkIndex for This = 0;
+AccountIdsOfPlayers = [];
+
+// Suffle Players list to randomise spawn
+declare CSmPlayer[] ShuffledPlayers = Players;
+declare Integer i=0;
+while(i<ShuffledPlayers.count) { // this should be enough, you can use arbitrary values, should the need arise
+	// find a pair (a,b) of valid indices to swap
+	declare a=ML::Rand(0, ShuffledPlayers.count-1);
+	declare b=ML::Rand(0, ShuffledPlayers.count-1);
+	
+	// now swap them
+	declare tmp=ShuffledPlayers[b];
+	ShuffledPlayers[b]=ShuffledPlayers[a];
+	ShuffledPlayers[a]=tmp;
+	
+	i=i+1;
 }
-if (!MapIsCompatible) {
-	UIManager.UIAll.QueueMessage(3000, 1, CUIConfig::EMessageDisplay::Big, _("This map is not valid"));
-	MB_Sleep(3000);
-	MB_StopMap();
-} else {
-	declare CMapLandmark PlayerLM;
-	declare Integer LandmarkIndex for This = 0;
-	AccountIdsOfPlayers = [];
-	
-	// Suffle Players list to randomise spawn
-	declare CSmPlayer[] ShuffledPlayers = Players;
-	declare Integer i=0;
-	while(i<ShuffledPlayers.count) { // this should be enough, you can use arbitrary values, should the need arise
-		// find a pair (a,b) of valid indices to swap
-		declare a=ML::Rand(0, ShuffledPlayers.count-1);
-		declare b=ML::Rand(0, ShuffledPlayers.count-1);
-		
-		// now swap them
-		declare tmp=ShuffledPlayers[b];
-		ShuffledPlayers[b]=ShuffledPlayers[a];
-		ShuffledPlayers[a]=tmp;
-		
-		i=i+1;
-	}
-	
-	foreach (Player in ShuffledPlayers) {
-		PlayerLM = Null;
-		while (PlayerLM == Null) {
-			if (LandmarkIndex > Landmarks.count - 1 ) {
-				LandmarkIndex = 0;
-			}
-			if (Map::IsMultilap(Landmarks[LandmarkIndex])) {
-				PlayerLM = Landmarks[LandmarkIndex];
-			}
-			LandmarkIndex = LandmarkIndex + 1 ;
+
+foreach (Player in ShuffledPlayers) {
+	PlayerLM = Null;
+	while (PlayerLM == Null) {
+		if (LandmarkIndex > Landmarks.count - 1 ) {
+			LandmarkIndex = 0;
 		}
-		Race::Start(Player, PlayerLM , StartTime);
-		AccountIdsOfPlayers.add(Player.User.WebServicesUserId);
-		MalusQueue[Player.User.WebServicesUserId] = GetNewMalus(C_Malus_Reset);
+		if (Map::IsMultilap(Landmarks[LandmarkIndex])) {
+			PlayerLM = Landmarks[LandmarkIndex];
+		}
+		LandmarkIndex = LandmarkIndex + 1 ;
 	}
-	
-	Net_NBPlayers = AccountIdsOfPlayers.count;
-	
-	UpdateCustomRanking(Null, -1);
-	StateMgr::ForcePlayersStates([StateMgr::C_State_Playing]);
-	CarRank::Update(CarRank::C_SortCriteria_BestRace);
-	Race::EnableIntroDuringMatch(False);
-	UIManager.UIAll.SendChat("$<$ff3$> Stay the most time on the structure. $<$ff9GL HF!$>");
+	Race::Start(Player, PlayerLM , StartTime);
+	AccountIdsOfPlayers.add(Player.User.WebServicesUserId);
+	MalusQueue[Player.User.WebServicesUserId] = GetNewMalus(C_Malus_Reset);
 }
+
+Net_NBPlayers = AccountIdsOfPlayers.count;
+
+UpdateCustomRanking(Null, -1);
+StateMgr::ForcePlayersStates([StateMgr::C_State_Playing]);
+CarRank::Update(CarRank::C_SortCriteria_BestRace);
+Race::EnableIntroDuringMatch(False);
+UIManager.UIAll.SendChat("$<$ff3$> Stay the most time on the structure. $<$ff9GL HF!$>");
+
 ***
 
 /***Match_InitPlayLoop***
@@ -740,7 +745,7 @@ Void SetML() {
 	declare TotalWidth = 44.5;
 
 	declare Text MLText = """
-	<manialink name="LMS_UI" version="3">
+	<manialink name="LMS_InfoPanel" version="3">
 		<script><!--
 		#Include "TextLib" as TL
 
@@ -860,9 +865,58 @@ Void SetML() {
 
 	</manialink>
 """;
-	Layers::Create("LMS_UI", MLText);
-	Layers::SetType("LMS_UI", CUILayer::EUILayerType::Normal);
-	Layers::Attach("LMS_UI");
+	Layers::Create("LMS_InfoPanel", MLText);
+	Layers::SetType("LMS_InfoPanel", CUILayer::EUILayerType::Normal);
+	Layers::Attach("LMS_InfoPanel");
+
+
+	MLText = """
+	<manialink name="LMS_MapInfo" version="3">
+		<script><!--
+		#Include "TextLib" as TL
+
+		main() {
+			declare netread Boolean Net_LMS_IsIntro for Teams[0];
+			declare Boolean Last_IsIntro;
+
+			declare CMlFrame Frame_Global = (Page.GetFirstChild("frame-global") as CMlFrame);
+			declare CMlLabel Label_MapInfo_Name = (Page.GetFirstChild("label-mapinfo-name") as CMlLabel);
+			declare CMlLabel Label_MapInfo_Author = (Page.GetFirstChild("label-mapinfo-author") as CMlLabel);
+
+			while(True) {
+				yield;
+
+				if (Last_IsIntro != Net_LMS_IsIntro) {
+					Last_IsIntro = Net_LMS_IsIntro;
+					if (Last_IsIntro) {
+						Label_MapInfo_Name.Value = Map.MapName;
+						Label_MapInfo_Author.Value = "by " ^ Map.AuthorNickName;
+
+						AnimMgr.Flush(Frame_Global);
+						AnimMgr.Add(Frame_Global, "<anim hidden=\"0\" pos=\"0 60\"/>", 200 , CAnimManager::EAnimManagerEasing::SineInOut);
+					} else {
+						AnimMgr.Flush(Frame_Global);
+						AnimMgr.Add(Frame_Global, "<anim hidden=\"1\" pos=\"0 115\"/>", 200 , CAnimManager::EAnimManagerEasing::SineInOut);	
+					}
+				}
+			}
+		}
+		--></script>
+		<stylesheet>
+			<style class="text" textfont="GameFontBlack" textcolor="ffffffff" textsize="8" valign="center2" halign="center"/>
+		</stylesheet>
+
+		<frame id="frame-global" pos="0 115" hidden="1">
+			<quad size="150 25" halign="center" z-index="-1" bgcolor="000" opacity="0.7"/>
+			<label id="label-mapinfo-name" class="text" pos="0 -8" size="140 10"/>
+			<label id="label-mapinfo-author" class="text" pos="0 -18" size="140 10" textsize="6"/>
+		</frame>
+
+	</manialink>
+""";
+	Layers::Create("LMS_MapInfo", MLText);
+	Layers::SetType("LMS_MapInfo", CUILayer::EUILayerType::Normal);
+	Layers::Attach("LMS_MapInfo");
 }
 
 
