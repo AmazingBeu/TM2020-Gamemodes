@@ -209,7 +209,11 @@ if (!MapIsCompatible) {
 	declare netwrite Boolean Net_LMS_IsIntro for Teams[0];
 	Net_LMS_IsIntro = True;
 	StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
-	ModeUtils::PushAndApplyUISequence(UIManager.UIAll, CUIConfig::EUISequence::Intro);
+	if (Map.HasCustomIntro) {
+		ModeUtils::PushAndApplyUISequence(UIManager.UIAll, CUIConfig::EUISequence::RollingBackgroundIntro);
+	} else {
+		ModeUtils::PushAndApplyUISequence(UIManager.UIAll, CUIConfig::EUISequence::Playing);
+	}
 	declare Integer WaitingScreenDuration = 0;
 	while (MB_MapIsRunning() && S_IntroTime - WaitingScreenDuration > 0) {
 		WaitingScreenDuration = WaitingScreenDuration + 1;
@@ -292,7 +296,7 @@ foreach (Player in ShuffledPlayers) {
 	}
 	Race::Start(Player, PlayerLM , StartTime);
 	AccountIdsOfPlayers.add(Player.User.WebServicesUserId);
-	MalusQueue[Player.User.WebServicesUserId] = GetNewMalus(C_Malus_Reset);
+	MalusQueue[Player.User.WebServicesUserId] = GetNewMalus(C_Malus_Reset, 1500);
 }
 
 Net_NBPlayers = AccountIdsOfPlayers.count;
@@ -501,7 +505,7 @@ foreach (AccountId => Malus in MalusQueue) {
 	declare CSmPlayer Player = ModeUtils::GetPlayerFromAccountId(AccountId);
 	if (Malus.Time + 1000 < Now) { // Clear old entry
 		MalusQueue.removekey(AccountId);
-	} else if (Player != Null && (Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned || Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning)) {
+	} else if (Player != Null && Malus.Time <= Now && (Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned || Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning)) {
 		Log::Log("[ApplyPhysics] Trying to set Event " ^ C_Malus_Name[Malus.MalusIndex] ^ " for " ^ Player.User.Name);
 		if (SetMalus(Player, Malus.MalusIndex)) {
 			MalusQueue.removekey(AccountId);
@@ -534,7 +538,7 @@ if (Round_ForceEndRound || Round_SkipPauseRound) {
 } else {
 	Map_ValidRoundsNb += 1;
 
-	declare CSmScore WinnerScore <=> Scores::GetBestPlayer(Race::C_Sort_RoundPoints);
+	declare CSmScore WinnerScore <=> Scores::GetBestPlayer(Scores::C_Sort_RoundPoints);
 	if (WinnerScore == Null) {
 		foreach (Score in Scores) {
 			if (Score.BestRaceTimes.count <= 0 && Score.User != Null && AccountIdsOfPlayers.exists(Score.User.WebServicesUserId)) {
@@ -653,11 +657,15 @@ if (Round_ForceEndRound || Round_SkipPauseRound) {
 	UIModules_ScoresTable::SetFooterInfo(Footer);
 }
 
-K_Malus GetNewMalus(Integer _MalusIndex) {
+K_Malus GetNewMalus(Integer _MalusIndex, Integer _Time) {
 	return K_Malus {
-		Time = Now,
+		Time = Now + _Time,
 		MalusIndex = _MalusIndex
 	};
+}
+
+K_Malus GetNewMalus(Integer _MalusIndex) {
+	return GetNewMalus(_MalusIndex, 0);
 }
 
 /** Set Malus to a specific Players
