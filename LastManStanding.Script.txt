@@ -70,6 +70,11 @@
 12 => "25% AccelCoef", 13 => "25% Adherence", 14 => "25% Control", 
 15 => "25% Gravity", 99 => "NightMare"]
 
+#Struct K_Malus {
+	Integer Time;
+	Integer MalusIndex;
+}
+
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Extends
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -168,6 +173,7 @@ declare Integer Map_RoundsPerMap;
 declare Text[] AccountIdsOfPlayers for This = [];
 declare Integer LandmarkIndex for This = 0;
 declare Integer[Text] CustomTimes for This = [];
+declare K_Malus[Text] MalusQueue;
 
 declare Boolean ActiveMalus = False;
 declare Boolean PendingMalus = False;
@@ -193,7 +199,6 @@ CarRank::Reset();
 ***Match_StartRound***
 ***
 Scores::Clear();
-SetMalusToAll(C_Malus_Reset);
 
 // WorkAround for longloading
 declare StartMapTime = Now;
@@ -215,6 +220,7 @@ Net_TimeBeforeMalus = MalusTime;
 Net_NextMalus = -1;
 Net_RoundsPerMap = Map_RoundsPerMap;
 Net_CurrentRoundNb = Map_ValidRoundsNb + 1;
+MalusQueue = [];
 
 // Spawn players for the race
 ---Rounds_CanSpawn---
@@ -279,6 +285,11 @@ if (!MapIsCompatible) {
 }
 ***
 
+/***Match_InitPlayLoop***
+***
+MalusQueue = [];
+***/
+
 ***Match_PlayLoop***
 ***
 // Update CarRank & UI Interface
@@ -313,8 +324,7 @@ if (Now < StartTime + 3000) {
 				Race::Start(Player, PlayerLM , StartTime);
 				AccountIdsOfPlayers.add(Player.User.WebServicesUserId);
 
-				MB_Sleep(100);
-				while (!SetMalus(Player, C_Malus_Reset)) MB_Yield();
+				MalusQueue[Player.User.WebServicesUserId] = GetNewMalus(C_Malus_Reset);
 			}
 		}
 	}
@@ -428,7 +438,9 @@ if (Players.count > 0 && S_MalusDuration > 0 && MalusTime != -1 && Now > MalusTi
 			Net_NextMalus = MalusIndex;
 			Net_TimeBeforeMalus = NextStepMalusTime;
 		} else if (PendingMalus && !ActiveMalus) {
-			SetMalusToAll(MalusIndex);
+			foreach (Player in Players) {
+				MalusQueue[Player.User.WebServicesUserId] = GetNewMalus(MalusIndex);
+			}
 			PendingMalus = False;
 			ActiveMalus = True;
 			NextStepMalusTime = Now + (S_MalusDuration*1000);
@@ -441,7 +453,9 @@ if (Players.count > 0 && S_MalusDuration > 0 && MalusTime != -1 && Now > MalusTi
 			Net_TimeBeforeMalus = NextStepMalusTime;
 		} else if (!PendingMalus && ActiveMalus) {
 			if (MalusIndex != 99) {
-				SetMalusToAll(C_Malus_Reset);
+				foreach (Player in Players) {
+					MalusQueue[Player.User.WebServicesUserId] = GetNewMalus(C_Malus_Reset);
+				}
 				PendingMalus = False;
 				ActiveMalus = False;
 
@@ -454,9 +468,23 @@ if (Players.count > 0 && S_MalusDuration > 0 && MalusTime != -1 && Now > MalusTi
 				Net_NextMalus = -1;
 				Net_TimeBeforeMalus = NextStepMalusTime;
 			} else {
-				SetMalusToAll(C_Malus_Nightmare);
+				foreach (Player in Players) {
+					MalusQueue[Player.User.WebServicesUserId] = GetNewMalus(C_Malus_Nightmare);
+				}
 				NextStepMalusTime = Now + (S_MalusDuration*1000);
 			}
+		}
+	}
+}
+
+foreach (AccountId => Malus in MalusQueue) {
+	declare CSmPlayer Player = ModeUtils::GetPlayerFromAccountId(AccountId);
+	if (Malus.Time + 1000 < Now) { // Clear old entry
+		MalusQueue.removekey(AccountId);
+	} else if (Player != Null && (Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned || Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning)) {
+		Log::Log("[ApplyPhysics] Trying to set Event " ^ C_Malus_Name[Malus.MalusIndex] ^ " for " ^ Player.User.Name);
+		if (SetMalus(Player, Malus.MalusIndex)) {
+			MalusQueue.removekey(AccountId);
 		}
 	}
 }
@@ -595,13 +623,20 @@ if (Round_ForceEndRound || Round_SkipPauseRound) {
 	UIModules_ScoresTable::SetFooterInfo(Footer);
 }
 
+K_Malus GetNewMalus(Integer _MalusIndex) {
+	return K_Malus {
+		Time = Now,
+		MalusIndex = _MalusIndex
+	};
+}
+
 /** Set Malus to a specific Players
  *
  *	@param	_Player									Player
  *	@param	_Type									Malus Index
  */
 Boolean SetMalus(CSmPlayer _Player, Integer _Type) {
-	if (_Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned) {
+	if (_Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned && !SetPlayer_DelayedIsFull(_Player)) {
 		if (_Type > 0) {
 			_Player.Dossard_Color = <1., 0., 0.>;
 		} else {
@@ -611,66 +646,51 @@ Boolean SetMalus(CSmPlayer _Player, Integer _Type) {
 			case C_Malus_Reset: {
 				SetPlayerVehicle_ControlledByMode(_Player, False);
 				SetPlayerVehicle_ResetControlledModeValues(_Player);
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_Reset(_Player);
 			}
 			case C_Malus_ForceEngine: {
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_ForceEngine(_Player,True);
 			}
 			case C_Malus_NoEngine: {
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_NoEngine(_Player,True);
 			}
 			case C_Malus_BackwardOnly: {
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_Cruise(_Player,True,-999.);
 			}
 			case C_Malus_NoBrakes: {
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_NoBrakes(_Player,True);
 			}
 			case C_Malus_NoSteer: {
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_NoSteer(_Player,True);
 			}
 			case C_Malus_SlowMotion: {
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_SlowMotion(_Player,True);
 			}
 			case C_Malus_BoostDown: {
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_BoostDown(_Player,True);
 			}
 			case C_Malus_BoostUp: {
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_BoostUp(_Player,True);
 			}
 			case C_Malus_Boost2Down: {
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_Boost2Down(_Player,True);
 			}
 			case C_Malus_Boost2Up: {
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_Boost2Up(_Player,True);
 			}
 			case C_Malus_LockPlayer: {
 				SetPlayerVehicle_ControlledByMode(_Player, True);
 			}
 			case C_Malus_AccelCoef25: {
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_AccelCoef(_Player,0.25);
 			}
 			case C_Malus_AdherenceCoef25: {
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_AdherenceCoef(_Player,0.25);
 			}
 			case C_Malus_ControlCoef25: {
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_ControlCoef(_Player,0.25);
 			}
 			case C_Malus_GravityCoef25: {
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_GravityCoef(_Player,0.25);
 			}
 			// The goal is to kill all Players
@@ -678,25 +698,13 @@ Boolean SetMalus(CSmPlayer _Player, Integer _Type) {
 				SetPlayerVehicle_ControlledByMode(_Player, True);
 				SetPlayerVehicle_TargetSpeedValue(_Player, ML::Rand(-500.,500.));
 				SetPlayerVehicle_SteerValue(_Player,ML::Rand(-1.,1.));
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_Boost2Up(_Player,True);
-				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
 				SetPlayer_Delayed_AdherenceCoef(_Player,0.1);
 			}
 		}
 		return True;
 	}
 	return False;
-}
-
-/** Set Malus to all Players
- *
- *	@param	_Type									Malus Index
- */
- Void SetMalusToAll(Integer _Type) {
-	foreach (Player in Players) {
-		SetMalus(Player, _Type);
-	}
 }
 
 /** Set the UI
