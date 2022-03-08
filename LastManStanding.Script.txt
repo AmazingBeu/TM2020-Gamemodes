@@ -20,8 +20,6 @@
 #Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/ScoresTable_Server.Script.txt" as UIModules_ScoresTable
 #Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/PauseMenuOnline_Server.Script.txt" as UIModules_PauseMenu_Online
 
-#Include "Libs/Nadeo/ModeLibs/Common/Debug.Script.txt" as Debug
-
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Settings
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -153,9 +151,6 @@ UsePvECollisions = True;
 StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
 WarmUp::SetAvailability(True);
 CarRank::Reset();
-
-Debug::AddFakeUsers(C_FakeUsersNb);
-//Debug::SetTargetSpeed([10.0, 100.0]);
 ***
 
 ***Match_InitMap***
@@ -190,15 +185,9 @@ declare netwrite Integer Net_CurrentRoundNb for Teams[0] = 0;
 
 ***Match_StartMap***
 ***
-// Add bot when necessary
-//Users_SetNbFakeUsers(C_FakeUsersNb, 0);
 Race::SetRespawnBehaviour(Race::C_RespawnBehaviour_AlwaysGiveUp);
 
 CarRank::Reset();
-
-// Warm up
-/*UIModules_ScoresTable::SetFooterInfo(_("Warm up"));
-MB_WarmUp(S_WarmUpNb, S_WarmUpDuration * 1000, S_WarmUpTimeout * 1000);*/
 ***
 
 ***Match_StartRound***
@@ -329,8 +318,7 @@ if (Now < StartTime + 3000) {
 // Manage race events
 declare RacePendingEvents = Race::GetPendingEvents();
 foreach (Event in RacePendingEvents) {
-	//log("""Event.Type: {{{Event.Type}}} / Event.IsEndRace: {{{TL::ToText(Event.IsEndRace)}}} / Event.IsEndLap: {{{TL::ToText(Event.IsEndLap)}}} / Event.Player.User.Login: {{{Event.Player.User.Login}}}""");
-	Race::ValidEvent(Event);// TODO : Check why event not regitered in NightMare (bot?)
+	Race::ValidEvent(Event);
 
 	// Waypoint
 	if (Event.Type == Events::C_Type_Waypoint) {
@@ -458,9 +446,6 @@ if (Players.count > 0 && S_MalusDuration > 0 && MalusTime != -1 && Now > MalusTi
 		}
 	}
 }
-
-//Debug::Yield();
-
 ***
 
 ***Match_EndRound***
@@ -610,7 +595,6 @@ Boolean SetMalus(CSmPlayer _Player, Integer _Type) {
 		}
 		switch (_Type) {
 			case C_Malus_Reset: {
-				_Player.TrustClientSimu = True;
 				SetPlayerVehicle_ControlledByMode(_Player, False);
 				SetPlayerVehicle_ResetControlledModeValues(_Player);
 				while (SetPlayer_DelayedIsFull(_Player)) MB_Yield();
@@ -657,7 +641,6 @@ Boolean SetMalus(CSmPlayer _Player, Integer _Type) {
 				SetPlayer_Delayed_Boost2Up(_Player,True);
 			}
 			case C_Malus_LockPlayer: {
-				_Player.TrustClientSimu = False;
 				SetPlayerVehicle_ControlledByMode(_Player, True);
 			}
 			case C_Malus_AccelCoef25: {
@@ -678,7 +661,6 @@ Boolean SetMalus(CSmPlayer _Player, Integer _Type) {
 			}
 			// The goal is to kill all Players
 			case C_Malus_Nightmare: {
-				_Player.TrustClientSimu = False;
 				SetPlayerVehicle_ControlledByMode(_Player, True);
 				SetPlayerVehicle_TargetSpeedValue(_Player, ML::Rand(-500.,500.));
 				SetPlayerVehicle_SteerValue(_Player,ML::Rand(-1.,1.));
