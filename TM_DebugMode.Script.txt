@@ -367,7 +367,7 @@ Text GetManialink() {
                                 <frame pos="0 -10">
                                     <label class="text" size="8 3" pos="0 -1" text="Steer:"/>
                                     <frameinstance pos="8 0" modelid="framemodel-tooltip" tooltip="Set single value between -1. and 1. to set it, or comma separated 2 values to select a random value between the two"/>
-                                    <entry id="entry-playerscontrol-steer" class="entry" pos="0 -6" size="72 4" default="0." />
+                                    <entry id="entry-playerscontrol-steer" class="entry" pos="0 -6" size="72 4"/>
                                 </frame>
                                 <frame pos="0 -20">
                                     <label class="text" size="20 3" pos="0 -1" text="Send config to:"/>
@@ -532,6 +532,22 @@ Text GetManialink() {
 
                 declare CMlEntry Entry_ForVars_Players = (Page.GetFirstChild("entry-forvars-player") as CMlEntry);
 
+                wait(InputPlayer != Null);
+                declare persistent Text P_DebugMode_CustomEvent_Name for InputPlayer.User;
+                Entry_CustomEvent_Name.Value = P_DebugMode_CustomEvent_Name;
+                declare persistent Text P_DebugMode_CustomEvent_Data for InputPlayer.User;
+                Entry_CustomEvent_Data.Value = P_DebugMode_CustomEvent_Data;
+                declare persistent Text P_DebugMode_ForVars_Players for InputPlayer.User;
+                Entry_ForVars_Players.Value = P_DebugMode_ForVars_Players;
+                declare persistent Text P_DebugMode_Bots_Name for InputPlayer.User;
+                Entry_Bots_Name.Value = P_DebugMode_Bots_Name;
+                declare persistent Text P_DebugMode_Bots_TeamId for InputPlayer.User;
+                Entry_Bots_TeamId.Value = P_DebugMode_Bots_TeamId;
+                declare persistent Text P_DebugMode_PlayersControl_Speed for InputPlayer.User;
+                Entry_PlayersControl_Speed.Value = P_DebugMode_PlayersControl_Speed;
+                declare persistent Text P_DebugMode_PlayersControl_Steer for InputPlayer.User;
+                Entry_PlayersControl_Steer.Value = P_DebugMode_PlayersControl_Steer;
+
                 declare netread Text Net_DebugMode_Logs for Teams[0];
                 declare netread Integer Net_DebugMode_Logs_Serial for Teams[0];
                 declare Integer Last_Logs_Serial;
@@ -653,6 +669,14 @@ Text GetManialink() {
                                     SwitchToTab(Last_TabSelected, Event.Control.ControlId);
                                     Last_TabSelected = Event.Control.ControlId;
                                 }
+                                // Save value to persistent variable
+                                P_DebugMode_CustomEvent_Name = Entry_CustomEvent_Name.Value;
+                                P_DebugMode_CustomEvent_Data = Entry_CustomEvent_Data.Value;
+                                P_DebugMode_ForVars_Players = Entry_ForVars_Players.Value;
+                                P_DebugMode_Bots_Name = Entry_Bots_Name.Value;
+                                P_DebugMode_Bots_TeamId = Entry_Bots_TeamId.Value;
+                                P_DebugMode_PlayersControl_Speed = Entry_PlayersControl_Speed.Value;
+                                P_DebugMode_PlayersControl_Steer = Entry_PlayersControl_Steer.Value;
                             }
                             case CMlScriptEvent::Type::MouseOver: {
                                 if (Event.Control.Parent.ToolTip != "") {
