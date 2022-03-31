@@ -19,6 +19,7 @@
 // UI from Race
 #Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/ScoresTable_Server.Script.txt" as UIModules_ScoresTable
 #Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/PauseMenuOnline_Server.Script.txt" as UIModules_PauseMenu_Online
+#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/BigMessage_Server.Script.txt" as UIModules_BigMessage
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Settings
@@ -466,7 +467,7 @@ if (Players.count > 0 && S_MalusDuration > 0 && MalusTime != -1 && Now > MalusTi
 			NextStepMalusTime = Now + (S_MalusDuration*1000);
 			
 			UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::Silence;
-			UIManager.UIAll.BigMessage = "Current Effect: "^C_Malus_Name[MalusIndex];
+			UIModules_BigMessage::SetMessage("Current Effect: "^C_Malus_Name[MalusIndex]);
 
 			// Players UI update
 			Net_NextMalus = 0;
@@ -482,7 +483,7 @@ if (Players.count > 0 && S_MalusDuration > 0 && MalusTime != -1 && Now > MalusTi
 				NextStepMalusTime = Now + (S_MalusEveryNSecs*1000);
 
 				UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::Silence;
-				UIManager.UIAll.BigMessage = "";
+				UIModules_BigMessage::SetMessage("");
 	
 				// Players UI update
 				Net_NextMalus = -1;
@@ -548,20 +549,21 @@ if (Round_ForceEndRound || Round_SkipPauseRound) {
 	}
 	Scores::SetPlayerWinner(WinnerScore);
 
-	declare Text Message = _("|Match|Draw");
-	if (WinnerScore != Null) {
-		Message = TL::Compose(_("$<%1$> wins the match!"), Tools::GetNameWithClubTag(WinnerScore.User)); // TODO CHeck why display draw when someone leave
-	}
-	
 	UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::EndRound;
 	UIManager.UIAll.BigMessageSoundVariant = 0;
-	UIManager.UIAll.BigMessage = Message;
+
+	declare Text Message = _("|Match|Draw");
+	if (WinnerScore != Null) {
+		UIModules_BigMessage::SetMessage("$<%1$> wins the match!", WinnerScore.User.WebServicesUserId);
+	} else {
+		UIModules_BigMessage::SetMessage(_("|Match|Draw"));
+	}
 
 	Scores::EndRound();
 	Race::SortScores(Race::C_Sort_TotalPoints);
 
 	MB_Sleep(5000);
-	UIManager.UIAll.BigMessage = "";
+	UIModules_BigMessage::SetMessage("");
 	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
 	MB_Sleep((S_ChatTime*1000)/2);
 	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
