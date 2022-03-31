@@ -209,20 +209,20 @@ if (WaitingScreenDuration >= 0) {
 		MB_Sleep(1000);
 	}
 
-	// If all players are connected before the end of the countdown start immediatly
-	declare Integer WaitEndTime = Now + (WaitingScreenDuration * 1000);
-	
+	/*
+	* with the 2022-03-31 update, BigMessage is a bit broken (1 day before a Royal Rounds Event)
+	* 2 solutions are possible:
+	*  * Wait an update from Nadeo
+	*  * Create a Custom Manialink
+	*/
+	UIModules_BigMessage::SetMessage("""The map will start in few seconds""");
 	while (MB_MapIsRunning() && S_RoundWaitingScreenDuration - WaitingScreenDuration > 0) {
-		if (S_RoundWaitingScreenDuration - WaitingScreenDuration > 3) {
+		if (S_RoundWaitingScreenDuration - WaitingScreenDuration <= 3) {
 			UIModules_BigMessage::SetMessage("""The map starts in {{{S_RoundWaitingScreenDuration - WaitingScreenDuration}}} seconds""");
-		} else {
-			UIModules_BigMessage::SetMessage("");
-			UIManager.UIAll.BigMessage = """The map starts in {{{S_RoundWaitingScreenDuration - WaitingScreenDuration}}} seconds""";
 		}
 		WaitingScreenDuration = WaitingScreenDuration + 1;
 		MB_Sleep(1000);
 	}
-	UIManager.UIAll.BigMessage = "";
 	UIModules_BigMessage::SetMessage("");
 
 	ModeUtils::PopAndApplyUISequence(UIManager.UIAll);
