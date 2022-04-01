@@ -1,0 +1,23 @@
+#Extends "Modes/TrackMania/TM_TimeAttack_Online.Script.txt"
+
+#Setting S_TrustClientSimu False
+#Setting S_UseCrudeExtrapolation False
+
+***Match_StartServer***
+***
+UsePvPCollisions = True;
+UsePvECollisions = True;
+
+// Disable registering PB
+Race::SetupRecord(
+	MenuConsts::C_ScopeType_Season,
+	MenuConsts::C_ScopeType_PersonalBest,
+	MenuConsts::C_GameMode_TimeAttack,
+	"",
+	False, //C_UploadRecord
+	False, //C_DisplayRecordGhost
+	False, //C_DisplayRecordMedal
+	False, //C_CelebrateRecordGhost
+	False //C_CelebrateRecordMedal
+);
+***
