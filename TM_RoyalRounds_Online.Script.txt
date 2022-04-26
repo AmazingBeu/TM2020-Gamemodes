@@ -209,15 +209,10 @@ if (WaitingScreenDuration >= 0) {
 		MB_Sleep(1000);
 	}
 
-	/*
-	* with the 2022-03-31 update, BigMessage is a bit broken (1 day before a Royal Rounds Event)
-	* 2 solutions are possible:
-	*  * Wait an update from Nadeo
-	*  * Create a Custom Manialink
-	*/
 	UIModules_BigMessage::SetMessage("""The map will start in few seconds""");
 	while (MB_MapIsRunning() && S_RoundWaitingScreenDuration - WaitingScreenDuration > 0) {
 		if (S_RoundWaitingScreenDuration - WaitingScreenDuration <= 3) {
+			ModeUtils::PlaySound(CUIConfig::EUISound::StartRound, 0);
 			UIModules_BigMessage::SetMessage("""The map starts in {{{S_RoundWaitingScreenDuration - WaitingScreenDuration}}} seconds""");
 		}
 		WaitingScreenDuration = WaitingScreenDuration + 1;
