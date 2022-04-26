@@ -48,7 +48,7 @@ TeamColor is not used if S_DisplayTeamColor = False
 ***Match_AfterLoadHud***
 ***
 // Remove TMGL Signs
-UIModules::UnloadModules(["UIModule_ChampionTMGL_InfoPanels_2x3", "UIModule_ChampionTMGL_InfoPanels_16x9", "UIModule_ChampionCup_Sign64x10_64x10_Start","UIModule_ChampionCup_Sign64x10_64x10_Finish","UIModule_ChampionCup_Sign64x10_64x10_Checkpoint","FinalTMGL_WinScreen","UIModule_Champion_Chat"]);
+UIModules::UnloadModules(["UIModule_ChampionTMGL_InfoPanels_2x3", "UIModule_ChampionTMGL_InfoPanels_16x9", "UIModule_ChampionCup_Sign64x10_64x10_Start","UIModule_ChampionCup_Sign64x10_64x10_Finish","UIModule_ChampionCup_Sign64x10_64x10_Checkpoint","FinalTMGL_WinScreen","UIModule_Champion_Chat", "UIModule_Champion_LapsCounter"]);
 ***
 
 
