@@ -212,7 +212,7 @@ if (WaitingScreenDuration >= 0) {
 	UIModules_BigMessage::SetMessage("""The map will start in few seconds""");
 	while (MB_MapIsRunning() && S_RoundWaitingScreenDuration - WaitingScreenDuration > 0) {
 		if (S_RoundWaitingScreenDuration - WaitingScreenDuration <= 3) {
-			ModeUtils::PlaySound(CUIConfig::EUISound::StartRound, 0);
+			ModeUtils::PlaySound(CUIConfig::EUISound::PhaseChange, 0);
 			UIModules_BigMessage::SetMessage("""The map starts in {{{S_RoundWaitingScreenDuration - WaitingScreenDuration}}} seconds""");
 		}
 		WaitingScreenDuration = WaitingScreenDuration + 1;
