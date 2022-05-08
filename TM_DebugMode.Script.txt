@@ -106,6 +106,8 @@ foreach (Event in UIManager.PendingEvents) {
                 }
 
                 foreach (Target in Targets) {
+                    if (Target.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) continue;
+
                     Target.TrustClientSimu = False;
                     SetPlayerVehicle_ControlledByMode(Target, True);
 
@@ -131,6 +133,8 @@ foreach (Event in UIManager.PendingEvents) {
                 }
             } else {
                 foreach (Target in Targets) {
+                    if (Target.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) continue;
+
                     SetPlayerVehicle_ControlledByMode(Target, False);
                     Race::ApplyNetworkMode(Target); //< Restore TrustClientSimu to its default value
                 }
@@ -371,6 +375,7 @@ Text GetManialink() {
                                 </frame>
                                 <frame pos="0 -20">
                                     <label class="text" size="20 3" pos="0 -1" text="Send config to:"/>
+                                    <frameinstance pos="20 0" modelid="framemodel-tooltip" tooltip="Left click to send the values, right click to stop controlling the target(s)"/>
                                     <frame pos="0 -5">
                                         <quad id="quad-playerscontrol-player-visible" class="button" pos="0 0" size="15 4" z-index="-1" bgcolor="666" opacity="0.5" scriptevents="1"/>
                                         <label class="rightpanel-text-button" size="0 3" pos="7.5 -2" text="Visible"/>
@@ -677,6 +682,17 @@ Text GetManialink() {
                                 P_DebugMode_Bots_TeamId = Entry_Bots_TeamId.Value;
                                 P_DebugMode_PlayersControl_Speed = Entry_PlayersControl_Speed.Value;
                                 P_DebugMode_PlayersControl_Steer = Entry_PlayersControl_Steer.Value;
+                            }
+                            case CMlScriptEvent::Type::MouseRightClick: {
+                                if (TL::StartsWith("quad-playerscontrol-player-", Event.Control.ControlId)) {
+                                    declare Text Target = TL::Split("-",Event.Control.ControlId)[3];
+                                    if (Target != "visible" || (Target == "visible" && GUIPlayer != Null)) {
+                                        if (Target == "visible") {
+                                            Target = GUIPlayer.User.Login;
+                                        }
+                                        SendCustomEvent("DebugMode.PlayersControl.Set", ["", "", Target]);
+                                    }
+                                }
                             }
                             case CMlScriptEvent::Type::MouseOver: {
                                 if (Event.Control.Parent.ToolTip != "") {
