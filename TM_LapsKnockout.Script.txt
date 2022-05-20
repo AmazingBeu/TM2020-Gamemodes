@@ -174,6 +174,9 @@ declare Integer Last_NumberOfPlayers;
 declare Text Last_EliminatedPlayersNbRanks;
 declare K_LapState[Integer] MatchState;
 
+declare Integer Last_CooldownDossardUpdate = -1;
+declare Boolean Last_InCooldownDossardUpdate = False;
+
 Race::SetLapsSettings(True, -1); // force infinite lap
 ***
 
@@ -235,6 +238,9 @@ foreach (Player in Players) {
 	Player.Dossard_Color = <1., 1., 1.>;
 }
 
+Last_CooldownDossardUpdate = -1;
+Last_InCooldownDossardUpdate = False;
+
 if (Last_NbLapsWithoutKO == 1) {
 	UIManager.UIAll.SendChat(Last_NbLapsWithoutKO ^ " lap without eliminations");
 } else if (Last_NbLapsWithoutKO > 1){
@@ -287,8 +293,14 @@ foreach (Event in RacePendingEvents) {
 			Scores::UpdatePlayerBestRace(Event.Player);
 
 			CarRank::ThrottleUpdate(CarRank::C_SortCriteria_BestRace);
+
+			if (Last_CooldownDossardUpdate == -1) {
+				UpdateDossardColors(MatchState);
+				Last_CooldownDossardUpdate = Now + 1000;
+			} else {
+				Last_InCooldownDossardUpdate = True;
+			}
 		}
-		UpdateDossardColors(MatchState);
 	}
 }
 
@@ -296,6 +308,14 @@ foreach (Event in RacePendingEvents) {
 foreach (Event in PendingEvents) {
 	if (Event.HasBeenPassed || Event.HasBeenDiscarded) continue;
 	Events::Invalid(Event);
+}
+
+if (Last_CooldownDossardUpdate != -1 && Now > Last_CooldownDossardUpdate) {
+	Last_CooldownDossardUpdate = -1;
+	if (Last_InCooldownDossardUpdate) {
+		Last_InCooldownDossardUpdate = False;
+		UpdateDossardColors(MatchState);
+	}
 }
 
 if (Last_NbLapsWithoutKO != S_NbLapsWithoutKO || Last_EliminatedPlayersNbRanks != S_EliminatedPlayersNbRanks) {
@@ -384,6 +404,7 @@ K_LapState[Integer] ComputeMatchState(Integer _NumberOfPlayers) {
  *  @return Void
  */
 Void UpdateDossardColors(K_LapState[Integer] _MatchState) {
+	Log::Log("UpdateDossardColors");
 	declare Integer Rank = 1;
 
 	foreach (Score in Scores) {
@@ -392,6 +413,7 @@ Void UpdateDossardColors(K_LapState[Integer] _MatchState) {
 		
 		declare CSmPlayer Player = GetPlayer(Score.User.Login);
 		if (Player == Null) continue;
+		if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) continue;
 
 		declare Integer NbAlive;
 
@@ -422,6 +444,7 @@ Void UpdateDossardColors(K_LapState[Integer] _MatchState) {
 Void EliminatePlayer(CSmPlayer _Player) {
 	if (_Player == Null) return;
 	if (_Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) return;
+	log("EliminatePlayer: " ^ _Player.User.Name ^ " ("  ^ _Player.User.Login ^ ")");
 	Race::StopSkipOutro(_Player);
 	UIManager.UIAll.SendChat("Player $<$ff6" ^ _Player.User.Name ^ "$> is $<$f00eliminated$>");
 }
