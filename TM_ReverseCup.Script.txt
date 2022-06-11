@@ -8,7 +8,7 @@
 #Extends "Libs/Nadeo/TMNext/TrackMania/Modes/TMNextRoundsBase.Script.txt"
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2022-01-08_b"
+#Const	Version							"2022-06-11"
 #Const	ScriptName					"Modes/TM2020-Gamemodes/TM_ReverseCup.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
