@@ -1,0 +1,1271 @@
+
+/**
+*	Reverse Cup mode
+*   based on the mode by BossBravo (https://github.com/BossBravo/Trackmania2020_LastManStandingCup)
+*/
+
+// #RequireContext CSmMode
+#Extends "Libs/Nadeo/TMNext/TrackMania/Modes/TMNextRoundsBase.Script.txt"
+
+#Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
+#Const	Version							"2022-01-08_b"
+#Const	ScriptName					"Modes/TM2020-Gamemodes/TM_ReverseCup.Script.txt"
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+// Libraries
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+#Include "TextLib" as TL
+#Include "MathLib" as ML
+#Include "Libs/Nadeo/CommonLibs/Common/Semver.Script.txt" as Semver
+#Include "Libs/Nadeo/TMNext/TrackMania/Menu/Constants.Script.txt" as Menu_Const
+#Include "Libs/Nadeo/TMNext/TrackMania/Modes/CupCommon/Constants.Script.txt" as CupCommon_Const
+#Include "Libs/Nadeo/TMNext/TrackMania/Modes/Cup/StateManager.Script.txt" as StateMgr
+#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/ScoresTable_Server.Script.txt" as UIModules_ScoresTable
+#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/Checkpoint_Server.Script.txt" as UIModules_Checkpoint
+#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/PauseMenuOnline_Server.Script.txt" as UIModules_PauseMenu_Online
+#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/BigMessage_Server.Script.txt" as UIModules_BigMessage
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+// Settings
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+#Setting S_WarmUpNb 0 as _("Number of warm up")
+#Setting S_WarmUpDuration 20 as _("Duration of one warm up")
+#Setting S_WarmUpTimeout -1 as _("Warm up timeout")
+
+#Setting S_NbOfWinners 1 as _("Number of winners")
+#Setting S_FinishTimeout -1 as _("Finish timeout")
+#Setting S_PointsRepartition "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20"
+#Setting S_RoundsPerMap 5 as _("Number of rounds per map") ///< Number of round to play on one map before going to the next one
+
+#Setting S_PointsStartup 100 as _("Points at start")
+#Setting S_DisableLastChance False as _("When a player reach 0 points he is automatically eliminated")
+#Setting S_AllowFastForwardRounds True as _("If whatever the issue of the round, all players will be in Last Chance, the round will be skipped to the next without playing it (all players will be in LastChance).")
+#Setting S_FastForwardPointsRepartition True as "Accelerate the distribution of points when the number of players alive decreases "
+#Setting S_DNF_LossPoints 20 as _("Number of points for player that give up a round")
+#Setting S_LastChance_DNF_Mode 0 as "0 = Every Players in Last Chance who DNF will be eliminated | 1 = Only the Player in Last Chance who passed the less checkpoints and DNF will be eliminated, others will stay alive"
+#Setting S_NbOfPlayers 0 as "Number of players awaited before starting the match (0 is automatic)"
+
+#Setting S_EnableCollisions False
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+// Constants
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+#Const C_ModeName "Reverse Cup"
+#Const Description _("$zThe cup mode consists of $<$t$6F9a series of races on multiple maps$>.\n\nWhen you finish a race in a bad $<$t$6F9position$>, you loose $<$t$6F9points$> substracted from your total.\nServers might propose warmup races to get familiar with a map first.\n\nTo win, you must be the last player with points. Once you are a LastChance, if you finish a race last you will be eliminated.The cup mode ends once there is one player left.")
+
+#Const C_HudModulePath "" //< Path to the hud module
+#Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/TMNext/TrackMania/Cup/Cup.Script.txt" //< Url of the mania app
+#Const C_FakeUsersNb 0
+
+#Const C_UploadRecord True
+#Const C_DisplayRecordGhost False
+#Const C_DisplayRecordMedal False
+#Const C_CelebrateRecordGhost True
+#Const C_CelebrateRecordMedal True
+
+#Const C_Color_LastChance "FF0000"
+#Const C_Color_Eliminated "FF0000"
+#Const C_Color_Spectator "48DA36"
+
+#Const C_Text_LastChance "Last Chance"
+#Const C_Text_Eliminated _("|Status|Eliminated")
+#Const C_Text_Spectator _("|Status|Spectator")
+
+#Const C_Points_LastChance -1000
+#Const C_Points_Eliminated -2000
+#Const C_Points_Spectator -10000
+
+#Struct K_MatchInfo {
+	Boolean RegistrationClosed;
+	Text[] Participants;
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+// Globales
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+declare Integer G_NbOfValidRounds;
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+// Extends
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+
+***Match_LogVersions***
+***
+Log::RegisterScript(ScriptName, Version);
+Log::RegisterScript(Semver::ScriptName, Semver::Version);
+Log::RegisterScript(StateMgr::ScriptName, StateMgr::Version);
+***
+
+***Match_LoadLibraries***
+***
+StateMgr::Load();
+***
+
+***Match_UnloadLibraries***
+***
+StateMgr::Unload();
+***
+
+***Match_Settings***
+***
+MB_Settings_UseDefaultHud = (C_HudModulePath == "");
+MB_Settings_UseDefaultPodiumSequence = False;
+***
+
+***Match_Rules***
+***
+ModeInfo::SetName(C_ModeName);
+ModeInfo::SetType(ModeInfo::C_Type_FreeForAll);
+ModeInfo::SetRules(Description);
+ModeInfo::SetStatusMessage("");
+***
+
+***Match_LoadHud***
+***
+if (C_HudModulePath != "") Hud_Load(C_HudModulePath);
+***
+
+***Match_AfterLoadHud***
+***
+ClientManiaAppUrl = C_ManiaAppUrl;
+Race::SortScores(Race::C_Sort_TotalPoints);
+UIModules_ScoresTable::SetScoreMode(UIModules_ScoresTable::C_Mode_Points);
+UIModules_Checkpoint::SetVisibilityTimeDiff(False);
+UIModules_Checkpoint::SetRankMode(UIModules_Checkpoint::C_RankMode_CurrentRace);
+UIModules_PauseMenu_Online::SetHelp(Description);
+
+// Hide SM Overlay
+UIManager.UIAll.OverlayHideSpectatorControllers = True;
+UIManager.UIAll.OverlayHideSpectatorInfos = True;
+UIManager.UIAll.OverlayHideChrono = True; 
+UIManager.UIAll.OverlayHideCountdown = True;
+
+// Unload default UI 
+UIModules::UnloadModules(["UIModule_Rounds_SmallScoresTable"]);
+
+SetManialink_LiveRace();
+***
+
+***Match_Yield***
+***
+foreach (Event in PendingEvents) {
+	switch (Event.Type) {
+		// Initialize players when they join the server
+		case CSmModeEvent::EType::OnPlayerAdded: {
+			StateMgr::InitializePlayer(Event.Player);
+			CarRank::InitializePlayer(Event.Player);
+
+			declare K_MatchInfo Server_MatchInfo for This = K_MatchInfo {};
+			if (Server_MatchInfo.RegistrationClosed && !Server_MatchInfo.Participants.exists(Event.Player.User.Login)) {
+				Scores::SetPlayerMatchPoints(Event.Player.Score, C_Points_Spectator);
+				// Equivalent of getCustomPoints: 
+				declare netwrite Text[][Text] Net_TMxSM_ScoresTable_CustomPoints for Teams[0];
+				Net_TMxSM_ScoresTable_CustomPoints[Event.Player.User.WebServicesUserId] = [C_Text_Spectator, C_Color_Spectator];
+			}
+		}
+	}
+	declare netwrite Integer Net_ReverseCup_LiveRanking_Update for Teams[0];
+	Net_ReverseCup_LiveRanking_Update += 1;
+}
+
+StateMgr::Yield();
+***
+
+***Match_InitServer***
+***
+declare Integer Server_PointsLimit;
+declare Integer Server_RoundsPerMap;
+declare Integer Server_NbOfWinners;
+declare Integer Server_DNF_LossPoints;
+***
+
+***Match_StartServer***
+***
+// Initialize mode
+Clans::SetClansNb(0);
+Scores::SaveInScore(Scores::C_Points_Match);
+Scores::EnablePlayerNegativePoints(True, True, True);
+StateMgr::ForcePlayersStates([CupCommon_Const::C_State_Waiting]);
+WarmUp::SetAvailability(True);
+Race::SetupRecord(
+	Menu_Const::C_ScopeType_Season,
+	Menu_Const::C_ScopeType_PersonalBest,
+	Menu_Const::C_GameMode_TimeAttack,
+	"",
+	C_UploadRecord,
+	C_DisplayRecordGhost,
+	C_DisplayRecordMedal,
+	C_CelebrateRecordGhost,
+	C_CelebrateRecordMedal
+);
+Race::UseAutomaticDossardColor(False);
+Server_PointsLimit = S_PointsStartup;
+Server_RoundsPerMap = S_RoundsPerMap;
+Server_NbOfWinners = S_NbOfWinners;
+Server_DNF_LossPoints = S_DNF_LossPoints;
+***
+
+***Match_StartMatch***
+***
+UIModules_ScoresTable::SetCustomPoints([]);
+
+declare K_MatchInfo Server_MatchInfo for This = K_MatchInfo {};
+Server_MatchInfo = K_MatchInfo {};
+***
+
+***Match_InitMap***
+***
+declare netwrite Text Net_ScriptEnvironment for Teams[0] = S_ScriptEnvironment;
+if (Net_ScriptEnvironment != S_ScriptEnvironment) {
+	Net_ScriptEnvironment = S_ScriptEnvironment;
+}
+
+UIModules_ScoresTable::DisplayRoundPoints(True);
+G_NbOfValidRounds = 0;
+UpdateScoresTableFooter(S_PointsStartup, S_RoundsPerMap, G_NbOfValidRounds, S_NbOfWinners);
+***
+
+***Match_StartMap***
+***
+// Add bot when necessary
+Users_SetNbFakeUsers(C_FakeUsersNb, 0);
+
+CarRank::Reset();
+
+declare K_MatchInfo Server_MatchInfo for This = K_MatchInfo {};
+
+if (!Server_MatchInfo.RegistrationClosed) {
+	if (S_NbOfPlayers != 0) {
+		declare Integer FuturStartTime = 0;
+		declare Integer Last_PlayersNb = -1;
+		while (MB_MapIsRunning() && (FuturStartTime == 0 || FuturStartTime > Now)) {
+			if (Last_PlayersNb != Players.count) {
+				Last_PlayersNb = Players.count;
+				if (Last_PlayersNb < S_NbOfPlayers) {
+					UIModules_BigMessage::SetMessage(_("Waiting for players"));
+					FuturStartTime = 0;
+				} else if (Last_PlayersNb > S_NbOfPlayers) {
+					UIModules_BigMessage::SetMessage("Too many players");
+					FuturStartTime = 0;
+				} else {
+					UIModules_BigMessage::SetMessage("Match starting in 3 seconds");
+					ModeUtils::PlaySound(CUIConfig::EUISound::PhaseChange, 0);
+					FuturStartTime = Now + 3000;
+				}
+			}
+			MB_Yield();
+		}
+		UIModules_BigMessage::SetMessage("");
+	}
+
+	Scores::Clear();
+
+	foreach (Player in Players) {
+		if (Player.User == Null) continue;
+		if (Player.Score == Null) continue;
+
+		Server_MatchInfo.Participants.add(Player.User.Login);
+		Scores::SetPlayerMatchPoints(Player.Score, S_PointsStartup);
+	}
+	UIModules_ScoresTable::DisplayOnly(Server_MatchInfo.Participants);
+	foreach (Spectator in Spectators) {
+		if (Spectator.User == Null) continue;
+		if (Spectator.Score == Null) continue;
+		
+		Scores::SetPlayerMatchPoints(Spectator.Score, C_Points_Spectator);
+	}
+	DisplayCustomPoints();
+}
+Server_MatchInfo.RegistrationClosed = True;
+
+// Warm up
+foreach (Score in Scores) {
+	if (Score.User != Null && Server_MatchInfo.Participants.exists(Score.User.Login) && Score.Points >= C_Points_LastChance) {
+		WarmUp::CanPlay(Score, True);
+	} else {
+		WarmUp::CanPlay(Score, False);
+	}
+}
+UIModules_ScoresTable::SetFooterInfo(_("Warm up"));
+MB_WarmUp(S_WarmUpNb, S_WarmUpDuration * 1000, S_WarmUpTimeout * 1000);
+***
+
+***Match_StartWarmUp***
+***
+declare netwrite Integer Net_ReverseCup_LiveRanking_Update for Teams[0];
+Net_ReverseCup_LiveRanking_Update += 1;
+***
+
+***Rounds_CheckCanSpawn***
+***
+if (_Player.User == Null) return False;
+declare K_MatchInfo Server_MatchInfo for This = K_MatchInfo {};
+if (!Server_MatchInfo.Participants.exists(_Player.User.Login)) return False;
+if (Scores::GetPlayerMatchPoints(_Player.Score) < C_Points_LastChance) return False;
+***
+
+***Match_InitRound***
+***
+if (S_EnableCollisions) {
+	Race::SetNetworkMode(False, False);
+	UsePvPCollisions = True;
+	UsePvECollisions = True;
+} else {
+	Race::SetNetworkMode(
+		!Race_Settings_IsLocalMode && !S_IsSplitScreen && S_TrustClientSimu,
+		!Race_Settings_IsLocalMode && !S_IsSplitScreen && S_UseCrudeExtrapolation
+	);
+	UsePvPCollisions = False;
+	UsePvECollisions = False;
+}
+
+
+ModeUtils::PlaySound(CUIConfig::EUISound::PhaseChange, 0);
+UIModules_BigMessage::SetMessage(_("Rounds : ") ^ TL::ToText(G_NbOfValidRounds + 1) ^ " / " ^ TL::ToText(S_RoundsPerMap));
+MB_Sleep(3000);
+UIModules_BigMessage::SetMessage("");
+***
+
+***Match_StartRound***
+***
+UpdateScoresTableFooter(S_PointsStartup, S_RoundsPerMap, G_NbOfValidRounds, S_NbOfWinners);
+CheckRoundBeforePlay();
+UpdateDNFLossPoints(Server_DNF_LossPoints);
+StateMgr::ForcePlayersStates([CupCommon_Const::C_State_Playing]);
+
+UpdateLiveRaceUI();
+***
+
+***Match_StartPlayLoop***
+***
+// Update dossard color
+foreach (Player in Players) {
+	if (Player.Score != Null && Scores::GetPlayerMatchPoints(Player.Score) == C_Points_LastChance) {
+		Player.Dossard_Color = <0.7, 0., 0.>;
+	} else {
+		Player.Dossard_Color = Race::C_DossardColor_Default;
+	}
+}
+***
+
+***Rounds_PlayerSpawned***
+***
+CarRank::ThrottleUpdate(CarRank::C_SortCriteria_CurrentRace);
+***
+
+***Match_PlayLoop***
+***
+// Manage race events
+declare RacePendingEvents = Race::GetPendingEvents();
+foreach (Event in RacePendingEvents) {
+	Race::ValidEvent(Event);
+	
+	// Waypoint
+	if (Event.Type == Events::C_Type_Waypoint) {
+		CarRank::ThrottleUpdate(CarRank::C_SortCriteria_CurrentRace);
+		if (Event.Player != Null) {
+			if (Event.IsEndRace) {
+				declare BetterRace = Scores::UpdatePlayerBestRaceIfBetter(Event.Player);
+				declare BetterLap = Scores::UpdatePlayerBestLapIfBetter(Event.Player);
+				Scores::UpdatePlayerPrevRace(Event.Player);
+				ComputeLatestRaceScores();
+
+				Race::SortScores(Race::C_Sort_TotalPoints);
+				
+				// Start the countdown if it's the first player to finish
+				if (EndTime <= 0) {
+					EndTime = GetFinishTimeout();
+					+++Cup_PlayLoop_FirstPlayerFinishRace+++
+				}
+			}
+			if (Event.IsEndLap) {
+				declare Better = Scores::UpdatePlayerBestLapIfBetter(Event.Player);
+			}
+		}
+	}
+	UpdateLiveRaceUI();
+}
+
+// Manage mode events
+foreach (Event in PendingEvents) {
+	if (Event.HasBeenPassed || Event.HasBeenDiscarded) continue;
+	Events::Invalid(Event);
+}
+
+if (Net_ScriptEnvironment != S_ScriptEnvironment) {
+	Net_ScriptEnvironment = S_ScriptEnvironment;
+}
+
+// Server info change
+if (Server_PointsLimit != S_PointsStartup ||
+	Server_RoundsPerMap != S_RoundsPerMap ||
+	Server_NbOfWinners != S_NbOfWinners ||
+	Server_DNF_LossPoints != S_DNF_LossPoints) {
+	Server_PointsLimit = S_PointsStartup;
+	Server_RoundsPerMap = S_RoundsPerMap;
+	Server_NbOfWinners = S_NbOfWinners;
+	Server_DNF_LossPoints = S_DNF_LossPoints;
+	UpdateScoresTableFooter(S_PointsStartup, S_RoundsPerMap, G_NbOfValidRounds, S_NbOfWinners);
+	UpdateDNFLossPoints(Server_DNF_LossPoints);
+}
+***
+
+***Match_EndRound***
+***
+Race::StopSkipOutroAll();
+EndTime = -1;
+StateMgr::ForcePlayersStates([CupCommon_Const::C_State_Waiting]);
+CarRank::Update(CarRank::C_SortCriteria_CurrentRace);
+UpdateLiveRaceUI();
+
+if (Semver::Compare(XmlRpc::GetApiVersion(), ">=", "2.1.1")) {
+	Scores::XmlRpc_SendScores(Scores::C_Section_PreEndRound, "");
+}
+
+if (Round_ForceEndRound || Round_SkipPauseRound || Round_Skipped) {
+	// Cancel points
+	foreach (Score in Scores) {
+		Scores::SetPlayerRoundPoints(Score, 0);
+	}
+	// Do not launch the forced end round sequence after a pause
+	if (!Round_SkipPauseRound) {
+		ForcedEndRoundSequence();
+	}
+	DisplayCustomPoints();
+	MB_Sleep(3000);
+} else {
+	// Get the last round points
+	ComputeLatestRaceScores();
+	+++Cup_EndRound_BeforeScoresUpdate+++
+	Race::SortScores(Race::C_Sort_TotalPoints);
+	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
+	UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
+	MB_Sleep(3000);
+	// Add them to the total scores
+	ComputeScores();
+	Race::SortScores(Race::C_Sort_TotalPoints);
+	+++Cup_EndRound_AfterScoresUpdate+++
+	DisplayCustomPoints();
+	MB_Sleep(3000);
+	+++Cup_EndRound_BeforeScoresTableEnd+++
+	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
+	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
+	UIModules_BigMessage::SetMessage("");
+
+	if (MatchIsOver()) {
+		MB_StopMatch();
+	} else if (MapIsOver()) {
+		MB_StopMap();
+	}
+}
+UpdateLiveRaceUI();
+***
+
+***Match_EndMap***
+***
+UIModules_ScoresTable::DisplayRoundPoints(False);
+
+Race::SortScores(Race::C_Sort_TotalPoints);
+
+if (!MB_MatchIsRunning()) {
+	declare Eliminated <=> Scores::GetBestPlayer(Scores::C_Sort_MatchPoints);
+	Scores::SetPlayerWinner(Eliminated);
+} else {
+	MB_SkipPodiumSequence();
+}
+***
+
+***Match_BeforePodiumSequence***
+***
+ModeUtils::PlaySound(CUIConfig::EUISound::EndRound, 0);
+
+declare Text[] WinnersNames;
+foreach (Player in Players) {
+	if(!Spectators.exists(Player)) {
+		if (Scores::GetPlayerMatchPoints(Player.Score) >= C_Points_LastChance) {
+			if (Player.User.ClubTag != "") {
+				WinnersNames.add("[$<"^Player.User.ClubTag^"$>] " ^ Player.User.Name);
+			} else {
+				WinnersNames.add(Player.User.Name);
+			}
+		} 
+	}
+}
+
+if(WinnersNames.count >= 1) {
+	UIModules_BigMessage::SetMessage(TL::Compose(_("$<%1$> wins the match!"), TL::Join(", ", WinnersNames)));
+	UIManager.UIAll.SendChat(TL::Compose(_("$<%1$> wins the match!"), TL::Join(", ", WinnersNames)));
+} else {
+	UIModules_BigMessage::SetMessage(_("|Match|Draw"));
+}
+
+***
+
+***Match_PodiumSequence***
+***
+declare CUIConfig::EUISequence PrevUISequence = UIManager.UIAll.UISequence;
+UIManager.UIAll.UISequence = CUIConfig::EUISequence::Podium;
+MB_Private_Sleep((S_ChatTime*1000)/2);
+
+UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
+MB_Private_Sleep((S_ChatTime*1000)/2);
+UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
+UIManager.UIAll.UISequence = PrevUISequence;
+***
+
+***Match_AfterPodiumSequence***
+***
+UIModules_BigMessage::SetMessage("");
+UIModules_ScoresTable::ResetTrophies();
+***
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+// Functions
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+Void UpdateDNFLossPoints(Integer _DNF_LossPoints) {
+	declare netwrite Integer Net_ReverseCup_DNF_LossPoints for Teams[0];
+	Net_ReverseCup_DNF_LossPoints = _DNF_LossPoints;
+}
+
+
+/** Update the scores table footer text
+ *
+ *	@param	_PointsLimit							The points limit
+ *	@param	_RoundsPerMap							The number of rounds per map
+ *	@param	_ValidRoundsNb						Number of valid rounds played
+  *	@param	_NbOfWinners						Number of Winners
+ */
+ Void UpdateScoresTableFooter(Integer _PointsLimit, Integer _RoundsPerMap, Integer _ValidRoundsNb, Integer _NbOfWinners) {
+	declare Text[] Parts;
+	declare Message = "";
+	
+	if (_PointsLimit > 0) {
+		if (Parts.count > 0) Message ^= "\n";
+		Message ^= """%{{{Parts.count + 1}}}{{{_PointsLimit}}}""";
+		//L16N [TM_Cup_Online] Number of points to reach to win the match.
+		Parts.add("Initial health : ");
+	}
+	if (_RoundsPerMap > 0) {
+		if (Parts.count > 0) Message ^= "\n";
+		Message ^= """%{{{Parts.count + 1}}}{{{ML::Min(_ValidRoundsNb+1, _RoundsPerMap)}}}/{{{_RoundsPerMap}}}""";
+		//L16N [Rounds] Number of rounds played during the map.
+		Parts.add(_("Rounds : "));
+	}
+	if (_NbOfWinners > 1) {
+		if (Parts.count > 0) Message ^= "\n";
+		Message ^= """%{{{Parts.count + 1}}}{{{_NbOfWinners}}}""";
+		//L16N [Rounds] Number of rounds played during the map.
+		Parts.add(_("Nb of Winners : "));
+	}
+	
+	switch (Parts.count) {
+		case 0: UIModules_ScoresTable::SetFooterInfo(Message);
+		case 1: UIModules_ScoresTable::SetFooterInfo(TL::Compose(Message, Parts[0]));
+		case 2: UIModules_ScoresTable::SetFooterInfo(TL::Compose(Message, Parts[0], Parts[1]));
+		case 3: UIModules_ScoresTable::SetFooterInfo(TL::Compose(Message, Parts[0], Parts[1], Parts[2]));
+	}
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/** Get the time left to the players to finish the round after the first player
+ *
+ *	@return 		The time left in ms
+ */
+Integer GetFinishTimeout() {
+	declare FinishTimeout = 0;
+	
+	if (S_FinishTimeout >= 0) {
+		FinishTimeout = S_FinishTimeout * 1000;
+	} else {
+		FinishTimeout = 5000;
+		if (Map.TMObjective_IsLapRace && Race::GetLapsNb() > 0 && Map.TMObjective_NbLaps > 0) {
+			FinishTimeout += ((Map.TMObjective_AuthorTime / Map.TMObjective_NbLaps) * Race::GetLapsNb()) / 6;
+		} else {
+			FinishTimeout += Map.TMObjective_AuthorTime / 6;
+		}
+	}
+	
+	return Now + FinishTimeout;
+}
+
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/** Announce a new looser in the chat
+ *
+ *	@param	_Name			The name of the new looser
+ *	@param	_Rank			The rank of the new looser
+ */
+Void AnnounceEliminated(Text _Name, Integer _Rank) {
+	declare Message = "";
+	switch (_Rank) {
+		case 1: Message = TL::Compose("$f90$i$<%1$> takes 1st place!", _Name);
+		case 2: Message = TL::Compose("$f90$i$<%1$> takes 2nd place!", _Name);
+		case 3: Message = TL::Compose("$f90$i$<%1$> takes 3rd place!", _Name);
+		default: Message = TL::Compose("$f90$i$<%1$> takes %2th place!", _Name, TL::ToText(_Rank));
+	}
+	
+	UIManager.UIAll.SendChat(Message);
+	UIModules_BigMessage::SetMessage(Message);
+}
+
+Integer[] GetPointsRepartition() {
+	declare Integer[] PointsRepartition = PointsRepartition::GetPointsRepartition();
+
+	if (S_FastForwardPointsRepartition) {
+		foreach (Score in Scores) {
+			declare Integer Points = Scores::GetPlayerMatchPoints(Score);
+			if (Points > C_Points_Spectator && Points <= C_Points_Eliminated) {
+				PointsRepartition = PointsRepartition.slice(1, PointsRepartition.count - 1);
+			}
+		}
+	}
+	return PointsRepartition;
+}
+
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/// Compute the latest race scores
+Void ComputeLatestRaceScores() {
+	Race::SortScores(Race::C_Sort_PrevRaceTime);
+	
+	// Points distributed between all players
+	declare I = 0;
+	declare J = 0;
+	declare CSmPlayer[] LastChancePlayersDNF_WithWorstCheckpoints;
+	declare Integer MinCheckpointNbPassed = 9999;
+
+	declare Integer[] PointsRepartition = GetPointsRepartition(); 
+
+	foreach (Score in Scores) {
+		// Skip Spectators and already eliminated players
+		if (Scores::GetPlayerMatchPoints(Score) < C_Points_LastChance) continue;
+
+		if (Scores::GetPlayerPrevRaceTime(Score) > 0) {
+			declare Points = 0;
+			if (PointsRepartition.count > 0) {
+				if (PointsRepartition.existskey(I)) {
+					Points = 0 - PointsRepartition[I];
+				} else {
+					Points = 0 - PointsRepartition[PointsRepartition.count - 1];
+				}
+			}
+			
+			Scores::SetPlayerRoundPoints(Score, Points);
+			I += 1;
+		} else {
+			// Apply DNF penality if Disconnected
+			if (Score.User == Null) {
+				Scores::SetPlayerRoundPoints(Score, 0 - S_DNF_LossPoints);
+				continue;
+			}
+			declare CSmPlayer Player <=> GetPlayer(Score.User.Login);
+
+			// Apply DNF penality if Disconnected
+			if (Player == Null) {
+				Scores::SetPlayerRoundPoints(Score, 0 - S_DNF_LossPoints);
+				continue;
+			}
+
+			if(S_LastChance_DNF_Mode == 1) {
+				if(Scores::GetPlayerMatchPoints(Score) == C_Points_LastChance) {
+					if(Player.LapWaypointTimes.count < MinCheckpointNbPassed) {
+						MinCheckpointNbPassed = Player.LapWaypointTimes.count;
+						LastChancePlayersDNF_WithWorstCheckpoints.clear();
+						LastChancePlayersDNF_WithWorstCheckpoints.add(Player);
+					} else if(Player.LapWaypointTimes.count == MinCheckpointNbPassed) {
+						LastChancePlayersDNF_WithWorstCheckpoints.add(Player);
+					}
+				} else if (Scores::GetPlayerMatchPoints(Score) > C_Points_LastChance) {
+					Scores::SetPlayerRoundPoints(Score, 0 - S_DNF_LossPoints);
+				}
+			} else {
+				Scores::SetPlayerRoundPoints(Score, 0 - S_DNF_LossPoints);
+			}
+		}
+		J += 1;
+	}
+	if(S_LastChance_DNF_Mode == 1) {
+		foreach(Player in LastChancePlayersDNF_WithWorstCheckpoints) {
+			Scores::SetPlayerRoundPoints(Player.Score, 0 - S_DNF_LossPoints);
+		}
+	}
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/// Compute the map scores
+Void ComputeScores() {
+	declare Boolean RoundIsValid = False;
+	declare Integer NbOfEliminated = 0;
+	declare CSmScore[] NewEliminated;
+	
+	Race::SortScores(Race::C_Sort_TotalPoints);
+
+	declare MaxRoundPoints = 0;
+	foreach (Score in Scores) {
+		if (MaxRoundPoints > Scores::GetPlayerRoundPoints(Score) && Scores::GetPlayerMatchPoints(Score) > C_Points_Eliminated) MaxRoundPoints = Scores::GetPlayerRoundPoints(Score);
+	}
+	
+	foreach (Score in Scores) {
+		if (Scores::GetPlayerMatchPoints(Score) == C_Points_Spectator) continue;
+
+		if (!RoundIsValid && Scores::GetPlayerRoundPoints(Score) < 0) RoundIsValid = True;
+		
+		declare Integer NewMatchPoints = Scores::GetPlayerMatchPoints(Score) + Scores::GetPlayerRoundPoints(Score);
+
+		// Already loose
+		if (NewMatchPoints < C_Points_Eliminated) {
+			NbOfEliminated += 1;
+			continue;
+		}
+		// New LastChance looser
+		else if (NewMatchPoints > C_Points_LastChance && NewMatchPoints <= 0) {
+			if(S_DisableLastChance == False) {
+				Scores::SetPlayerMatchPoints(Score, C_Points_LastChance);
+			} else {
+				NbOfEliminated += 1;
+				NewEliminated.add(Score);
+				continue;
+			}
+		}
+		// New looser
+		else if (NewMatchPoints > C_Points_Eliminated && NewMatchPoints < C_Points_LastChance && Scores::GetPlayerRoundPoints(Score) == MaxRoundPoints) {
+			NbOfEliminated += 1;
+			NewEliminated.add(Score);
+		}
+		// Already LastChance and not last
+		else if (Scores::GetPlayerMatchPoints(Score) == C_Points_LastChance && Scores::GetPlayerRoundPoints(Score) != MaxRoundPoints) {
+			Scores::SetPlayerMatchPoints(Score, C_Points_LastChance);
+		}
+		// Standard round finish
+		else {
+			Scores::AddPlayerMatchPoints(Score, Scores::GetPlayerRoundPoints(Score));
+			if (NewMatchPoints < C_Points_Eliminated) Scores::SetPlayerMatchPoints(Score, C_Points_Eliminated);
+		}
+		
+		Scores::AddPlayerMapPoints(Score, Scores::GetPlayerRoundPoints(Score));
+		Scores::SetPlayerRoundPoints(Score, 0);
+	}
+
+	if(NewEliminated.count > 0) {
+		declare K_MatchInfo Server_MatchInfo for This = K_MatchInfo {};
+		declare Integer Rank = Server_MatchInfo.Participants.count - NbOfEliminated + 1;
+		foreach (Score in NewEliminated) {
+			Scores::SetPlayerMatchPoints(Score, C_Points_Eliminated - Rank);
+			if (Score.User != Null) {
+				AnnounceEliminated(Score.User.Name, Rank);
+			}
+		}
+	}
+	
+	if (RoundIsValid) G_NbOfValidRounds += 1;
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/** Check if we should go to the next map
+ *
+ *	@return		True if it is the case, false otherwise
+ */
+Boolean MapIsOver() {
+	if (G_NbOfValidRounds >= S_RoundsPerMap) return True;
+	return False;
+}
+
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/** Check if we have found all the loosers
+ *
+ *	@return					True if the match is over, false otherwise
+ */
+Boolean MatchIsOver() {
+	Log::Log("[Cup] MatchIsOver() check | S_PointsStartup : "^S_PointsStartup);
+	declare NbOfPlayersActive = 0;
+	foreach (Player in Players) {
+		if(!Spectators.exists(Player)) {
+			if (Scores::GetPlayerMatchPoints(Player.Score) >= C_Points_LastChance) NbOfPlayersActive += 1;
+		}
+	}
+	
+	// If there's only one player they need to reach the points limit to win
+	// If there's more than one player then all players except one must reach the points limit
+	declare PlayerEliminatedLimit = ML::Max(Players.count - 1, 1);
+	Log::Log("""[Cup] Match is over ? {{{(S_NbOfWinners >= NbOfPlayersActive)}}} | ({{{S_NbOfWinners}}} >= {{{NbOfPlayersActive}}})""");
+	if (S_NbOfWinners >= NbOfPlayersActive) return True;
+	
+	return False;
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/** Check round before playing it, if necessary to fast forward it
+ *
+ */
+Void DisplayCustomPoints() {
+	// Display Spectator, LastChance & Eliminated UI
+	declare Text[][Text] CustomPoints;
+	foreach (Score in Scores) {
+		if (Score.User == Null) continue;
+		if (Scores::GetPlayerMatchPoints(Score) == C_Points_LastChance) {
+			CustomPoints[Score.User.WebServicesUserId] = [C_Text_LastChance, C_Color_LastChance];
+		} else if (Scores::GetPlayerMatchPoints(Score) == C_Points_Spectator) {
+			CustomPoints[Score.User.WebServicesUserId] = [C_Text_Spectator, C_Color_Spectator];
+		} else if (Scores::GetPlayerMatchPoints(Score) <= C_Points_Eliminated) {
+			CustomPoints[Score.User.WebServicesUserId] = [C_Text_Eliminated, C_Color_Eliminated];
+		} 
+	}
+	UIModules_ScoresTable::SetCustomPoints(CustomPoints);
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/** Check round before playing it, if necessary to fast forward it
+ *
+ */
+Void CheckRoundBeforePlay() {
+	if(S_AllowFastForwardRounds == True) {
+		declare Integer[] PointsRepartition = GetPointsRepartition();
+		declare Boolean IsRoundFastForwardCompatible = True;
+
+		// Check if no players are LastChance or have more points than the minimum points
+		foreach (Score in Scores) {
+			declare PlayerMatchPoints = Scores::GetPlayerMatchPoints(Score);
+
+			if (PlayerMatchPoints == C_Points_LastChance || PlayerMatchPoints > PointsRepartition[0]) {
+				IsRoundFastForwardCompatible = False;
+				break;
+			}
+		}
+
+		// if no one, do :
+		if(IsRoundFastForwardCompatible == True) {
+			foreach (Score in Scores) {
+				declare PlayerMatchPoints = Scores::GetPlayerMatchPoints(Score);
+				if (PlayerMatchPoints > C_Points_Eliminated) {
+					Scores::SetPlayerMatchPoints(Score, C_Points_LastChance);
+				}
+			}
+			ModeUtils::PlaySound(CUIConfig::EUISound::EndRound, 0);
+			UIModules_BigMessage::SetMessage("$c00This round is fast-forwarded. Every remaining players are now in Last Chance.");
+			DisplayCustomPoints();
+			MB_Sleep(5000);
+			UIModules_BigMessage::SetMessage("");
+			MB_StopRound();
+		}
+	}
+}
+
+Void UpdateLiveRaceUI() {
+	declare netwrite Integer Net_ReverseCup_LiveRanking_Update for Teams[0];
+	Net_ReverseCup_LiveRanking_Update += 1;
+}
+
+Void SetManialink_LiveRace() {
+	declare Text MLText = """
+	<manialink name="ReverseCup_LiveRace" version="3">
+		<stylesheet>
+			<style class="text-title" textfont="GameFontBlack" textcolor="ffffff" textsize="0.7" halign="center" valign="center" textprefix="$i"/>
+		</stylesheet>
+		<framemodel id="player-model">
+			<quad id="quad-player-bg" pos="0 0" z-index="0" size="43 5" bgcolor="000" opacity="1" />
+			<quad id="quad-player-button" pos="0 0" z-index="1" size="60 5" bgcolor="000" opacity="0" scriptevents="1"/>
+			<label id="label-player-rank" class="text-title" pos="3 -2" z-index="2" textsize="1.5" size="20 5"/>
+			<label id="label-player-name" class="text-title" pos="7 -2" z-index="2" textsize="1.5" size="25 5" halign="left"/>
+			<label id="label-player-scorediff" pos="35 -2" z-index="2" size="6 5" textsize="1.5" halign="center" valign="center"/>
+			<label id="label-player-points" class="text-title" pos="40 -2" z-index="2" size="5 5" textsize="1" />
+			<quad id="quad-player-cp-time-bg" pos="43 0" z-index="0" size="17 5" bgcolor="009B5F" opacity="0.7"/>
+			<label id="label-player-cp-time" class="text-title" pos="59 -2" z-index="2"  textsize="1.5" size="15 6" halign="right"/>
+			<frame pos="60 0" size="7 5">
+				<frame id=frame-roundpoints pos="-7 0" hidden="1">
+					<quad z-index="0" size="7 5" bgcolor="000" opacity="0.5"/>
+					<label id="label-player-roundpoints-value" class="text-title" pos="6.5 -2" z-index="2" halign="right" textsize="1.5" size="6 6"/>
+				</frame>
+			</frame>
+		</framemodel>
+		<frame id="frame-global" pos="-160 50">
+			<frame id="frame-toggle" pos="58 -2.5" >
+				<quad id="Toggle_SettingButton" pos="0 0" size="4 4" class="quad-base" z-index="3" opacity="0.9" scriptevents="1" halign="center" valign="center" image="file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds" colorize="fff"/>
+			</frame>
+			<frame id="frame-UI">
+				<quad id="quad-bg" pos="0 0" z-index="-1" size="60 14" bgcolor="000" opacity="0.5" /><!-- 16 + (ML::Max(NB_Players,16) * 5) -->
+				<label class="text-title" pos="30 -5" textsize="3" z-index="0" size="50 10" textprefix="$i$t" text="Live Race"/>
+				<frame id="frame-players" pos="0 -12">
+					<frameinstance pos="0 0" hidden="1" modelid="player-model"/>
+					<frameinstance pos="0 -5" hidden="1" modelid="player-model"/>
+					<frameinstance pos="0 -10" hidden="1" modelid="player-model"/>
+					<frameinstance pos="0 -15" hidden="1" modelid="player-model"/>
+					<frameinstance pos="0 -20" hidden="1" modelid="player-model"/>
+					<frameinstance pos="0 -25" hidden="1" modelid="player-model"/>
+					<frameinstance pos="0 -30" hidden="1" modelid="player-model"/>
+					<frameinstance pos="0 -35" hidden="1" modelid="player-model"/>
+					<frameinstance pos="0 -40" hidden="1" modelid="player-model"/>
+					<frameinstance pos="0 -45" hidden="1" modelid="player-model"/>
+					<frameinstance pos="0 -50" hidden="1" modelid="player-model"/>
+					<frameinstance pos="0 -55" hidden="1" modelid="player-model"/>
+					<frameinstance pos="0 -60" hidden="1" modelid="player-model"/>
+					<frameinstance pos="0 -65" hidden="1" modelid="player-model"/>
+					<frameinstance pos="0 -70" hidden="1" modelid="player-model"/>
+					<frameinstance pos="0 -75" hidden="1" modelid="player-model"/>
+				</frame>
+			</frame>
+		</frame>
+		<script><!--
+		#Include "TextLib" as TL
+		#Include "MathLib" as ML
+
+		#Const C_Color_LastChance {{{dump(C_Color_LastChance)}}}
+		#Const C_Color_Eliminated {{{dump(C_Color_Eliminated)}}}
+		#Const C_Color_Spectator {{{dump(C_Color_Spectator)}}}
+
+		#Const C_Text_LastChance {{{dump(C_Text_LastChance)}}}
+		#Const C_Text_Eliminated {{{dump(C_Text_Eliminated)}}}
+		#Const C_Text_Spectator {{{dump(C_Text_Spectator)}}}
+
+		#Const C_Points_LastChance {{{dump(C_Points_LastChance)}}}
+		#Const C_Points_Eliminated {{{dump(C_Points_Eliminated)}}}
+		#Const C_Points_Spectator {{{dump(C_Points_Spectator)}}}
+
+		#Struct K_PlayerState {
+			Ident ScoreId;
+			Text Login;
+			Text Name;
+			Integer PrevRank;
+			Integer CurRank;
+			Integer CPNb;
+			Integer LastCPTime;
+			Integer RaceTime;
+			Integer Delta;
+			Integer Points;
+			Integer RoundPoints;
+			Boolean IsNotPlaying;
+			Boolean Finished;
+		}
+
+		Void DevLog(Text _LogText) {
+			declare netread Text Net_ScriptEnvironment for Teams[0] = "production";
+			if (Net_ScriptEnvironment == "development") log("[RVC] " ^ _LogText);
+		}
+
+		Void Sleep(Integer _Duration) {
+			declare EndTime = Now + _Duration;
+			while (Now < EndTime) {
+					yield;
+			}
+		}
+
+		CSmPlayer GetPlayer(Text _Login) {
+			foreach (Player in Players) {
+				if (Player.User != Null && Player.User.Login == _Login) return Player;
+			}
+			return Null;
+		}
+
+		Text TimeToText(Integer _Time) {		
+			if (_Time < 1000) {
+				return TL::FormatReal(_Time / 1000., 3, False, False);
+			}
+		
+			declare TimeWithoutMs = _Time / 10;
+			declare TimeInSeconds = TimeWithoutMs / 100.;
+			if (TimeInSeconds <= 10.) {
+				return TL::FormatReal(TimeInSeconds, 2, False, False);
+			} else if (TimeInSeconds <= 100.) {
+				return TL::FormatReal(TimeInSeconds, 1, False, False);
+			}
+			return TL::ToText(ML::FloorInteger(TimeInSeconds));
+		}
+
+		Boolean InputPlayerIsSpectator() {
+			if (InputPlayer == GUIPlayer) return False;
+			return True;
+		}
+
+		Void ToggleUI() {
+			declare CMlFrame Frame_Global <=> (Page.GetFirstChild("frame-global") as CMlFrame);
+			declare CMlFrame Frame_UI <=> (Frame_Global.GetFirstChild("frame-UI") as CMlFrame);
+			declare CMlQuad Quad_Toggle <=> (Frame_Global.GetFirstChild("Toggle_SettingButton") as CMlQuad);
+
+			AnimMgr.Flush(Frame_Global);
+			AnimMgr.Flush(Frame_UI);
+
+			declare Real GlobalEndPosX;
+			if (Frame_UI.Visible) {
+				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_RIGHT_OBLIQUE.dds");
+				Quad_Toggle.RelativePosition_V3.X = 5.;
+				GlobalEndPosX = -220.;
+				AnimMgr.Add(Frame_UI, "<frame hidden=\"1\" />", Now, 250, CAnimManager::EAnimManagerEasing::Linear);
+			} else {
+				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds");
+				Quad_Toggle.RelativePosition_V3.X = 0.;
+				GlobalEndPosX = -160.;
+				Frame_UI.Visible = True;
+			}
+			AnimMgr.Add(Frame_Global, "<frame pos=\"" ^GlobalEndPosX^" "^Frame_Global.RelativePosition_V3.Y^ "\" />", Now, 250, CAnimManager::EAnimManagerEasing::Linear);
+		}
+
+		Void SpectateLogin(Text _Login) {
+			ClientUI.Spectator_SetForcedTarget_Clear();
+			SetSpectateTarget(_Login);
+		}
+		
+		Void UpdateRankingPlayer(CMlControl _Control_Player, K_PlayerState _PlayerState) {
+			declare CMlFrame Frame_Player <=>  (_Control_Player as CMlFrame);
+			if (Frame_Player == Null) return;
+			if (!Frame_Player.Visible) Frame_Player.Visible = True;
+
+			// Set Rank
+			declare CMlLabel Label_Player_Rank <=> (Frame_Player.GetFirstChild("label-player-rank") as CMlLabel);
+			Label_Player_Rank.Value = TL::ToText(_PlayerState.CurRank);
+
+			// Set Name
+			declare CMlLabel Label_Player_Name <=> (Frame_Player.GetFirstChild("label-player-name") as CMlLabel);
+			Label_Player_Name.Value = _PlayerState.Name;
+
+			// Set Points
+			declare CMlLabel Label_Player_Points <=> (Frame_Player.GetFirstChild("label-player-points") as CMlLabel);
+			if (_PlayerState.Points <= C_Points_Eliminated) Label_Player_Points.Value = "";
+			else if (_PlayerState.Points == C_Points_LastChance) Label_Player_Points.Value = "$f00LC";
+			else Label_Player_Points.Value = "" ^_PlayerState.Points;
+
+			// Set background opacity (if playing or spectated)
+			declare CMlQuad Quad_Player_Bg <=> (Frame_Player.GetFirstChild("quad-player-bg") as CMlQuad);
+			if (GUIPlayer != Null && GUIPlayer.User.Login == _PlayerState.Login) Quad_Player_Bg.Opacity = 0.3;
+			else Quad_Player_Bg.Opacity = 0.;
+
+			// Set Spectate Button
+			declare CMlQuad Quad_Player_Button <=> (Frame_Player.GetFirstChild("quad-player-button") as CMlQuad);
+			declare Text ReverseCup_QuadPlayerButton_Login for Quad_Player_Button = "";
+			if (_PlayerState.IsNotPlaying) ReverseCup_QuadPlayerButton_Login = "";
+			else ReverseCup_QuadPlayerButton_Login = _PlayerState.Login;
+			
+			// Set CP Time Background
+			declare netread Boolean Net_Race_WarmupHelpers_IsWarmupActive for Teams[0];
+			declare CMlQuad Quad_Player_CP_Time_Background <=> (Frame_Player.GetFirstChild("quad-player-cp-time-bg") as CMlQuad);
+			if (_PlayerState.Points <= C_Points_Eliminated) Quad_Player_CP_Time_Background.BgColor = <0.839, 0.098, 0.098>;
+			else if (Net_Race_WarmupHelpers_IsWarmupActive) Quad_Player_CP_Time_Background.BgColor = <0.96, 0.35, 0.14>;
+			else Quad_Player_CP_Time_Background.BgColor = <0., 0.608, 0.373>;
+
+			// Set CP Time
+			declare CMlLabel Label_Player_CP_Time <=> (Frame_Player.GetFirstChild("label-player-cp-time") as CMlLabel);
+			if (_PlayerState.Points <= C_Points_Eliminated) Label_Player_CP_Time.Value = "Eliminated";
+			else if (_PlayerState.IsNotPlaying && !_PlayerState.Finished) Label_Player_CP_Time.Value = "DNF";
+			else if (_PlayerState.CurRank == 1) Label_Player_CP_Time.Value = TL::TimeToText(_PlayerState.LastCPTime, True, True);
+			else if (_PlayerState.LastCPTime == 0) Label_Player_CP_Time.Value = "-";
+			else Label_Player_CP_Time.Value = "+" ^ TimeToText(_PlayerState.Delta);
+
+			// RoundPoints 
+			declare CMlFrame Frame_RoundPoints <=> (Frame_Player.GetFirstChild("frame-roundpoints") as CMlFrame);
+
+			declare netread Integer Net_ReverseCup_DNF_LossPoints for Teams[0];
+			declare CMlLabel Label_Player_RoundPoints_Value <=> (Frame_Player.GetFirstChild("label-player-roundpoints-value") as CMlLabel);
+			if (_PlayerState.RoundPoints != 0) {
+				Label_Player_RoundPoints_Value.Value = "" ^ _PlayerState.RoundPoints;
+				if (!Frame_RoundPoints.Visible && (-Net_ReverseCup_DNF_LossPoints != _PlayerState.RoundPoints || _PlayerState.IsNotPlaying)) {
+					AnimMgr.Flush(Frame_RoundPoints);
+					AnimMgr.Add(Frame_RoundPoints, "<frame hidden=\"0\" pos=\"0 0\"/>", Now, 150, CAnimManager::EAnimManagerEasing::Linear);
+				} else if (Frame_RoundPoints.Visible && -Net_ReverseCup_DNF_LossPoints == _PlayerState.RoundPoints && !_PlayerState.IsNotPlaying) {
+					AnimMgr.Flush(Frame_RoundPoints);
+					AnimMgr.Add(Frame_RoundPoints, "<frame hidden=\"1\" pos=\"-7 0\"/>", Now, 150, CAnimManager::EAnimManagerEasing::Linear);
+				}
+			} else if (_PlayerState.RoundPoints == 0 && Frame_RoundPoints.Visible) {
+				AnimMgr.Flush(Frame_RoundPoints);
+				AnimMgr.Add(Frame_RoundPoints, "<frame hidden=\"1\" pos=\"-7 0\"/>", Now, 150, CAnimManager::EAnimManagerEasing::Linear);
+			}
+
+			// Set Scores Diff
+			if (_PlayerState.PrevRank > 0 && _PlayerState.PrevRank != _PlayerState.CurRank && _PlayerState.Points > C_Points_Eliminated) {
+				Frame_Player.RelativePosition_V3.Y = ML::ToReal((_PlayerState.PrevRank - 1) * -5);
+				declare Real NewRankPosY = ML::ToReal((_PlayerState.CurRank - 1) * -5);
+				AnimMgr.Flush(Frame_Player);
+				AnimMgr.Add(Frame_Player, "<frame pos=\"0 "^NewRankPosY^"\" />", 250, CAnimManager::EAnimManagerEasing::QuadOut);
+				
+				declare CMlLabel Label_Player_ScoreDiff <=> (Frame_Player.GetFirstChild("label-player-scorediff") as CMlLabel);
+				declare Text Color;
+				if (_PlayerState.PrevRank > _PlayerState.CurRank) {
+					Label_Player_ScoreDiff.Value = "⏶";
+					Color = "009B5F";
+				} else {
+					Label_Player_ScoreDiff.Value = "⏷";
+					Color = "d61919";
+				}
+				AnimMgr.Flush(Label_Player_ScoreDiff);
+				AnimMgr.Add(Label_Player_ScoreDiff, "<label opacity=\"1\" textcolor=\""^Color^"\" />", Now, 200, CAnimManager::EAnimManagerEasing::QuadOut);
+				AnimMgr.Add(Label_Player_ScoreDiff, "<label opacity=\"0\" textcolor=\""^Color^"\" />", Now + 10000, 200, CAnimManager::EAnimManagerEasing::QuadOut);
+			} else if (_PlayerState.Points <= C_Points_Eliminated) {
+				declare CMlLabel Label_Player_ScoreDiff <=> (Frame_Player.GetFirstChild("label-player-scorediff") as CMlLabel);
+				AnimMgr.Flush(Label_Player_ScoreDiff);
+				Label_Player_ScoreDiff.Opacity = 0.;
+			}
+		}
+
+		Void UpdateRankings() {
+			declare CMlFrame Frame_Players <=> (Page.GetFirstChild("frame-players") as CMlFrame);
+
+			declare K_PlayerState[][Integer][Integer] Ranking; // Ranking[<CP number>][<Time>][<Players>]
+			declare Integer GlobalLastCPTime = -1;
+
+			// Set Scores and Players info to Ranking Array
+			foreach (Score in Scores) {
+				if (Score.User == Null) continue;
+				if (Score.Points == C_Points_Spectator) continue;
+
+				declare Integer CurrentRank for Score = -1;
+
+				declare K_PlayerState PlayerState = K_PlayerState {
+					Name = Score.User.Name,
+					Login = Score.User.Login,
+					ScoreId = Score.Id,
+					PrevRank = CurrentRank,
+					Points = Score.Points,
+					RoundPoints = Score.RoundPoints,
+					IsNotPlaying = True
+				};
+
+				declare CSmPlayer Player <=> GetPlayer(Score.User.Login);
+				
+				if (Player != Null) {
+					PlayerState.CPNb = Player.RaceWaypointTimes.count;
+					PlayerState.IsNotPlaying = (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned);
+					PlayerState.Finished = (Score.PrevRaceTimes.count != 0);
+
+					if (PlayerState.CPNb > 0) {
+						PlayerState.LastCPTime = Player.RaceWaypointTimes[PlayerState.CPNb - 1];
+					}
+					if (GlobalLastCPTime < PlayerState.LastCPTime) GlobalLastCPTime = PlayerState.LastCPTime;
+					
+				}
+
+				if (!Ranking.existskey(PlayerState.CPNb)) Ranking[PlayerState.CPNb] = K_PlayerState[][Integer];
+				if (!Ranking[PlayerState.CPNb].existskey(PlayerState.LastCPTime)) Ranking[PlayerState.CPNb][PlayerState.LastCPTime] = K_PlayerState[];
+
+				Ranking[PlayerState.CPNb][PlayerState.LastCPTime].add(PlayerState);
+			}
+
+			// Sort Ranking by CP Count
+			Ranking = Ranking.sortkeyreverse();
+
+			declare Integer Index = 0;
+			declare CSmPlayer FirstPlayer;
+			declare Integer MinDelta = 0;
+			foreach (CPNb => Value in Ranking) {
+				// Sort Times for this CP
+				Ranking[CPNb] = Ranking[CPNb].sortkey();
+
+				foreach (CPTime => PlayerStates in Ranking[CPNb]) {
+					foreach (Key => Dummy in PlayerStates) { // If multiple players have the same time
+						// Variable Dummy = PlayerState but is Read-Only. So I redefine it here:
+						declare K_PlayerState PlayerState = Ranking[CPNb][CPTime][Key];
+						if (!Scores.existskey(PlayerState.ScoreId)) continue;
+
+						declare Integer CurrentRank for Scores[PlayerState.ScoreId];
+						CurrentRank = Index + 1;
+
+						PlayerState.CurRank = CurrentRank;
+
+						if (FirstPlayer == Null && PlayerState.Login != "") {
+							FirstPlayer <=> GetPlayer(PlayerState.Login);
+						}
+
+						if (Index != 0) {
+							declare Integer Delta;
+							if (PlayerState.Login != "" && CPNb > 0) {
+								if (FirstPlayer.RaceWaypointTimes.existskey(CPNb)) { // Get Delta Time based on the next CP if needed (if the player is slow during the CP)
+									Delta = ML::Max(PlayerState.LastCPTime - FirstPlayer.RaceWaypointTimes[CPNb - 1], GlobalLastCPTime - FirstPlayer.RaceWaypointTimes[CPNb]);
+								} else {
+									Delta = PlayerState.LastCPTime - FirstPlayer.RaceWaypointTimes[CPNb - 1];
+								}
+							}
+
+							// Store the Minimal Delta for before the 1st CP
+							if (Delta > MinDelta) {
+								MinDelta = Delta;
+							} else {
+								Delta = MinDelta;
+							}
+							PlayerState.Delta = Delta;
+						}
+
+						UpdateRankingPlayer(Frame_Players.Controls[Index], PlayerState);
+						Index += 1;
+
+						if (Index >= 16) break;
+					}
+					if (Index >= 16) break;
+				}
+				if (Index >= 16) break;
+			}
+
+			declare Integer Last_NbOfPlayers for Frame_Players = 0;
+			// Manage if Nb Of players changed
+			if (Last_NbOfPlayers != Index) {
+				Last_NbOfPlayers = Index;
+
+				// Set 
+				declare CMlQuad Quad_Bg <=> (Page.GetFirstChild("quad-bg") as CMlQuad);
+				Quad_Bg.Size.Y = ML::ToReal(15 + (Last_NbOfPlayers * 5));
+
+				// Hide other Frame_Players
+				while (Index < Frame_Players.Controls.count) {
+					if (Frame_Players.Controls[Index].Visible) {
+						Frame_Players.Controls[Index].Visible = False;
+						Index += 1;
+					} else {
+						break;
+					}
+				}
+			}
+		}
+
+		main() {
+			DevLog("Starting ReverseCup Live Rank");
+			declare netread Integer Net_ReverseCup_LiveRanking_Update for Teams[0] = -1;
+			declare Integer Last_Update;
+			declare Integer Last_UpdateTime;
+
+			wait(InputPlayer != Null);
+
+			while(True) {
+				yield;
+
+				foreach(Event in PendingEvents) {
+					DevLog("[PendingEvents] Event.Type: " ^ Event.Type);
+					if (Event.Type == CMlScriptEvent::Type::MouseClick) {
+						if (TL::Find("player-", Event.ControlId, True, True) && InputPlayerIsSpectator()) {
+							declare Text ReverseCup_QuadPlayerButton_Login for Event.Control = "";
+							
+							if (ReverseCup_QuadPlayerButton_Login != "") {
+								DevLog("[PendingEvents] Spectate " ^ ReverseCup_QuadPlayerButton_Login);
+								SpectateLogin(ReverseCup_QuadPlayerButton_Login);
+							}
+						} else if (Event.ControlId == "Toggle_SettingButton") {
+							DevLog("[PendingEvents] Toggle UI");
+							ToggleUI();
+						}
+					} else if (Event.Type == CMlScriptEvent::Type::MouseOver && TL::Find("quad-player-button", Event.ControlId, True, True) && InputPlayerIsSpectator()) {
+						declare Quad <=> (Event.Control as CMlQuad);
+						Quad.Opacity = .2;
+					} else if (Event.Type == CMlScriptEvent::Type::MouseOut && TL::Find("quad-player-button", Event.ControlId, True, True)) {
+						declare Quad <=> (Event.Control as CMlQuad);
+						Quad.Opacity = 0.;
+					}
+				}
+
+
+				if (Last_Update != Net_ReverseCup_LiveRanking_Update) {
+					DevLog("Received an update from the server");
+					Last_Update = Net_ReverseCup_LiveRanking_Update;
+					if (Last_UpdateTime == -1) Last_UpdateTime = Now + 250;
+				}
+
+				if (Last_UpdateTime != -1 && Last_UpdateTime < Now) {
+					DevLog("Update Scores");
+					Last_UpdateTime = -1;
+
+					UpdateRankings();
+				}
+			}
+		}
+		--></script>
+	</manialink>
+""";
+Layers::Create("ReverseCup_LiveRace", MLText);
+Layers::SetType("ReverseCup_LiveRace", CUILayer::EUILayerType::Normal);
+Layers::Attach("ReverseCup_LiveRace");
+}
