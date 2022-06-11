@@ -267,7 +267,7 @@ if (!Server_MatchInfo.RegistrationClosed) {
 		Server_MatchInfo.Participants.add(Player.User.Login);
 		Scores::SetPlayerMatchPoints(Player.Score, S_PointsStartup);
 	}
-	UIModules_ScoresTable::DisplayOnly(Server_MatchInfo.Participants);
+	//UIModules_ScoresTable::DisplayOnly(Server_MatchInfo.Participants); // Bugged
 	foreach (Spectator in Spectators) {
 		if (Spectator.User == Null) continue;
 		if (Spectator.Score == Null) continue;
