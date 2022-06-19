@@ -23,6 +23,8 @@
 #Setting S_DecoImageUrl_Screen16x1 ""
 #Setting S_OverridePlayerProfiles ""
 
+
+#Setting S_DisableSignLiveCam False as "Disable 16x9 live cam for Spectators"
 #Setting S_DisplayTeamName True as "Display Marker Name on the Live Ranking Interface"
 #Setting S_DisplayTeamColor False  as "Display Team Color on the Live Ranking Interface"
 /*
@@ -66,9 +68,11 @@ UIModules::UnloadModules(["UIModule_ChampionTMGL_InfoPanels_2x3",
 
 ***Match_InitMap***
 ***
+declare Boolean Last_DisableSignLiveCam;
 declare Boolean Last_DisplayTeamName;
 declare Boolean Last_DisplayTeamColor;
 declare Text Last_OverridePlayerProfiles;
+
 
 if (Last_DisplayTeamName != S_DisplayTeamName || Last_DisplayTeamColor != S_DisplayTeamColor) {
     Last_DisplayTeamName = S_DisplayTeamName;
@@ -83,8 +87,28 @@ if (Last_OverridePlayerProfiles != S_OverridePlayerProfiles) {
 }
 ***
 
+***Match_StartRound***
+***
+if (S_DisableSignLiveCam) {
+    UpdateSignLiveCamera(False);
+    Round_UpdateSignLiveCameraTime = Now + 86400000; // re-enable it in 24h
+}
+Last_DisableSignLiveCam = S_DisableSignLiveCam;
+***
+
 ***Match_PlayLoop***
 ***
+if (Last_DisableSignLiveCam != S_DisableSignLiveCam) {
+    Last_DisableSignLiveCam = S_DisableSignLiveCam;
+
+    if (Last_DisableSignLiveCam) {
+        UpdateSignLiveCamera(False);
+        Round_UpdateSignLiveCameraTime = Now + 86400000;
+    } else {
+        UpdateSignLiveCamera(True);
+        Round_UpdateSignLiveCameraTime = Now + C_UpdateSignLiveCameraInterval;
+    }
+}
 if (Last_DisplayTeamName != S_DisplayTeamName || Last_DisplayTeamColor != S_DisplayTeamColor) {
     Last_DisplayTeamName = S_DisplayTeamName;
     Last_DisplayTeamColor = S_DisplayTeamColor;
