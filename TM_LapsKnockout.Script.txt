@@ -128,6 +128,8 @@ UIModules_Checkpoint::SetVisibilityTimeDiff(False, True);
 UIModules_PauseMenu_Online::SetHelp(Description);
 UIModules_ScoresTable::SetScoreMode(UIModules_ScoresTable::C_Mode_Laps);
 UIModules_ScoresTable::SetHideSpectators(True);
+
+SetManialink_Panel();
 ***
 
 ***Match_Yield***
@@ -184,6 +186,14 @@ Race::SetLapsSettings(True, -1); // force infinite lap
 ***
 CarRank::Reset();
 
+UIModules_ScoresTable::SetCustomPoints([]);
+declare netwrite Integer Net_LapsKnockout_NumberOfPlayers for Teams[0];
+Net_LapsKnockout_NumberOfPlayers = 0;
+declare netwrite Integer[Integer] Net_LapsKnockout_KOPerLap for Teams[0];
+Net_LapsKnockout_KOPerLap = [];
+declare netwrite Integer Net_LapsKnockout_KOs for Teams[0];
+Net_LapsKnockout_KOs = 0;
+
 // Warm up
 ---Laps_Warmup---
 
@@ -227,11 +237,24 @@ Last_EliminatedPlayersNbRanks = S_EliminatedPlayersNbRanks;
 
 MatchState = ComputeMatchState(Last_NumberOfPlayers);
 
-// Update UI lap number
+// Update UI
+declare netwrite Integer Net_LapsKnockout_NumberOfPlayers for Teams[0];
+Net_LapsKnockout_NumberOfPlayers = Last_NumberOfPlayers;
+
+declare Boolean LapsSettingSet = False;
+declare Integer[Integer] KOPerLap;
 foreach (LapNb => State in MatchState.sortkeyreverse()) {
-	Race::SetLapsSettings(False, LapNb); // Set number of laps with number of 
-	break;
+	if (!LapsSettingSet) {
+		LapsSettingSet = True;
+		Race::SetLapsSettings(False, LapNb); // Set number of laps with number of 
+	}
+	KOPerLap[LapNb] = State.NbEliminations;
+
 }
+
+declare netwrite Integer[Integer] Net_LapsKnockout_KOPerLap for Teams[0];
+Net_LapsKnockout_KOPerLap = KOPerLap;
+
 
 // Reset Dossard Color
 foreach (Player in Players) {
@@ -285,6 +308,15 @@ foreach (Event in RacePendingEvents) {
 			}
 
 			if (Event.IsEndRace) {
+				// waiting GetCustomPoints function in ScoresTable_Server
+				declare netwrite Text[][Text] Net_TMxSM_ScoresTable_CustomPoints for Teams[0];
+				declare Text[][Text] CustomTimes = Net_TMxSM_ScoresTable_CustomPoints;
+				foreach (Player in Players) {
+					if (Player != Event.Player) {
+						CustomTimes[Player.User.WebServicesUserId] = [_("|Status|K.O."), "f00"];
+					}
+				}
+				UIModules_ScoresTable::SetCustomPoints(CustomTimes);
 				UIManager.UIAll.SendChat("Player $<$ff6" ^ Event.Player.User.Name ^ "$> $<$6f6wins the match!$>");
 				MB_StopMatch();
 			}
@@ -323,11 +355,19 @@ if (Last_NbLapsWithoutKO != S_NbLapsWithoutKO || Last_EliminatedPlayersNbRanks !
 	Last_EliminatedPlayersNbRanks = S_EliminatedPlayersNbRanks;
 
 	MatchState = ComputeMatchState(Last_NumberOfPlayers);
-
+	// Update UI
+	declare Boolean LapsSettingSet = False;
+	declare Integer[Integer] KOPerLap;
 	foreach (LapNb => State in MatchState.sortkeyreverse()) {
-		Race::SetLapsSettings(False, LapNb);
-		break;
+		if (!LapsSettingSet) {
+			LapsSettingSet = True;
+			Race::SetLapsSettings(False, LapNb); // Set number of laps with number of 
+		}
+		KOPerLap[LapNb] = State.NbEliminations;
+
 	}
+	declare netwrite Integer[Integer] Net_LapsKnockout_KOPerLap for Teams[0];
+	Net_LapsKnockout_KOPerLap = KOPerLap;
 }
 
 if (Players.count > 0 && PlayersNbAlive <= 0) {
@@ -447,4 +487,93 @@ Void EliminatePlayer(CSmPlayer _Player) {
 	log("EliminatePlayer: " ^ _Player.User.Name ^ " ("  ^ _Player.User.Login ^ ")");
 	Race::StopSkipOutro(_Player);
 	UIManager.UIAll.SendChat("Player $<$ff6" ^ _Player.User.Name ^ "$> is $<$f00eliminated$>");
+
+	// waiting GetCustomPoints function in ScoresTable_Server
+	declare netwrite Text[][Text] Net_TMxSM_ScoresTable_CustomPoints for Teams[0];
+	Net_TMxSM_ScoresTable_CustomPoints[_Player.User.WebServicesUserId] = [_("|Status|K.O."), "f00"];
+
+	declare netwrite Integer Net_LapsKnockout_KOs for Teams[0];
+	Net_LapsKnockout_KOs += 1;
+}
+
+Void SetManialink_Panel() {
+	declare Text MLText = """
+	<manialink name="LapsKnockout_Panel" version="3">
+		<stylesheet>
+			<style class="text-titles" textfont="GameFontBlack" textcolor="ffffffff" textsize="1.5" valign="center2" textprefix="$i$t"/>
+			<style class="text-values" textfont="GameFontSemiBold" textcolor="ffffffff" textsize="1.5" valign="center2" textprefix="$i$t" halign="right"/>
+		</stylesheet>
+		<frame id="frame-global" pos="-65 -80">
+			<quad pos="0 0" z-index="-1" size="37 10" bgcolor="000" opacity="0.7"/>
+			<label class="text-titles" pos="1 -3.5" size="27 5" text="Players alive:" />
+			<label id="label-players-alive" class="text-values" pos="36 -3.5" size="20 5" text="-" />
+			<label class="text-titles" pos="1 -7.5" size="27 5" text="KO this lap:"/>
+			<label id="label-KO-this-lap" class="text-values" pos="36 -7.5" size="20 5" text="-"/>
+		</frame>
+		<script><!--
+		#Include "TextLib" as TL
+		#Include "MathLib" as ML
+
+		Void DevLog(Text _LogText) {
+			declare netread Text Net_ScriptEnvironment for Teams[0] = "production";
+			if (Net_ScriptEnvironment == "development") log("[RVC] " ^ _LogText);
+		}
+
+		Integer GetPlayerLap(CSmPlayer _Player) {
+			declare netread Integer Net_Race_Helpers_PlayerLap for _Player;
+			if (Net_Race_Helpers_PlayerLap > 0) {
+				return Net_Race_Helpers_PlayerLap;
+			}
+			return _Player.CurrentLapNumber + 1;
+		}
+
+		main() {
+			DevLog("Starting LapsKnockout Panel");
+			declare CMlFrame Frame_Global <=> (Page.GetFirstChild("frame-global") as CMlFrame);
+			declare CMlLabel Label_Players_Alive <=> (Page.GetFirstChild("label-players-alive") as CMlLabel);
+			declare CMlLabel Label_KO_This_Lap <=> (Page.GetFirstChild("label-KO-this-lap") as CMlLabel);
+
+			declare netread Integer Net_LapsKnockout_NumberOfPlayers for Teams[0];
+			declare netread Integer Net_LapsKnockout_KOs for Teams[0];
+			declare netread Integer[Integer] Net_LapsKnockout_KOPerLap for Teams[0];
+
+			declare Integer UpdateTime;
+
+			wait(InputPlayer != Null);
+
+			while(True) {
+				yield;
+				if (UpdateTime > Now) continue;
+
+				UpdateTime = Now + 500;
+
+				if (GUIPlayer == Null) {
+					Frame_Global.Visible = False;
+					continue;
+				}
+
+				if (!Frame_Global.Visible) Frame_Global.Visible = True;
+
+				if (Net_LapsKnockout_KOPerLap.count == 0) {
+					Label_Players_Alive.Value = "-";
+					Label_KO_This_Lap.Value = "-";
+					continue;
+				}
+
+				if (Net_LapsKnockout_KOPerLap.existskey(GetPlayerLap(GUIPlayer))) {
+					Label_KO_This_Lap.Value = TL::ToText(Net_LapsKnockout_KOPerLap[GetPlayerLap(GUIPlayer)]);
+				} else {
+					Label_KO_This_Lap.Value = "0";
+				}
+
+				Label_Players_Alive.Value = TL::ToText(Net_LapsKnockout_NumberOfPlayers - Net_LapsKnockout_KOs);
+
+			}
+		}
+		--></script>
+	</manialink>
+""";
+Layers::Create("LapsKnockout_Panel", MLText);
+Layers::SetType("LapsKnockout_Panel", CUILayer::EUILayerType::Normal);
+Layers::Attach("LapsKnockout_Panel");
 }
