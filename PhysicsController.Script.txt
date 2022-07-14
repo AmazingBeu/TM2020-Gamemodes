@@ -1075,7 +1075,7 @@ Void SetML() {
 			<style class="quad-effects" halign="center" valign="center" />
 		</stylesheet>
 		<frame id="frame-global" hidden="1" pos="-160 40">
-			<frame pos="58 -2.5" id="frame-toggle">
+			<frame pos="58 -2.5" id="frame-toggle" z-index=1>
 				<quad id="Toggle_SettingButton" pos="0 0" size="4 4" class="quad-base" z-index="3" opacity="0.9" scriptevents="1" halign="center" valign="center" image="file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds" colorize="fff"/>
 			</frame>
 			<frame id="frame-UI">
