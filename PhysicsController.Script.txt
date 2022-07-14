@@ -242,7 +242,7 @@ foreach (AccountId => ArrayNewPlayerPhysics in ApplyPhysics_Queue) {
 	foreach (Key => NewPlayerPhysics in ArrayNewPlayerPhysics) {
 		if (Player != Null && NewPlayerPhysics.Time <= Now && (Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned || Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning)) {
 			Log::Log("[ApplyPhysics] Trying to set Event " ^ NewPlayerPhysics.Effect ^ " for " ^ Player.User.Name);
-			if (SetPlayerPhysics(NewPlayerPhysics.Effect,NewPlayerPhysics.Value,Player)) {
+			if (SetPlayerPhysics(NewPlayerPhysics.Effect, NewPlayerPhysics.Value, Player)) {
 				ApplyPhysics_Queue[AccountId].removekey(Key);
 				if (ApplyPhysics_Queue[AccountId].count == 0) ApplyPhysics_Queue.removekey(AccountId);
 			}
@@ -1091,7 +1091,7 @@ Void SetML() {
 				<frame pos="0.5 -6">
 					<frame pos="30 0">
 						<quad class="quad-effects" pos="-3 -7.5" z-index="1" size="3 3'" opacity="0.7" image="http://files.virtit.fr/TrackMania/Images/EffectsIcons/Reset.dds" />
-						<label class="text-suffix" pos="3 -7.2" z-index="0" size="20 5" text="RESET"/>
+						<label class="text-suffix" pos="3 -7.2" z-index="1" size="20 5" text="RESET"/>
 						<quad id="Reset_EffectButton" class="quad-effects" pos="0 -7.5" z-index="0" size="52.5 5" opacity="0.5" style="UICommon64_1" substyle="BgFrame1" modulatecolor="000" scriptevents="1"/>
 						<quad id="Reset_BindedGamepadButton" hidden="1" class="quad-effects GamepadButton" pos="26 -7" z-index="2" size="5 5" />
 						<label id="Reset_BindedKBButton" hidden="1" class="text-suffix KBButton" pos="27 -7" z-index="2" size="9 5"  textprefix="$t" halign="right" textsize="2"/>
