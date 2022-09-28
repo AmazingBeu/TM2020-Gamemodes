@@ -4,6 +4,7 @@
 * To use it, you just have to change the line below to put the path of your mode:
 */
 #Extends "Modes/TrackMania/TM_TimeAttack_Online.Script.txt"
+
 // #RequireContext CSmMode
 
 #Setting S_DebugLib_RestrictUIto "" as "Restrict UI Admin to comma separated logins (all if empty)"
@@ -140,18 +141,18 @@ foreach (Event in UIManager.PendingEvents) {
                 }
             }
         }
-        case "DebugMode.ForVars.Dump.Teams0": {
+        case "DebugMode.VarInsp.Dump.Teams0": {
             declare Text tmp = Net_DebugMode_Logs;
             Net_DebugMode_Logs = "";
             Net_DebugMode_Logs = Prefix ^ "Teams[0] dump:\n" ^ Dbg_DumpDeclareForVariables(Teams[0], False) ^"\n" ^ tmp;
         }
-        case "DebugMode.ForVars.Dump.UIAll": {
+        case "DebugMode.VarInsp.Dump.UIAll": {
             Net_DebugMode_Logs = Prefix ^ "UIAll dump:\n" ^ Dbg_DumpDeclareForVariables(UIManager.UIAll, False) ^"\n" ^ Net_DebugMode_Logs;
         }
-        case "DebugMode.ForVars.Dump.This": {
+        case "DebugMode.VarInsp.Dump.This": {
             Net_DebugMode_Logs = Prefix ^ "This dump:\n" ^ Dbg_DumpDeclareForVariables(This, False) ^"\n" ^ Net_DebugMode_Logs;
         }
-        case "DebugMode.ForVars.Dump.Player": {
+        case "DebugMode.VarInsp.ForVars.Dump.Player": {
             declare CSmPlayer Player;
             if (TL::Length(Event.CustomEventData[0]) == 36) {
                 Player <=> ModeUtils::GetPlayerFromAccountId(Event.CustomEventData[0]);
@@ -183,8 +184,40 @@ foreach (Event in UIManager.PendingEvents) {
                 Net_DebugMode_Logs = Prefix ^ "ForVars dump: player not found\n" ^ Net_DebugMode_Logs;
             }
         }
+        case "DebugMode.VarInsp.Struct.Dump.Player": {
+            declare CSmPlayer Player;
+            if (TL::Length(Event.CustomEventData[0]) == 36) {
+                Player <=> ModeUtils::GetPlayerFromAccountId(Event.CustomEventData[0]);
+            } else if (TL::Length(Event.CustomEventData[0]) == 22) {
+                Player <=> GetPlayer(Event.CustomEventData[0]);
+            } else {
+                foreach (TmpPlayer in AllPlayers) {
+                    if (TL::ToLowerCase(Event.CustomEventData[0]) == TL::ToLowerCase(TmpPlayer.User.Name)) {
+                        Player <=> TmpPlayer;
+                        break;
+                    }
+                }
+            }
+
+            if (Player != Null) {
+                if (Event.CustomEventData[1] == "player") {
+                    Net_DebugMode_Logs = Prefix ^ "Player Struct dump for " ^ Player.User.Name ^ ":\n" ^ Player ^"\n" ^ Net_DebugMode_Logs;
+                } else if (Event.CustomEventData[1] == "score") {
+                    Net_DebugMode_Logs = Prefix ^ "Score Struct dump for " ^ Player.User.Name ^ ":\n" ^ Player.Score ^"\n" ^ Net_DebugMode_Logs;
+                } else {
+                    declare CUIConfig UI = UIManager.GetUI(Player);
+                    if (UI != Null) {
+                        Net_DebugMode_Logs = Prefix ^ "UI ForVars dump for " ^ Player.User.Name ^ ":\n" ^ UI ^"\n" ^ Net_DebugMode_Logs;
+                    } else {
+                        Net_DebugMode_Logs = Prefix ^ "UI ForVars dump for " ^ Player.User.Name ^ ": no UI found (it's a bot?)\n" ^ Net_DebugMode_Logs;
+                    }
+                }
+            } else {
+                Net_DebugMode_Logs = Prefix ^ "Struct dump: player not found\n" ^ Net_DebugMode_Logs;
+            }
+        }
         default: {
-            Net_DebugMode_Logs = Prefix ^ "Custom Event received: " ^ Event.CustomEventType ^"\n" ^ Net_DebugMode_Logs;
+            Net_DebugMode_Logs = Prefix ^ "Struct Event received: " ^ Event.CustomEventType ^"\n" ^ Net_DebugMode_Logs;
         }
     }
 }
@@ -242,6 +275,11 @@ else Prefix ^= Seconds;
 Prefix ^= "] ";
 
 declare netwrite Text Net_DebugMode_Logs for Teams[0];
+if (TL::Length(Net_DebugMode_Logs) > 1000000) {
+    Net_DebugMode_Logs = TL::SubString(Net_DebugMode_Logs, 0, 1000000);
+}
+
+
 declare netwrite Integer Net_DebugMode_Logs_Serial for Teams[0];
 Net_DebugMode_Logs_Serial += 1;
 ***
@@ -309,8 +347,8 @@ Text GetManialink() {
                                     <label class="leftpanel-text" size="24 3" pos="0 -2" text="Custom Event Builder"/>
                                 </frame>
                                 <frame pos="0 -16">
-                                    <quad id="quad-leftpanel-forvars" class="leftpanel-button" size="26 4" pos="-1 0" bgcolor="fff" opacity="0" scriptevents="1"/>
-                                    <label class="leftpanel-text" size="24 3" pos="0 -2" text="ForVars dumper"/>
+                                    <quad id="quad-leftpanel-varinsp" class="leftpanel-button" size="26 4" pos="-1 0" bgcolor="fff" opacity="0" scriptevents="1"/>
+                                    <label class="leftpanel-text" size="24 3" pos="0 -2" text="Variable Inspector"/>
                                 </frame>
                             </frame>
                         </frame>
@@ -405,17 +443,17 @@ Text GetManialink() {
                                     <label class="rightpanel-text-button" size="23 3" pos="12.5 -2" text="Send Custom Event"/>
                                 </frame>
                             </frame>
-                            <frame id="frame-rightpanel-forvars" hidden=1>
+                            <frame id="frame-rightpanel-varinsp" hidden=1>
                                 <frame pos="0 0">
-                                    <quad id="quad-forvars-dumpthis" class="button" pos="0 0" size="47 4" z-index="-1" bgcolor="666" opacity="0.5" scriptevents="1"/>
+                                    <quad id="quad-varinsp-forvars-dumpthis" class="button" pos="0 0" size="47 4" z-index="-1" bgcolor="666" opacity="0.5" scriptevents="1"/>
                                     <label class="rightpanel-text-button" size="46 3" pos="23.5 -2" text="Dump This &quot;For&quot; variables"/>
                                 </frame>
                                 <frame pos="0 -5">
-                                    <quad id="quad-forvars-dumpteams0" class="button" pos="0 0" size="47 4" z-index="-1" bgcolor="666" opacity="0.5" scriptevents="1"/>
+                                    <quad id="quad-varinsp-forvars-dumpteams0" class="button" pos="0 0" size="47 4" z-index="-1" bgcolor="666" opacity="0.5" scriptevents="1"/>
                                     <label class="rightpanel-text-button" size="46 3" pos="23.5 -2" text="Dump Teams[0] &quot;For&quot; variables"/>
                                 </frame>
                                 <frame pos="0 -10">
-                                    <quad id="quad-forvars-dumpuiall" class="button" pos="0 0" size="47 4" z-index="-1" bgcolor="666" opacity="0.5" scriptevents="1"/>
+                                    <quad id="quad-varinsp-forvars-dumpuiall" class="button" pos="0 0" size="47 4" z-index="-1" bgcolor="666" opacity="0.5" scriptevents="1"/>
                                     <label class="rightpanel-text-button" size="46 3" pos="23.5 -2" text="Dump UIAll &quot;For&quot; variables"/>
                                 </frame>
                                 <frame pos="0 -15">
@@ -423,26 +461,42 @@ Text GetManialink() {
                                     <frameinstance pos="10 0" modelid="framemodel-tooltip" tooltip="Use login, Account Id or Nickname"/>
                                     <label class="text" size="10 3" pos="18 -1" text="Auto fill:"/>
                                     <frame pos="29 0">
-                                        <quad id="quad-forvars-autofill-me" class="button" pos="0 0" size="7 4" z-index="-1" bgcolor="666" opacity="0.5" scriptevents="1"/>
+                                        <quad id="quad-varinsp-forvars-autofill-me" class="button" pos="0 0" size="7 4" z-index="-1" bgcolor="666" opacity="0.5" scriptevents="1"/>
                                         <label class="rightpanel-text-button" size="6 3" pos="3.5 -2" text="Me"/>
                                     </frame>
                                     <frame pos="37 0">
-                                        <quad id="quad-forvars-autofill-visible" class="button" pos="0 0" size="10 4" z-index="-1" bgcolor="666" opacity="0.5" scriptevents="1"/>
+                                        <quad id="quad-varinsp-forvars-autofill-visible" class="button" pos="0 0" size="10 4" z-index="-1" bgcolor="666" opacity="0.5" scriptevents="1"/>
                                         <label class="rightpanel-text-button" size="9 3" pos="5 -2" text="Visible"/>
                                     </frame>
-                                    <entry id="entry-forvars-player" class="entry" pos="0 -6" size="72 4"/>
+                                    <entry id="entry-varinsp-player" class="entry" pos="0 -6" size="72 4"/>
                                 </frame>
                                 <frame pos="0 -25">
-                                    <frame pos="0 0">
-                                        <quad id="quad-forvars-player-player" class="button" pos="0 0" size="15 4" z-index="-1" bgcolor="666" opacity="0.5" scriptevents="1"/>
+                                    <label class="text" size="10 3" pos="0 -1" text="ForVars:"/>
+                                    <frame pos="0 -5">
+                                        <quad id="quad-varinsp-forvars-player-player" class="button" pos="0 0" size="15 4" z-index="-1" bgcolor="666" opacity="0.5" scriptevents="1"/>
                                         <label class="rightpanel-text-button" size="0 3" pos="7.5 -2" text="Player"/>
                                     </frame>
-                                    <frame pos="16 0">
-                                        <quad id="quad-forvars-player-score" class="button" pos="0 0" size="15 4" z-index="-1" bgcolor="666" opacity="0.5" scriptevents="1"/>
+                                    <frame pos="16 -5">
+                                        <quad id="quad-varinsp-forvars-player-score" class="button" pos="0 0" size="15 4" z-index="-1" bgcolor="666" opacity="0.5" scriptevents="1"/>
                                         <label class="rightpanel-text-button" size="0 3" pos="7.5 -2" text="Score"/>
                                     </frame>
-                                    <frame pos="32 0">
-                                        <quad id="quad-forvars-player-ui" class="button" pos="0 0" size="15 4" z-index="-1" bgcolor="666" opacity="0.5" scriptevents="1"/>
+                                    <frame pos="32 -5">
+                                        <quad id="quad-varinsp-forvars-player-ui" class="button" pos="0 0" size="15 4" z-index="-1" bgcolor="666" opacity="0.5" scriptevents="1"/>
+                                        <label class="rightpanel-text-button" size="0 3" pos="7.5 -2" text="UI"/>
+                                    </frame>
+                                </frame>
+                                <frame pos="0 -35">
+                                    <label class="text" size="10 3" pos="0 -1" text="Struct:"/>
+                                    <frame pos="0 -5">
+                                        <quad id="quad-varinsp-struct-player-player" class="button" pos="0 0" size="15 4" z-index="-1" bgcolor="666" opacity="0.5" scriptevents="1"/>
+                                        <label class="rightpanel-text-button" size="0 3" pos="7.5 -2" text="Player"/>
+                                    </frame>
+                                    <frame pos="16 -5">
+                                        <quad id="quad-varinsp-struct-player-score" class="button" pos="0 0" size="15 4" z-index="-1" bgcolor="666" opacity="0.5" scriptevents="1"/>
+                                        <label class="rightpanel-text-button" size="0 3" pos="7.5 -2" text="Score"/>
+                                    </frame>
+                                    <frame pos="32 -5">
+                                        <quad id="quad-varinsp-struct-player-ui" class="button" pos="0 0" size="15 4" z-index="-1" bgcolor="666" opacity="0.5" scriptevents="1"/>
                                         <label class="rightpanel-text-button" size="0 3" pos="7.5 -2" text="UI"/>
                                     </frame>
                                 </frame>
@@ -505,7 +559,6 @@ Text GetManialink() {
             }
 
             main() {
-                log("Init");
                 declare CMlFrame Frame_MainUI = (Page.GetFirstChild("frame-mainui") as CMlFrame);
 
                 declare CMlFrame Frame_Tooltip = (Page.GetFirstChild("frame-tooltip") as CMlFrame);
@@ -535,15 +588,15 @@ Text GetManialink() {
                 declare CMlEntry Entry_CustomEvent_Name = (Page.GetFirstChild("entry-customevent-name") as CMlEntry);
                 declare CMlEntry Entry_CustomEvent_Data = (Page.GetFirstChild("entry-customevent-data") as CMlEntry);
 
-                declare CMlEntry Entry_ForVars_Players = (Page.GetFirstChild("entry-forvars-player") as CMlEntry);
+                declare CMlEntry Entry_VarInsp_Players = (Page.GetFirstChild("entry-varinsp-player") as CMlEntry);
 
                 wait(InputPlayer != Null);
                 declare persistent Text P_DebugMode_CustomEvent_Name for InputPlayer.User;
                 Entry_CustomEvent_Name.Value = P_DebugMode_CustomEvent_Name;
                 declare persistent Text P_DebugMode_CustomEvent_Data for InputPlayer.User;
                 Entry_CustomEvent_Data.Value = P_DebugMode_CustomEvent_Data;
-                declare persistent Text P_DebugMode_ForVars_Players for InputPlayer.User;
-                Entry_ForVars_Players.Value = P_DebugMode_ForVars_Players;
+                declare persistent Text P_DebugMode_VarInsp_Players for InputPlayer.User;
+                Entry_VarInsp_Players.Value = P_DebugMode_VarInsp_Players;
                 declare persistent Text P_DebugMode_Bots_Name for InputPlayer.User;
                 Entry_Bots_Name.Value = P_DebugMode_Bots_Name;
                 declare persistent Text P_DebugMode_Bots_TeamId for InputPlayer.User;
@@ -617,29 +670,29 @@ Text GetManialink() {
                                         SwitchToTab(Last_TabSelected, "quad-leftpanel-logs");
                                         Last_TabSelected = "quad-leftpanel-logs";
                                     }
-                                    case "quad-forvars-dumpthis": {
-                                        SendCustomEvent("DebugMode.ForVars.Dump.This", []);
+                                    case "quad-varinsp-forvars-dumpthis": {
+                                        SendCustomEvent("DebugMode.VarInsp.Dump.This", []);
                                         SwitchToTab(Last_TabSelected, "quad-leftpanel-logs");
                                         Last_TabSelected = "quad-leftpanel-logs";
                                     }
-                                    case "quad-forvars-dumpteams0": {
-                                        SendCustomEvent("DebugMode.ForVars.Dump.Teams0", []);
+                                    case "quad-varinsp-forvars-dumpteams0": {
+                                        SendCustomEvent("DebugMode.VarInsp.Dump.Teams0", []);
                                         SwitchToTab(Last_TabSelected, "quad-leftpanel-logs");
                                         Last_TabSelected = "quad-leftpanel-logs";
                                     }
-                                    case "quad-forvars-dumpuiall": {
-                                        SendCustomEvent("DebugMode.ForVars.Dump.UIAll", []);
+                                    case "quad-varinsp-forvars-dumpuiall": {
+                                        SendCustomEvent("DebugMode.VarInsp.Dump.UIAll", []);
                                         SwitchToTab(Last_TabSelected, "quad-leftpanel-logs");
                                         Last_TabSelected = "quad-leftpanel-logs";
                                     }
-                                    case "quad-forvars-autofill-me": {
-                                        Entry_ForVars_Players.Value = InputPlayer.User.Name;
+                                    case "quad-varinsp-forvars-autofill-me": {
+                                        Entry_VarInsp_Players.Value = InputPlayer.User.Name;
                                     }
-                                    case "quad-forvars-autofill-visible": {
+                                    case "quad-varinsp-forvars-autofill-visible": {
                                         if (GUIPlayer != Null) {
-                                            Entry_ForVars_Players.Value = GUIPlayer.User.Name;
+                                            Entry_VarInsp_Players.Value = GUIPlayer.User.Name;
                                         } else {
-                                            Entry_ForVars_Players.Value = "";
+                                            Entry_VarInsp_Players.Value = "";
                                         }
                                     }
                                 }
@@ -662,13 +715,19 @@ Text GetManialink() {
                                         SendCustomEvent("DebugMode.PlayersControl.Set", [Entry_PlayersControl_Speed.Value, Entry_PlayersControl_Steer.Value, Target]);
                                     }
                                 }
-                                if (TL::StartsWith("quad-forvars-player-", Event.Control.ControlId)) {
-                                    if (Entry_ForVars_Players.Value != "") {
-                                        SendCustomEvent("DebugMode.ForVars.Dump.Player", [Entry_ForVars_Players.Value, TL::Split("-",Event.Control.ControlId)[3]]);
+                                if (TL::StartsWith("quad-varinsp-forvars-player-", Event.Control.ControlId)) {
+                                    if (Entry_VarInsp_Players.Value != "") {
+                                        SendCustomEvent("DebugMode.VarInsp.ForVars.Dump.Player", [Entry_VarInsp_Players.Value, TL::Split("-",Event.Control.ControlId)[4]]);
                                         SwitchToTab(Last_TabSelected, "quad-leftpanel-logs");
                                         Last_TabSelected = "quad-leftpanel-logs";
                                     }
-
+                                }
+                                if (TL::StartsWith("quad-varinsp-struct-player-", Event.Control.ControlId)) {
+                                    if (Entry_VarInsp_Players.Value != "") {
+                                        SendCustomEvent("DebugMode.VarInsp.Struct.Dump.Player", [Entry_VarInsp_Players.Value, TL::Split("-",Event.Control.ControlId)[4]]);
+                                        SwitchToTab(Last_TabSelected, "quad-leftpanel-logs");
+                                        Last_TabSelected = "quad-leftpanel-logs";
+                                    }
                                 }
                                 if (Event.Control.ControlClasses.exists("leftpanel-button")) {
                                     SwitchToTab(Last_TabSelected, Event.Control.ControlId);
@@ -677,7 +736,7 @@ Text GetManialink() {
                                 // Save value to persistent variable
                                 P_DebugMode_CustomEvent_Name = Entry_CustomEvent_Name.Value;
                                 P_DebugMode_CustomEvent_Data = Entry_CustomEvent_Data.Value;
-                                P_DebugMode_ForVars_Players = Entry_ForVars_Players.Value;
+                                P_DebugMode_VarInsp_Players = Entry_VarInsp_Players.Value;
                                 P_DebugMode_Bots_Name = Entry_Bots_Name.Value;
                                 P_DebugMode_Bots_TeamId = Entry_Bots_TeamId.Value;
                                 P_DebugMode_PlayersControl_Speed = Entry_PlayersControl_Speed.Value;
@@ -795,7 +854,7 @@ Text GetManialink() {
                         TextEdit_Logs.MaxLine += 1;
                         Entry_CustomEvent_Name.Size.X = Quad_Background.Size.X - 28;
                         Entry_CustomEvent_Data.Size.X = Quad_Background.Size.X - 28;
-                        Entry_ForVars_Players.Size.X = Quad_Background.Size.X - 28;
+                        Entry_VarInsp_Players.Size.X = Quad_Background.Size.X - 28;
                         Entry_Bots_Name.Size.X = Quad_Background.Size.X - 28;
                         Entry_Bots_TeamId.Size.X = Quad_Background.Size.X - 28;
                         Entry_PlayersControl_Speed.Size.X = Quad_Background.Size.X - 28;
