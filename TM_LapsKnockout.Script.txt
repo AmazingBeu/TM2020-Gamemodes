@@ -61,8 +61,6 @@
 	Integer NbLapFinishers;
 }
 
-
-
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Constants
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -503,12 +501,12 @@ Void SetManialink_Panel() {
 			<style class="text-titles" textfont="GameFontBlack" textcolor="ffffffff" textsize="1.5" valign="center2" textprefix="$i$t"/>
 			<style class="text-values" textfont="GameFontSemiBold" textcolor="ffffffff" textsize="1.5" valign="center2" textprefix="$i$t" halign="right"/>
 		</stylesheet>
-		<frame id="frame-global" pos="-65 -80">
-			<quad pos="0 0" z-index="-1" size="37 10" bgcolor="000" opacity="0.7"/>
+		<frame id="frame-global" pos="-20 75" halign="center">
+			<quad pos="0 0" z-index="-1" size="40 10" bgcolor="000" opacity="0.7"/>
 			<label class="text-titles" pos="1 -3.5" size="27 5" text="Players alive:" />
-			<label id="label-players-alive" class="text-values" pos="36 -3.5" size="20 5" text="-" />
+			<label id="label-players-alive" class="text-values" pos="39 -3.5" size="20 5" text="-" />
 			<label class="text-titles" pos="1 -7.5" size="27 5" text="KO this lap:"/>
-			<label id="label-KO-this-lap" class="text-values" pos="36 -7.5" size="20 5" text="-"/>
+			<label id="label-KO-this-lap" class="text-values" pos="39 -7.5" size="20 5" text="-"/>
 		</frame>
 		<script><!--
 		#Include "TextLib" as TL
@@ -567,7 +565,6 @@ Void SetManialink_Panel() {
 				}
 
 				Label_Players_Alive.Value = TL::ToText(Net_LapsKnockout_NumberOfPlayers - Net_LapsKnockout_KOs);
-
 			}
 		}
 		--></script>
