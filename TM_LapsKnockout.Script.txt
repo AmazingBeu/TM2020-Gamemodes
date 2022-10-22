@@ -6,7 +6,7 @@
 #Extends "Libs/Nadeo/TMNext/TrackMania/Modes/TMNextBase.Script.txt"
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2022-05-20"
+#Const	Version							"2022-10-22"
 #Const	ScriptName					"Modes/TM2020-Gamemodes/TM_LapsKnockout.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -185,12 +185,8 @@ Race::SetLapsSettings(True, -1); // force infinite lap
 CarRank::Reset();
 
 UIModules_ScoresTable::SetCustomPoints([]);
-declare netwrite Integer Net_LapsKnockout_NumberOfPlayers for Teams[0];
-Net_LapsKnockout_NumberOfPlayers = 0;
-declare netwrite Integer[Integer] Net_LapsKnockout_KOPerLap for Teams[0];
-Net_LapsKnockout_KOPerLap = [];
-declare netwrite Integer Net_LapsKnockout_KOs for Teams[0];
-Net_LapsKnockout_KOs = 0;
+declare netwrite K_LapState[Integer] Net_LapsKnockout_MatchState for Teams[0]; // Note the NbLapFinishers is not updated
+Net_LapsKnockout_MatchState = [];
 
 // Warm up
 ---Laps_Warmup---
@@ -236,23 +232,13 @@ Last_EliminatedPlayersNbRanks = S_EliminatedPlayersNbRanks;
 MatchState = ComputeMatchState(Last_NumberOfPlayers);
 
 // Update UI
-declare netwrite Integer Net_LapsKnockout_NumberOfPlayers for Teams[0];
-Net_LapsKnockout_NumberOfPlayers = Last_NumberOfPlayers;
+declare netwrite K_LapState[Integer] Net_LapsKnockout_MatchState for Teams[0]; // Note the NbLapFinishers is not updated
+Net_LapsKnockout_MatchState = MatchState;
 
-declare Boolean LapsSettingSet = False;
-declare Integer[Integer] KOPerLap;
 foreach (LapNb => State in MatchState.sortkeyreverse()) {
-	if (!LapsSettingSet) {
-		LapsSettingSet = True;
-		Race::SetLapsSettings(False, LapNb); // Set number of laps with number of 
-	}
-	KOPerLap[LapNb] = State.NbEliminations;
-
+	Race::SetLapsSettings(False, LapNb); // Set number of laps with number of 
+	break;
 }
-
-declare netwrite Integer[Integer] Net_LapsKnockout_KOPerLap for Teams[0];
-Net_LapsKnockout_KOPerLap = KOPerLap;
-
 
 // Reset Dossard Color
 foreach (Player in Players) {
@@ -286,7 +272,7 @@ foreach (Event in RacePendingEvents) {
 					MatchState[Event.Player.CurrentLapNumber].NbLapFinishers += 1;
 
 					// Proceed kick
-					if (MatchState[Event.Player.CurrentLapNumber].NbLapFinishers == MatchState[Event.Player.CurrentLapNumber].NbAliveAfter) {
+					if (MatchState[Event.Player.CurrentLapNumber].NbLapFinishers >= MatchState[Event.Player.CurrentLapNumber].NbAliveAfter) {
 						foreach (Player in Players) {
 							if (Player.SpawnStatus != CSmPlayer::ESpawnStatus::Spawned) continue;
 	
@@ -353,19 +339,15 @@ if (Last_NbLapsWithoutKO != S_NbLapsWithoutKO || Last_EliminatedPlayersNbRanks !
 	Last_EliminatedPlayersNbRanks = S_EliminatedPlayersNbRanks;
 
 	MatchState = ComputeMatchState(Last_NumberOfPlayers);
-	// Update UI
-	declare Boolean LapsSettingSet = False;
-	declare Integer[Integer] KOPerLap;
-	foreach (LapNb => State in MatchState.sortkeyreverse()) {
-		if (!LapsSettingSet) {
-			LapsSettingSet = True;
-			Race::SetLapsSettings(False, LapNb); // Set number of laps with number of 
-		}
-		KOPerLap[LapNb] = State.NbEliminations;
 
+	// Update UI
+	declare netwrite K_LapState[Integer] Net_LapsKnockout_MatchState for Teams[0]; // Note the NbLapFinishers is not updated
+	Net_LapsKnockout_MatchState = MatchState;
+	
+	foreach (LapNb => State in MatchState.sortkeyreverse()) {
+		Race::SetLapsSettings(False, LapNb); // Set number of laps with number of 
+		break;
 	}
-	declare netwrite Integer[Integer] Net_LapsKnockout_KOPerLap for Teams[0];
-	Net_LapsKnockout_KOPerLap = KOPerLap;
 }
 
 if (Players.count > 0 && PlayersNbAlive <= 0) {
@@ -485,13 +467,6 @@ Void EliminatePlayer(CSmPlayer _Player) {
 	log("EliminatePlayer: " ^ _Player.User.Name ^ " ("  ^ _Player.User.Login ^ ")");
 	Race::StopSkipOutro(_Player);
 	UIManager.UIAll.SendChat("Player $<$ff6" ^ _Player.User.Name ^ "$> is $<$f00eliminated$>");
-
-	// waiting GetCustomPoints function in ScoresTable_Server
-	declare netwrite Text[][Text] Net_TMxSM_ScoresTable_CustomPoints for Teams[0];
-	Net_TMxSM_ScoresTable_CustomPoints[_Player.User.WebServicesUserId] = [_("|Status|K.O."), "f00"];
-
-	declare netwrite Integer Net_LapsKnockout_KOs for Teams[0];
-	Net_LapsKnockout_KOs += 1;
 }
 
 Void SetManialink_Panel() {
@@ -512,6 +487,8 @@ Void SetManialink_Panel() {
 		#Include "TextLib" as TL
 		#Include "MathLib" as ML
 
+		{{{dumptype(K_LapState)}}}
+
 		Void DevLog(Text _LogText) {
 			declare netread Text Net_ScriptEnvironment for Teams[0] = "production";
 			if (Net_ScriptEnvironment == "development") log("[RVC] " ^ _LogText);
@@ -531,11 +508,10 @@ Void SetManialink_Panel() {
 			declare CMlLabel Label_Players_Alive <=> (Page.GetFirstChild("label-players-alive") as CMlLabel);
 			declare CMlLabel Label_KO_This_Lap <=> (Page.GetFirstChild("label-KO-this-lap") as CMlLabel);
 
-			declare netread Integer Net_LapsKnockout_NumberOfPlayers for Teams[0];
-			declare netread Integer Net_LapsKnockout_KOs for Teams[0];
-			declare netread Integer[Integer] Net_LapsKnockout_KOPerLap for Teams[0];
+			declare netread K_LapState[Integer] Net_LapsKnockout_MatchState for Teams[0]; // Note the NbLapFinishers is not updated
 
 			declare Integer UpdateTime;
+			declare Integer Last_LapNb;
 
 			wait(InputPlayer != Null);
 
@@ -550,21 +526,33 @@ Void SetManialink_Panel() {
 					continue;
 				}
 
-				if (!Frame_Global.Visible) Frame_Global.Visible = True;
+				Frame_Global.Visible = True;
 
-				if (Net_LapsKnockout_KOPerLap.count == 0) {
+				if (Net_LapsKnockout_MatchState.count == 0) {
 					Label_Players_Alive.Value = "-";
 					Label_KO_This_Lap.Value = "-";
 					continue;
 				}
 
-				if (Net_LapsKnockout_KOPerLap.existskey(GetPlayerLap(GUIPlayer))) {
-					Label_KO_This_Lap.Value = TL::ToText(Net_LapsKnockout_KOPerLap[GetPlayerLap(GUIPlayer)]);
-				} else {
-					Label_KO_This_Lap.Value = "0";
-				}
+				if (Last_LapNb != GetPlayerLap(GUIPlayer)) {
+					Last_LapNb = GetPlayerLap(GUIPlayer);
 
-				Label_Players_Alive.Value = TL::ToText(Net_LapsKnockout_NumberOfPlayers - Net_LapsKnockout_KOs);
+					if (Net_LapsKnockout_MatchState.existskey(Last_LapNb)) {
+						Label_KO_This_Lap.Value = TL::ToText(Net_LapsKnockout_MatchState[Last_LapNb].NbEliminations);
+						Label_Players_Alive.Value = TL::ToText(Net_LapsKnockout_MatchState[Last_LapNb].NbAliveAfter + Net_LapsKnockout_MatchState[Last_LapNb].NbEliminations);
+					} else {
+						declare Integer LapNb;
+						foreach (Key => Dummy in Net_LapsKnockout_MatchState) {
+							LapNb = Key;
+							break;
+						}
+
+						Label_Players_Alive.Value = TL::ToText(Net_LapsKnockout_MatchState[LapNb].NbAliveAfter + Net_LapsKnockout_MatchState[LapNb].NbEliminations);
+						Label_KO_This_Lap.Value = "0";
+					}
+	
+					
+				}
 			}
 		}
 		--></script>
