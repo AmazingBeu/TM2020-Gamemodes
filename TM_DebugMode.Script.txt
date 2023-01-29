@@ -9,6 +9,8 @@
 
 #Setting S_DebugLib_RestrictUIto "" as "Restrict UI Admin to comma separated logins (all if empty)"
 
+#Const C_DebugMode_Version "2023-01-29"
+
 #Const C_DebugMode_MainUI "DebugMode_MainUI"
 
 #Include "TimeLib" as TiL
@@ -592,6 +594,20 @@ Text GetManialink() {
                 declare CMlEntry Entry_VarInsp_Players = (Page.GetFirstChild("entry-varinsp-player") as CMlEntry);
 
                 wait(InputPlayer != Null);
+                declare persistent Boolean P_DebugMode_Window_Open;
+                Frame_MainUI.Visible = P_DebugMode_Window_Open;
+                declare persistent Boolean P_DebugMode_IsMaximized;
+                declare persistent Vec2 P_DebugMode_Window_Pos = <-100., 65.>;
+                declare persistent Vec2 P_DebugMode_Window_Size = <100., 60.>;
+                if (P_DebugMode_IsMaximized) {
+                    Frame_MainUI.RelativePosition_V3 = <-160., 85.>;
+                    Quad_Background.Size = <320., 175.>;
+                    Quad_Topbar_Maximize.StyleSelected = True;
+                } else {
+                    Frame_MainUI.RelativePosition_V3 = P_DebugMode_Window_Pos;
+                    Quad_Background.Size = P_DebugMode_Window_Size;
+
+                }
                 declare persistent Text P_DebugMode_CustomEvent_Name for InputPlayer.User;
                 Entry_CustomEvent_Name.Value = P_DebugMode_CustomEvent_Name;
                 declare persistent Text P_DebugMode_CustomEvent_Data for InputPlayer.User;
@@ -618,10 +634,6 @@ Text GetManialink() {
                 declare Vec2 Last_BorderResize_Offset;
                 declare Real Last_BorderResize_SizeOffset;
 
-                declare Boolean Last_IsMaximized;
-                declare Vec2 Last_Minimized_Size = Quad_Background.Size;
-                declare Vec2 Last_Minimized_Pos = <Frame_MainUI.RelativePosition_V3.X, Frame_MainUI.RelativePosition_V3.Y>;
-
                 declare Text Last_TabSelected = "quad-leftpanel-logs";
 
                 while (True) {
@@ -632,35 +644,36 @@ Text GetManialink() {
                                 switch (Event.Control.ControlId) {
                                     case "quad-displaybutton": {
                                         Frame_MainUI.Visible = !Frame_MainUI.Visible;
+                                        P_DebugMode_Window_Open = Frame_MainUI.Visible;
                                     }
                                     case "quad-topbar-quit": {
                                         Frame_MainUI.Visible = False;
                                     }
                                     case "quad-topbar-maximize": {
-                                        Last_IsMaximized = MaximizeMinimizeWindow(Quad_Topbar_Maximize, Frame_MainUI, Last_Minimized_Pos, Quad_Background, Last_Minimized_Size);
+                                        P_DebugMode_IsMaximized = MaximizeMinimizeWindow(Quad_Topbar_Maximize, Frame_MainUI, P_DebugMode_Window_Pos, Quad_Background, P_DebugMode_Window_Size);
                                     }
                                     case "quad-topbar": {
-                                        if (!Last_IsMaximized) {
+                                        if (!P_DebugMode_IsMaximized) {
                                             Last_DragAndDrop_State = True;
-                                            Last_DragAndDrop_Offset = <Event.Control.Parent.Parent.Parent.RelativePosition_V3.X - MouseX, Event.Control.Parent.Parent.Parent.RelativePosition_V3.Y - MouseY>;
+                                            Last_DragAndDrop_Offset = <Event.Control.Parent.Parent.Parent.RelativePosition_V3.X - ML::Clamp(MouseX, -160., 160.), Event.Control.Parent.Parent.Parent.RelativePosition_V3.Y - ML::Clamp(MouseY, -90., 90.)>;
                                         }
                                     }
                                     case "quad-border-bottom": {
-                                        if (!Last_IsMaximized) {
+                                        if (!P_DebugMode_IsMaximized) {
                                             Last_BorderResize_Side.add("bottom");
-                                            Last_BorderResize_Offset = <Event.Control.RelativePosition_V3.X - MouseX, Event.Control.RelativePosition_V3.Y - MouseY>;
+                                            Last_BorderResize_Offset = <Event.Control.RelativePosition_V3.X - ML::Clamp(MouseX, -160., 160.), Event.Control.RelativePosition_V3.Y - ML::Clamp(MouseY, -90., 90.)>;
                                         }
                                     }
                                     case "quad-border-right": {
-                                        if (!Last_IsMaximized) {
+                                        if (!P_DebugMode_IsMaximized) {
                                             Last_BorderResize_Side.add("right");
-                                            Last_BorderResize_Offset = <Event.Control.RelativePosition_V3.X - MouseX, Event.Control.RelativePosition_V3.Y - MouseY>;
+                                            Last_BorderResize_Offset = <Event.Control.RelativePosition_V3.X - ML::Clamp(MouseX, -160., 160.), Event.Control.RelativePosition_V3.Y - ML::Clamp(MouseY, -90., 90.)>;
                                         }
                                     }
                                     case "quad-corner-bottomright": {
-                                        if (!Last_IsMaximized) {
+                                        if (!P_DebugMode_IsMaximized) {
                                             Last_BorderResize_Side = ["bottom","right"];
-                                            Last_BorderResize_Offset = <Event.Control.RelativePosition_V3.X - MouseX, Event.Control.RelativePosition_V3.Y - MouseY>;
+                                            Last_BorderResize_Offset = <Event.Control.RelativePosition_V3.X - ML::Clamp(MouseX, -160., 160.), Event.Control.RelativePosition_V3.Y - ML::Clamp(MouseY, -90., 90.)>;
                                         }
                                     }
                                     case "quad-clearlogs": {
@@ -808,11 +821,11 @@ Text GetManialink() {
                     }
 
                     if (Last_DragAndDrop_State && MouseLeftButton) {
-                        Frame_MainUI.RelativePosition_V3.X = Last_DragAndDrop_Offset.X + MouseX;
-                        Frame_MainUI.RelativePosition_V3.Y = Last_DragAndDrop_Offset.Y + MouseY;
+                        Frame_MainUI.RelativePosition_V3.X = Last_DragAndDrop_Offset.X + ML::Clamp(MouseX, -160., 160.);
+                        Frame_MainUI.RelativePosition_V3.Y = Last_DragAndDrop_Offset.Y + ML::Clamp(MouseY, -90., 90.);
                     } else if (Last_DragAndDrop_State && !MouseLeftButton) {
                         Last_DragAndDrop_State = False;
-                        Last_Minimized_Pos = <Frame_MainUI.RelativePosition_V3.X, Frame_MainUI.RelativePosition_V3.Y>;
+                        P_DebugMode_Window_Pos = <Frame_MainUI.RelativePosition_V3.X, Frame_MainUI.RelativePosition_V3.Y>;
                     }
 
                     if (Last_BorderResize_Side.count > 0 && MouseLeftButton) {
@@ -822,12 +835,12 @@ Text GetManialink() {
                             PosOffset = <2., -2.>;
                         }
                         if (Last_BorderResize_Side.exists("right")) {
-                            declare Real X = ML::Max(75., Last_BorderResize_Offset.X + MouseX + PosOffset.X);
+                            declare Real X = ML::Max(75., Last_BorderResize_Offset.X + ML::Clamp(MouseX, -160., 160.) + PosOffset.X);
                             Quad_Border_Right.Opacity = 1.;
                             Quad_Background.Size.X = X;
                         }
                         if (Last_BorderResize_Side.exists("bottom")) {
-                            declare Real Y = ML::Min(-50., Last_BorderResize_Offset.Y + MouseY + PosOffset.Y);
+                            declare Real Y = ML::Min(-50., Last_BorderResize_Offset.Y + ML::Clamp(MouseY, -90., 90.) + PosOffset.Y);
                             Quad_Border_Bottom.Opacity = 1.;
                             Quad_Background.Size.Y = -1. * Y;
                         }
@@ -838,7 +851,7 @@ Text GetManialink() {
                         Quad_Border_Bottom.Opacity = 0.;
 
                         // Save pos
-                        Last_Minimized_Size = Quad_Background.Size;
+                        P_DebugMode_Window_Size = Quad_Background.Size;
                     }
 
                     // Update sizes & pos
