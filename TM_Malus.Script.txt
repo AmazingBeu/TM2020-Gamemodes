@@ -1,0 +1,170 @@
+/**
+*	Gamemode with Malus send periodically.
+*   This mode is in multiple files to be able to have malus during the WarmUp
+*   You can change the Gamemode below by anything else
+*/
+// #RequireContext CSmMode
+
+#Extends "Modes/TrackMania/TM_Rounds_Online.Script.txt"
+
+#Include "Libs/Nadeo/TMNext/TrackMania/Menu/Constants.Script.txt" as MenuConsts
+
+#Include "Modes/TM2020-Gamemodes/Libs/Malus.Script.txt" as Malus
+
+#Setting S_MalusDuration 10 as "Duration of the Malus"
+#Setting S_MalusMinCooldown 5 as "Minimal delay before the next Malus"
+#Setting S_MalusMaxCooldown 30 as "Maximal delay before the next Malus"
+
+***Match_StartServer***
+***
+// Disable registering PB
+Race::SetupRecord(
+	MenuConsts::C_ScopeType_Season,
+	MenuConsts::C_ScopeType_PersonalBest,
+	MenuConsts::C_GameMode_TimeAttack,
+	"",
+	False, //C_UploadRecord
+	False, //C_DisplayRecordGhost
+	False, //C_DisplayRecordMedal
+	False, //C_CelebrateRecordGhost
+	False //C_CelebrateRecordMedal
+);
+***
+
+***Match_AfterLoadHud***
+***
+AddMalusUI();
+***
+
+***Match_InitMap***
+***
+Malus::Reset();
+***
+
+***Match_StartRound***
+***
+Malus::StartRound(S_MalusDuration ,S_MalusMinCooldown, S_MalusMaxCooldown);
+***
+
+***Match_StartWarmUpRound***
+***
+Malus::Reset();
+Malus::StartRound(S_MalusDuration ,S_MalusMinCooldown, S_MalusMaxCooldown);
+***
+
+***Match_WarmUpLoop***
+***
+Malus::Yield();
+***
+
+***Match_PlayLoop***
+***
+Malus::Yield();
+***
+
+***Match_EndRound***
+***
+Malus::Reset();
+***
+
+
+Void AddMalusUI() {
+	declare Text AttachId = "Malus_MalusMessages";
+
+    declare Text Manialink =  """
+    <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+    <manialink version="3" name="{{{AttachId}}}">
+        <frame id="frame-global" hidden=1 pos="0 45">
+            <label id="label-message" z-index="10"  halign="center" valign="center2" textsize="7" textemboss="1" text="" textfont="GameFontBlack" textcolor="fff" scale=0/>
+        </frame>
+        <script><!--
+            #Include "TextLib" as TL
+            #Include "TimeLib" as TimeLib
+
+            #Const C_AttachId {{{dump(AttachId)}}}
+
+            #Const C_Malus_Name {{{dump(Malus::C_Malus_Name)}}}
+
+            declare CAudioSource G_Sound_CountDown;
+            declare CAudioSource G_Sound_Malus;
+
+            Void DisplayMessage(CMlLabel _Label) {
+                _Label.RelativeScale = 0.;
+                AnimMgr.Flush(_Label);
+                AnimMgr.Add(_Label, "<a scale=1. />", 200, CAnimManager::EAnimManagerEasing::Linear);
+            }
+
+            main() {
+                log("Init " ^ C_AttachId);
+                declare CMlFrame Frame_Global <=> (Page.GetFirstChild("frame-global") as CMlFrame);
+                declare CMlLabel Label_Message <=> (Frame_Global.GetFirstChild("label-message") as CMlLabel);
+
+                G_Sound_CountDown = Audio.CreateSound("file://Media/Manialinks/Nadeo/TMConsole/MapEditor/Sounds/MenuDialogHidden.wav", 1.0, False, False, False);
+                G_Sound_Malus = Audio.CreateSound("file://Media/Manialinks/Nadeo/TMConsole/MapEditor/Sounds/MenuDialogDisplayed.wav", 1.0, False, False, False);
+
+                // Wait C++ initialize the player
+                wait (InputPlayer != Null);
+
+                Frame_Global.Visible = True;
+
+                declare Integer Last_UpdateSponsor;
+                declare Integer Last_SponsorIndex;
+
+                declare netread Integer Net_Malus_MalusIndex for Teams[0] = 0;
+                declare netread Integer Net_Malus_MalusStart for Teams[0] = 0;
+                declare netread Integer Net_Malus_MalusDuration for Teams[0] = 0;
+
+                declare Integer Last_CountDown_Sound;
+
+                declare Integer Last_MalusStart;
+                declare Integer Last_PlayMalus;
+                declare Integer Last_PlayReset;
+                declare Integer Last_CountDownIndex;
+
+                while(True) {
+                    yield;
+
+                    if (Last_MalusStart != Net_Malus_MalusStart) {
+                        Last_MalusStart = Net_Malus_MalusStart;
+                        if (Net_Malus_MalusIndex != 0) {
+                            Last_PlayMalus = Now + 3000;
+                            Last_PlayReset = Now + 3000 + Net_Malus_MalusDuration;
+                            Last_CountDown_Sound = Now;
+                        }
+                    }
+
+                    if (Last_PlayMalus > 0 && Now > Last_PlayMalus) {
+                        log(Now ^ " Last_PlayMalus");
+                        Last_CountDown_Sound = 0;
+                        Last_PlayMalus = 0;
+                        G_Sound_Malus.Play();
+                        Label_Message.Value = "Malus: " ^ C_Malus_Name[Net_Malus_MalusIndex];
+                        DisplayMessage(Label_Message);
+                    }
+                    if (Last_PlayReset > 0 && Now > Last_PlayReset) {
+                        Last_PlayReset = 0;
+                        Last_CountDownIndex = 0;
+                        G_Sound_Malus.Play();
+                        Label_Message.Value = "Malus ended";
+                        DisplayMessage(Label_Message);
+                        AnimMgr.Add(Label_Message, "<a scale=0 />", Now + 3000, 10, CAnimManager::EAnimManagerEasing::Linear);
+                    }
+
+                    if (Last_CountDown_Sound > 0 && Now >= Last_CountDown_Sound) {
+                        log(Now ^ " Countdown");
+                        Last_CountDownIndex += 1;
+                        Last_CountDown_Sound = Now + 1000;
+                        G_Sound_CountDown.Play();
+                        Label_Message.Value = "New Malus in " ^ 4 - Last_CountDownIndex ^ " secs";
+                        DisplayMessage(Label_Message);
+                    }
+                }
+            }
+        --></script>
+    </manialink>
+    """;
+
+	Layers::Create(AttachId, Manialink);
+	Layers::SetType(AttachId, CUILayer::EUILayerType::Normal);
+	Layers::Attach(AttachId);
+}
