@@ -9,7 +9,7 @@
 
 #Setting S_DebugLib_RestrictUIto "" as "Restrict UI Admin to comma separated logins (all if empty)"
 
-#Const C_DebugMode_Version "2023-01-29"
+#Const C_DebugMode_Version "2023-02-09"
 
 #Const C_DebugMode_MainUI "DebugMode_MainUI"
 
@@ -334,7 +334,7 @@ Text GetManialink() {
                             <quad id="quad-leftpanel-separator" pos="24.7 0" z-index="-1" size="0.3 53" bgcolor="fff"/>
                             <frame>
                                 <frame pos="0 0">
-                                    <quad id="quad-leftpanel-logs" class="leftpanel-button" size="26 4" pos="-1 0" bgcolor="fff" opacity="0.2" scriptevents="1"/>
+                                    <quad id="quad-leftpanel-logs" class="leftpanel-button" size="26 4" pos="-1 0" bgcolor="fff" opacity="0" scriptevents="1"/>
                                     <label class="leftpanel-text" size="24 3" pos="0 -2" text="Log return"/>
                                 </frame>
                                 <frame pos="0 -4">
@@ -356,7 +356,7 @@ Text GetManialink() {
                             </frame>
                         </frame>
                         <frame id="frame-rightpanel" pos="26 0">
-                            <frame id="frame-rightpanel-logs">
+                            <frame id="frame-rightpanel-logs" hidden=1>
                                 <frame>
                                     <quad id="quad-clearlogs" class="button" pos="0 0" size="15 4" z-index="-1" bgcolor="666" opacity="0.5" scriptevents="1"/>
                                     <label class="rightpanel-text-button" size="14 3" pos="7.5 -2" text="Clear logs"/>
@@ -550,15 +550,20 @@ Text GetManialink() {
             }
 
             Void SwitchToTab(Text _CurrentTab, Text _NexTab) {
-                declare CMlQuad Quad = (Page.GetFirstChild(_CurrentTab) as CMlQuad);
-                Quad.Opacity = 0.;
-                Quad = (Page.GetFirstChild(_NexTab) as CMlQuad);
-                Quad.Opacity = .2;
+                declare CMlQuad Quad;
+                declare CMlFrame Frame;
                 
-                declare CMlFrame Frame = (Page.GetFirstChild("frame-rightpanel-" ^ TL::Split("-", _CurrentTab)[2]) as CMlFrame);
-                Frame.Visible = False;
-                Frame = (Page.GetFirstChild("frame-rightpanel-" ^ TL::Split("-", _NexTab)[2]) as CMlFrame);
-                Frame.Visible = True;
+                if (_CurrentTab != "") {
+                    Quad <=> (Page.GetFirstChild(_CurrentTab) as CMlQuad);
+                    if (Quad != Null) Quad.Opacity = 0.;
+                    Frame <=> (Page.GetFirstChild("frame-rightpanel-" ^ TL::Split("-", _CurrentTab)[2]) as CMlFrame);
+                    if (Frame != Null) Frame.Visible = False;
+                }
+                        
+                Quad <=> (Page.GetFirstChild(_NexTab) as CMlQuad);
+                if (Quad != Null) Quad.Opacity = .2;
+                Frame <=> (Page.GetFirstChild("frame-rightpanel-" ^ TL::Split("-", _NexTab)[2]) as CMlFrame);
+                if (Frame != Null) Frame.Visible = True;
             }
 
             main() {
@@ -594,11 +599,11 @@ Text GetManialink() {
                 declare CMlEntry Entry_VarInsp_Players = (Page.GetFirstChild("entry-varinsp-player") as CMlEntry);
 
                 wait(InputPlayer != Null);
-                declare persistent Boolean P_DebugMode_Window_Open;
+                declare persistent Boolean P_DebugMode_Window_Open for InputPlayer.User;
                 Frame_MainUI.Visible = P_DebugMode_Window_Open;
-                declare persistent Boolean P_DebugMode_IsMaximized;
-                declare persistent Vec2 P_DebugMode_Window_Pos = <-100., 65.>;
-                declare persistent Vec2 P_DebugMode_Window_Size = <100., 60.>;
+                declare persistent Boolean P_DebugMode_IsMaximized for InputPlayer.User;
+                declare persistent Vec2 P_DebugMode_Window_Pos for InputPlayer.User = <-100., 65.>;
+                declare persistent Vec2 P_DebugMode_Window_Size for InputPlayer.User = <100., 60.>;
                 if (P_DebugMode_IsMaximized) {
                     Frame_MainUI.RelativePosition_V3 = <-160., 85.>;
                     Quad_Background.Size = <320., 175.>;
@@ -606,8 +611,9 @@ Text GetManialink() {
                 } else {
                     Frame_MainUI.RelativePosition_V3 = P_DebugMode_Window_Pos;
                     Quad_Background.Size = P_DebugMode_Window_Size;
-
                 }
+                declare persistent Text P_DebugMode_SelectedTab for InputPlayer.User = "quad-leftpanel-logs";
+                SwitchToTab("", P_DebugMode_SelectedTab);
                 declare persistent Text P_DebugMode_CustomEvent_Name for InputPlayer.User;
                 Entry_CustomEvent_Name.Value = P_DebugMode_CustomEvent_Name;
                 declare persistent Text P_DebugMode_CustomEvent_Data for InputPlayer.User;
@@ -634,8 +640,6 @@ Text GetManialink() {
                 declare Vec2 Last_BorderResize_Offset;
                 declare Real Last_BorderResize_SizeOffset;
 
-                declare Text Last_TabSelected = "quad-leftpanel-logs";
-
                 while (True) {
                     yield;
                     foreach (Event in PendingEvents) {
@@ -648,6 +652,7 @@ Text GetManialink() {
                                     }
                                     case "quad-topbar-quit": {
                                         Frame_MainUI.Visible = False;
+                                        P_DebugMode_Window_Open = Frame_MainUI.Visible;
                                     }
                                     case "quad-topbar-maximize": {
                                         P_DebugMode_IsMaximized = MaximizeMinimizeWindow(Quad_Topbar_Maximize, Frame_MainUI, P_DebugMode_Window_Pos, Quad_Background, P_DebugMode_Window_Size);
@@ -681,23 +686,23 @@ Text GetManialink() {
                                     }
                                     case "quad-sendcustomevent": {
                                         SendCustomEvent(Entry_CustomEvent_Name.Value, TL::Split(",", Entry_CustomEvent_Data.Value));
-                                        SwitchToTab(Last_TabSelected, "quad-leftpanel-logs");
-                                        Last_TabSelected = "quad-leftpanel-logs";
+                                        SwitchToTab(P_DebugMode_SelectedTab, "quad-leftpanel-logs");
+                                        P_DebugMode_SelectedTab = "quad-leftpanel-logs";
                                     }
                                     case "quad-varinsp-forvars-dumpthis": {
                                         SendCustomEvent("DebugMode.VarInsp.Dump.This", []);
-                                        SwitchToTab(Last_TabSelected, "quad-leftpanel-logs");
-                                        Last_TabSelected = "quad-leftpanel-logs";
+                                        SwitchToTab(P_DebugMode_SelectedTab, "quad-leftpanel-logs");
+                                        P_DebugMode_SelectedTab = "quad-leftpanel-logs";
                                     }
                                     case "quad-varinsp-forvars-dumpteams0": {
                                         SendCustomEvent("DebugMode.VarInsp.Dump.Teams0", []);
-                                        SwitchToTab(Last_TabSelected, "quad-leftpanel-logs");
-                                        Last_TabSelected = "quad-leftpanel-logs";
+                                        SwitchToTab(P_DebugMode_SelectedTab, "quad-leftpanel-logs");
+                                        P_DebugMode_SelectedTab = "quad-leftpanel-logs";
                                     }
                                     case "quad-varinsp-forvars-dumpuiall": {
                                         SendCustomEvent("DebugMode.VarInsp.Dump.UIAll", []);
-                                        SwitchToTab(Last_TabSelected, "quad-leftpanel-logs");
-                                        Last_TabSelected = "quad-leftpanel-logs";
+                                        SwitchToTab(P_DebugMode_SelectedTab, "quad-leftpanel-logs");
+                                        P_DebugMode_SelectedTab = "quad-leftpanel-logs";
                                     }
                                     case "quad-varinsp-forvars-autofill-me": {
                                         Entry_VarInsp_Players.Value = InputPlayer.User.Name;
@@ -712,13 +717,13 @@ Text GetManialink() {
                                 }
                                 if (TL::StartsWith("quad-bots-delbots-", Event.Control.ControlId)) {
                                     SendCustomEvent("DebugMode.Bots.DelBots", [Entry_Bots_Name.Value, TL::Split("-",Event.Control.ControlId)[3]]);
-                                    SwitchToTab(Last_TabSelected, "quad-leftpanel-logs");
-                                    Last_TabSelected = "quad-leftpanel-logs";
+                                    SwitchToTab(P_DebugMode_SelectedTab, "quad-leftpanel-logs");
+                                    P_DebugMode_SelectedTab = "quad-leftpanel-logs";
                                 }
                                 if (TL::StartsWith("quad-bots-addbots-", Event.Control.ControlId)) {
                                     SendCustomEvent("DebugMode.Bots.AddBots", [Entry_Bots_Name.Value, Entry_Bots_TeamId.Value, TL::Split("-",Event.Control.ControlId)[3]]);
-                                    SwitchToTab(Last_TabSelected, "quad-leftpanel-logs");
-                                    Last_TabSelected = "quad-leftpanel-logs";
+                                    SwitchToTab(P_DebugMode_SelectedTab, "quad-leftpanel-logs");
+                                    P_DebugMode_SelectedTab = "quad-leftpanel-logs";
                                 }
                                 if (TL::StartsWith("quad-playerscontrol-player-", Event.Control.ControlId)) {
                                     declare Text Target = TL::Split("-",Event.Control.ControlId)[3];
@@ -732,20 +737,20 @@ Text GetManialink() {
                                 if (TL::StartsWith("quad-varinsp-forvars-player-", Event.Control.ControlId)) {
                                     if (Entry_VarInsp_Players.Value != "") {
                                         SendCustomEvent("DebugMode.VarInsp.ForVars.Dump.Player", [Entry_VarInsp_Players.Value, TL::Split("-",Event.Control.ControlId)[4]]);
-                                        SwitchToTab(Last_TabSelected, "quad-leftpanel-logs");
-                                        Last_TabSelected = "quad-leftpanel-logs";
+                                        SwitchToTab(P_DebugMode_SelectedTab, "quad-leftpanel-logs");
+                                        P_DebugMode_SelectedTab = "quad-leftpanel-logs";
                                     }
                                 }
                                 if (TL::StartsWith("quad-varinsp-struct-player-", Event.Control.ControlId)) {
                                     if (Entry_VarInsp_Players.Value != "") {
                                         SendCustomEvent("DebugMode.VarInsp.Struct.Dump.Player", [Entry_VarInsp_Players.Value, TL::Split("-",Event.Control.ControlId)[4]]);
-                                        SwitchToTab(Last_TabSelected, "quad-leftpanel-logs");
-                                        Last_TabSelected = "quad-leftpanel-logs";
+                                        SwitchToTab(P_DebugMode_SelectedTab, "quad-leftpanel-logs");
+                                        P_DebugMode_SelectedTab = "quad-leftpanel-logs";
                                     }
                                 }
                                 if (Event.Control.HasClass("leftpanel-button")) {
-                                    SwitchToTab(Last_TabSelected, Event.Control.ControlId);
-                                    Last_TabSelected = Event.Control.ControlId;
+                                    SwitchToTab(P_DebugMode_SelectedTab, Event.Control.ControlId);
+                                    P_DebugMode_SelectedTab = Event.Control.ControlId;
                                 }
                                 // Save value to persistent variable
                                 P_DebugMode_CustomEvent_Name = Entry_CustomEvent_Name.Value;
@@ -806,7 +811,7 @@ Text GetManialink() {
                                     declare CMlQuad Quad = (Event.Control as CMlQuad);
                                     Quad.Opacity = .0;
                                 } else if (Event.Control.HasClass("leftpanel-button")) {
-                                    if (Last_TabSelected != Event.Control.ControlId) {
+                                    if (P_DebugMode_SelectedTab != Event.Control.ControlId) {
                                         declare CMlQuad Quad = (Event.Control as CMlQuad);
                                         Quad.Opacity = .0;
                                     }
