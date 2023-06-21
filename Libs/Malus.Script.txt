@@ -1,0 +1,190 @@
+// #RequireContext CSmMode
+
+#Include "MathLib" as ML
+#Include "Libs/Nadeo/CommonLibs/Common/Log.Script.txt" as Log
+#Include "Libs/Nadeo/TMxSM/Race/Events.Script.txt" as Events
+#Include "Libs/Nadeo/TMxSM/Race/Race.Script.txt" as Race
+
+#Const C_Malus_Reset 0
+#Const C_Malus_ForceEngine 1
+#Const C_Malus_BackwardOnly 2
+#Const C_Malus_NoBrakes 3
+#Const C_Malus_NoEngine 4
+#Const C_Malus_Fragile 5
+#Const C_Malus_SlowMotion 6
+#Const C_Malus_BoostDown 7
+#Const C_Malus_BoostUp 8
+#Const C_Malus_Boost2Down 9
+#Const C_Malus_Boost2Up 10
+#Const C_Malus_AdherenceCoef50 11
+#Const C_Malus_ControlCoef50 12
+#Const C_Malus_MoonGravity 13
+
+
+#Const C_Malus_Name [0 => "Reset", 1 => "Force Engine", 2 => "Backward Only" , 3 => "No Brakes", 4 => "No Engine",
+5 => "Fragile", 6 => "Slowmotion", 7 => "Boost Down", 8 => "Boost Up",
+9 => "Super Boost Down", 10 => "Super Boost Up", 11 => "50% Adherence", 12 => "50% Control",
+13 => "Moon Gravity"]
+
+
+#Struct K_Malus {
+	Integer Time;
+	Integer MalusIndex;
+}
+
+
+declare K_Malus[][Text] G_MalusQueue;
+declare Integer G_NextStepMalusTime;
+
+declare Integer G_MalusDuration;
+declare Integer G_MinCooldown;
+declare Integer G_MaxCooldown;
+
+/** Set Malus to a specific Players
+*
+*	@param	_Player									Player
+*	@param	_Type									Malus Index
+*/
+Boolean SetMalus(CSmPlayer _Player, Integer _Type) {
+	if (_Player.SpawnStatus != CSmPlayer::ESpawnStatus::NotSpawned && !SetPlayer_DelayedIsFull(_Player)) {
+		switch (_Type) {
+			case C_Malus_Reset: {
+				SetPlayer_Delayed_Reset(_Player);
+			}
+			case C_Malus_ForceEngine: {
+				SetPlayer_Delayed_ForceEngine(_Player,True);
+			}
+			case C_Malus_NoEngine: {
+				SetPlayer_Delayed_NoEngine(_Player,True);
+			}
+			case C_Malus_BackwardOnly: {
+				SetPlayer_Delayed_Cruise(_Player,True,-999.);
+			}
+			case C_Malus_NoBrakes: {
+				SetPlayer_Delayed_NoBrakes(_Player,True);
+			}
+			case C_Malus_Fragile: {
+				SetPlayer_Delayed_Fragile(_Player,True);
+			}
+			case C_Malus_SlowMotion: {
+				SetPlayer_Delayed_SlowMotion(_Player,True);
+			}
+			case C_Malus_BoostDown: {
+				SetPlayer_Delayed_BoostDown(_Player,True);
+			}
+			case C_Malus_BoostUp: {
+				SetPlayer_Delayed_BoostUp(_Player,True);
+			}
+			case C_Malus_Boost2Down: {
+				SetPlayer_Delayed_Boost2Down(_Player,True);
+			}
+			case C_Malus_Boost2Up: {
+				SetPlayer_Delayed_Boost2Up(_Player,True);
+			}
+			case C_Malus_AdherenceCoef50: {
+				SetPlayer_Delayed_AdherenceCoef(_Player, 0.5);
+			}
+            case C_Malus_ControlCoef50: {
+				SetPlayer_Delayed_ControlCoef(_Player, 0.5);
+			}
+			case C_Malus_MoonGravity: {
+				SetPlayer_Delayed_GravityCoef(_Player,0.17);
+			}
+		}
+		return True;
+	}
+	return False;
+}
+
+K_Malus GetNewMalus(Integer _MalusIndex, Integer _Time) {
+	return K_Malus {
+		Time = Now + _Time,
+		MalusIndex = _MalusIndex
+	};
+}
+
+K_Malus GetNewMalus(Integer _MalusIndex) {
+	return GetNewMalus(_MalusIndex, 0);
+}
+
+Void Reset() {
+    declare netwrite Integer Net_Malus_MalusIndex for Teams[0] = 0;
+    Net_Malus_MalusIndex = 0;
+    declare netwrite Integer Net_Malus_MalusStart for Teams[0] = 0;
+    Net_Malus_MalusStart = 0;
+    
+    G_NextStepMalusTime = 0;
+    G_MalusQueue = [];
+}
+
+Void StartRound(Integer _MalusDuration, Integer _MinCooldown, Integer _MaxCooldown) {
+    Reset();
+    G_MalusDuration = _MalusDuration * 1000;
+    G_MinCooldown = _MinCooldown;
+    G_MaxCooldown = _MaxCooldown;
+
+    declare netwrite Integer Net_Malus_MalusDuration for Teams[0] = 0;
+    Net_Malus_MalusDuration = G_MalusDuration;
+
+    G_NextStepMalusTime = Now + 1500 + ML::Rand(G_MinCooldown, G_MaxCooldown) * 1000;
+}
+
+
+Void Yield() {
+    foreach (Event in Race::GetPendingEvents()) {
+        if (Event.Type == Events::C_Type_StartLine) {
+            if (Event.Player != Null) {
+                if (!G_MalusQueue.existskey(Event.Player.User.Login)) G_MalusQueue[Event.Player.User.Login] = [];
+                G_MalusQueue[Event.Player.User.Login].add(GetNewMalus(C_Malus_Reset));
+            }
+        } else if (Event.Type == Events::C_Type_Respawn) {
+            if (Event.Player != Null) {
+                if (!G_MalusQueue.existskey(Event.Player.User.Login)) G_MalusQueue[Event.Player.User.Login] = [];
+                G_MalusQueue[Event.Player.User.Login].add(GetNewMalus(C_Malus_Reset));
+                declare netwrite Integer Net_Malus_MalusStart for Teams[0] = 0;
+                if (Now >= Net_Malus_MalusStart && Now < Net_Malus_MalusStart + G_MalusDuration) {
+                    declare netwrite Integer Net_Malus_MalusIndex for Teams[0] = 0;
+                    G_MalusQueue[Event.Player.User.Login].add(GetNewMalus(Net_Malus_MalusIndex));
+                }
+            }
+        }
+    }
+    
+    // Run Malus
+    if (Now > G_NextStepMalusTime) {
+        declare netwrite Integer Net_Malus_MalusIndex for Teams[0] = 0;
+        Net_Malus_MalusIndex = ML::Rand(1, 14);
+        foreach (Player in Players) {
+            if (!G_MalusQueue.existskey(Player.User.Login)) G_MalusQueue[Player.User.Login] = [];
+            G_MalusQueue[Player.User.Login].add(GetNewMalus(Net_Malus_MalusIndex, 3000));
+            G_MalusQueue[Player.User.Login].add(GetNewMalus(C_Malus_Reset, 3000 + G_MalusDuration));
+        }
+        declare netwrite Integer Net_Malus_MalusStart for Teams[0] = 0;
+        Net_Malus_MalusStart = Now + 3000;
+        G_NextStepMalusTime = Now + 3000 + G_MalusDuration + ML::Rand(G_MinCooldown, G_MaxCooldown) * 1000;
+    }
+    
+    foreach (Login => PlayerMalusQueue in G_MalusQueue) {
+        declare CSmPlayer Player = GetPlayer(Login);
+        if (Player == Null) {
+            G_MalusQueue.removekey(Login);
+            continue;
+        }
+    
+        foreach (Key => Malus in PlayerMalusQueue) {
+            if (Malus.Time + 5000 < Now) { // Clear old entry
+                log("Malus Timeout for " ^ Player.User.Name);
+                G_MalusQueue.removekey(Login);
+            } else if (Malus.Time <= Now && Player.SpawnStatus != CSmPlayer::ESpawnStatus::NotSpawned) {
+                Log::Log("[ApplyPhysics] Trying to set Event " ^ Malus.MalusIndex ^ " for " ^ Player.User.Name);
+                if (SetMalus(Player, Malus.MalusIndex)) {
+                    G_MalusQueue[Login].removekey(Key);
+                }
+            }
+        }
+    
+        if (PlayerMalusQueue.count == 0) {
+            G_MalusQueue.removekey(Login);
+        }
+    }
+}
