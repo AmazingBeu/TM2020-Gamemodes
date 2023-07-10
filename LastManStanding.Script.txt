@@ -183,7 +183,7 @@ declare Integer Map_NextMalusPreparationTime;
 declare Integer Map_MalusDuration;
 declare Integer Map_RoundsPerMap;
 
-declare Text[] AccountIdsOfPlayers for This = [];
+declare Text[] LoginsOfPlayers for This = [];
 declare Integer LandmarkIndex for This = 0;
 declare Integer[Text] CustomTimes for This = [];
 declare K_Malus[Text] MalusQueue;
@@ -273,11 +273,11 @@ MalusQueue = [];
 // Spawn players for the race
 ---Rounds_CanSpawn---
 
-declare Text[] AccountIdsOfPlayers for This = [];
+declare Text[] LoginsOfPlayers for This = [];
 
 declare CMapLandmark PlayerLM;
 declare Integer LandmarkIndex for This = 0;
-AccountIdsOfPlayers = [];
+LoginsOfPlayers = [];
 
 // Suffle Players list to randomise spawn
 declare CSmPlayer[] ShuffledPlayers = Players;
@@ -307,11 +307,11 @@ foreach (Player in ShuffledPlayers) {
 		LandmarkIndex = LandmarkIndex + 1 ;
 	}
 	Race::Start(Player, PlayerLM , StartTime);
-	AccountIdsOfPlayers.add(Player.User.WebServicesUserId);
-	MalusQueue[Player.User.WebServicesUserId] = GetNewMalus(C_Malus_Reset, 1500);
+	LoginsOfPlayers.add(Player.User.Login);
+	MalusQueue[Player.User.Login] = GetNewMalus(C_Malus_Reset, 1500);
 }
 
-Net_NBPlayers = AccountIdsOfPlayers.count;
+Net_NBPlayers = LoginsOfPlayers.count;
 
 UpdateCustomRanking(Null, -1);
 StateMgr::ForcePlayersStates([StateMgr::C_State_Playing]);
@@ -332,7 +332,7 @@ MalusQueue = [];
 if (!RankInitialized) {
 	RankInitialized = True;
 	Net_PlayersNbAlive = PlayersNbAlive;
-	Net_NBPlayers = AccountIdsOfPlayers.count;
+	Net_NBPlayers = LoginsOfPlayers.count;
 	foreach (Player in Players) {
 		CarRank::SetRank(Player, PlayersNbAlive);
 	}
@@ -345,7 +345,7 @@ if (Now < StartTime + 3000) {
 	declare CMapLandmark PlayerLM = Null;
 	if (PlayersNbDead >= 1) {
 		foreach (Player in Players) {
-			if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned && !AccountIdsOfPlayers.exists(Player.User.WebServicesUserId)) {
+			if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned && !LoginsOfPlayers.exists(Player.User.Login)) {
 				PlayerSpawned = True;
 				PlayerLM = Null;
 				while (PlayerLM == Null) {
@@ -358,15 +358,15 @@ if (Now < StartTime + 3000) {
 					LandmarkIndex = LandmarkIndex + 1 ;
 				}
 				Race::Start(Player, PlayerLM , StartTime);
-				AccountIdsOfPlayers.add(Player.User.WebServicesUserId);
+				LoginsOfPlayers.add(Player.User.Login);
 
-				MalusQueue[Player.User.WebServicesUserId] = GetNewMalus(C_Malus_Reset);
+				MalusQueue[Player.User.Login] = GetNewMalus(C_Malus_Reset);
 			}
 		}
 	}
 	if (PlayerSpawned) {
 		PlayerSpawned = False;
-		Net_NBPlayers = AccountIdsOfPlayers.count;
+		Net_NBPlayers = LoginsOfPlayers.count;
 		Net_PlayersNbAlive = PlayersNbAlive;
 		UpdateCustomRanking(Null, -1);
 		foreach (Player in Players) {
@@ -412,7 +412,7 @@ foreach (Event in PendingEvents) {
 	Events::Invalid(Event);
 }
 
-if (PlayersNbAlive <= 1 && AccountIdsOfPlayers.count >= 2) { //TODO just respawn in case of 1 player
+if (PlayersNbAlive <= 1 && LoginsOfPlayers.count >= 2) { //TODO just respawn in case of 1 player
 	Net_TimeBeforeMalus = -1;
 	MB_StopRound();
 }
@@ -468,7 +468,7 @@ if (Players.count > 0 && S_MalusDuration > 0 && MalusTime != -1 && Now > MalusTi
 			Net_TimeBeforeMalus = NextStepMalusTime;
 		} else if (PendingMalus && !ActiveMalus) {
 			foreach (Player in Players) {
-				MalusQueue[Player.User.WebServicesUserId] = GetNewMalus(MalusIndex);
+				MalusQueue[Player.User.Login] = GetNewMalus(MalusIndex);
 			}
 			PendingMalus = False;
 			ActiveMalus = True;
@@ -483,7 +483,7 @@ if (Players.count > 0 && S_MalusDuration > 0 && MalusTime != -1 && Now > MalusTi
 		} else if (!PendingMalus && ActiveMalus) {
 			if (MalusIndex != 99) {
 				foreach (Player in Players) {
-					MalusQueue[Player.User.WebServicesUserId] = GetNewMalus(C_Malus_Reset);
+					MalusQueue[Player.User.Login] = GetNewMalus(C_Malus_Reset);
 				}
 				PendingMalus = False;
 				ActiveMalus = False;
@@ -498,7 +498,7 @@ if (Players.count > 0 && S_MalusDuration > 0 && MalusTime != -1 && Now > MalusTi
 				Net_TimeBeforeMalus = NextStepMalusTime;
 			} else {
 				foreach (Player in Players) {
-					MalusQueue[Player.User.WebServicesUserId] = GetNewMalus(C_Malus_Nightmare);
+					MalusQueue[Player.User.Login] = GetNewMalus(C_Malus_Nightmare);
 				}
 				NextStepMalusTime = Now + (S_MalusDuration*1000);
 			}
@@ -506,14 +506,14 @@ if (Players.count > 0 && S_MalusDuration > 0 && MalusTime != -1 && Now > MalusTi
 	}
 }
 
-foreach (AccountId => Malus in MalusQueue) {
-	declare CSmPlayer Player = ModeUtils::GetPlayerFromAccountId(AccountId);
+foreach (Login => Malus in MalusQueue) {
+	declare CSmPlayer Player = GetPlayer(Login);
 	if (Malus.Time + 1000 < Now) { // Clear old entry
-		MalusQueue.removekey(AccountId);
+		MalusQueue.removekey(Login);
 	} else if (Player != Null && Malus.Time <= Now && (Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned || Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning)) {
 		Log::Log("[ApplyPhysics] Trying to set Event " ^ C_Malus_Name[Malus.MalusIndex] ^ " for " ^ Player.User.Name);
 		if (SetMalus(Player, Malus.MalusIndex)) {
-			MalusQueue.removekey(AccountId);
+			MalusQueue.removekey(Login);
 		}
 	}
 }
@@ -546,7 +546,7 @@ if (Round_ForceEndRound || Round_SkipPauseRound) {
 	declare CSmScore WinnerScore <=> Scores::GetBestPlayer(Scores::C_Sort_RoundPoints);
 	if (WinnerScore == Null) {
 		foreach (Score in Scores) {
-			if (Score.BestRaceTimes.count <= 0 && Score.User != Null && AccountIdsOfPlayers.exists(Score.User.WebServicesUserId)) {
+			if (Score.BestRaceTimes.count <= 0 && Score.User != Null && LoginsOfPlayers.exists(Score.User.Login)) {
 				declare CSmPlayer Player = GetPlayer(Score.User.Login);
 				if (Player != Null && !Player.RequestsSpectate) {
 					WinnerScore <=> Score;
@@ -614,8 +614,8 @@ if (Round_ForceEndRound || Round_SkipPauseRound) {
  */
  Void UpdateCustomRanking(CSmPlayer _EliminatedPlayer, Integer _EventType) {
 	declare Integer[Text] CustomTimes for This;
-	declare Text[] AccountIdsOfPlayers for This;
-	foreach (Index => Score in Scores) {
+	declare Text[] LoginsOfPlayers for This;
+	foreach (Score in Scores) {
 		if (Score == Null) continue;
 		declare CSmPlayer Player = GetPlayer(Score.User.Login);
 		if (Player == Null) continue;
@@ -632,7 +632,7 @@ if (Round_ForceEndRound || Round_SkipPauseRound) {
 			Scores::SetPlayerRoundPoints(Score,PlayersNbDead);
 		}
 	}
-	UIModules_ScoresTable::DisplayOnly(AccountIdsOfPlayers);
+	UIModules_ScoresTable::DisplayOnly(LoginsOfPlayers);
 	UIModules_ScoresTable::SetCustomTimes(CustomTimes);
 }
 
