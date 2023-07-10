@@ -28,6 +28,9 @@
 #Setting S_ForceLapsNb 1
 #Setting S_RoundsPerMap 1 as _("Number of rounds per map") ///< Number of round to play on one map before going to the next one
 
+
+#Setting S_AFKIdleTime 10000 as "Time before being an AFK player will be kicked"
+
 #Setting S_IntroTime 5 as "Time of the map intro"
 #Setting S_TimeBeforeMalus 10 as "Time Before Malus"
 #Setting S_TimeBeforeNightmare 150 as "Time Before Nightmare"
@@ -91,7 +94,7 @@ Log::RegisterScript(StateMgr::ScriptName, StateMgr::Version);
 ***
 AFK::Load();
 AFK::SetCheckCP(False); // No CP in LMS
-AFK::SetIdleTimeLimit(10000);
+AFK::SetIdleTimeLimit(S_AFKIdleTime);
 AFK::SetSpawnTimeLimit(3000);
 AFK::SetCheckInterval(3000);
 StateMgr::Load();
