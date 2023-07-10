@@ -4,7 +4,7 @@
 #Extends "Libs/Nadeo/TMNext/TrackMania/Modes/TMNextRoundsBase.Script.txt"
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2022-03-08"
+#Const	Version							"2023-07-10"
 #Const	ScriptName					"Modes/TM2020-Gamemodes/LastManStanding.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -12,6 +12,7 @@
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 #Include "TextLib" as TL
 #Include "MathLib" as ML
+#Include "Libs/Nadeo/ModeLibs/Common/AFK_Server.Script.txt" as AFK
 #Include "Libs/Nadeo/TMNext/TrackMania/Modes/Rounds/StateManager.Script.txt" as StateMgr
 #Include "Libs/Nadeo/TMNext/TrackMania/Menu/Constants.Script.txt" as MenuConsts
 #Include "Libs/Nadeo/ModeLibs/Common/Utils.Script.txt" as ModeUtils
@@ -88,11 +89,17 @@ Log::RegisterScript(StateMgr::ScriptName, StateMgr::Version);
 
 ***Match_LoadLibraries***
 ***
+AFK::Load();
+AFK::SetCheckCP(False); // No CP in LMS
+AFK::SetIdleTimeLimit(10000);
+AFK::SetSpawnTimeLimit(3000);
+AFK::SetCheckInterval(3000);
 StateMgr::Load();
 ***
 
 ***Match_UnloadLibraries***
 ***
+AFK::Unload();
 StateMgr::Unload();
 ***
 
@@ -149,6 +156,7 @@ foreach (Event in PendingEvents) {
 	}
 }
 
+AFK::Yield();
 StateMgr::Yield();
 ***
 
