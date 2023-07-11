@@ -12,7 +12,6 @@
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 #Include "TextLib" as TL
 #Include "MathLib" as ML
-#Include "Libs/Nadeo/ModeLibs/Common/AFK_Server.Script.txt" as AFK
 #Include "Libs/Nadeo/TMNext/TrackMania/Modes/Rounds/StateManager.Script.txt" as StateMgr
 #Include "Libs/Nadeo/TMNext/TrackMania/Menu/Constants.Script.txt" as MenuConsts
 #Include "Libs/Nadeo/ModeLibs/Common/Utils.Script.txt" as ModeUtils
@@ -92,17 +91,11 @@ Log::RegisterScript(StateMgr::ScriptName, StateMgr::Version);
 
 ***Match_LoadLibraries***
 ***
-AFK::Load();
-AFK::SetCheckCP(False); // No CP in LMS
-AFK::SetIdleTimeLimit(S_AFKIdleTime);
-AFK::SetSpawnTimeLimit(3000);
-AFK::SetCheckInterval(3000);
 StateMgr::Load();
 ***
 
 ***Match_UnloadLibraries***
 ***
-AFK::Unload();
 StateMgr::Unload();
 ***
 
@@ -159,7 +152,6 @@ foreach (Event in PendingEvents) {
 	}
 }
 
-AFK::Yield();
 StateMgr::Yield();
 ***
 
