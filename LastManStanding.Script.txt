@@ -164,6 +164,7 @@ UsePvECollisions = True;
 StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
 WarmUp::SetAvailability(True);
 CarRank::Reset();
+ResetNetworkVariables();
 ***
 
 ***Match_InitMap***
@@ -551,6 +552,23 @@ if (Round_ForceEndRound || Round_SkipPauseRound) {
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Functions
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+
+Void ResetNetworkVariables() {
+	declare netwrite Boolean Net_DisplayUI for Teams[0] = False;
+	Net_DisplayUI = False;
+	declare netwrite Integer Net_NBPlayers for Teams[0] = 0;
+	Net_NBPlayers = 0;
+	declare netwrite Integer Net_PlayersNbAlive for Teams[0] = 0;
+	Net_PlayersNbAlive = 0;
+	declare netwrite Integer Net_NextMalus for Teams[0] = -1;
+	Net_NextMalus = 0;
+	declare netwrite Integer Net_TimeBeforeMalus for Teams[0] = -1;
+	Net_TimeBeforeMalus = 0;
+	declare netwrite Integer Net_RoundsPerMap for Teams[0] = 0;
+	Net_RoundsPerMap = 0;
+	declare netwrite Integer Net_CurrentRoundNb for Teams[0] = 0;
+	Net_CurrentRoundNb = 0;
+}
 
 /** Get the Time Before the first Malus or NightMare Mode
  *
