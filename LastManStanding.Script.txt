@@ -210,7 +210,7 @@ if (!MapIsCompatible) {
 	MB_Sleep(3000);
 	MB_StopMap();
 } else if (S_IntroTime > 0) {
-	declare netwrite Boolean Net_LMS_IsIntro for Teams[0];
+	declare netwrite Boolean Net_LMS_IsIntro for Teams[0] = False;
 	Net_LMS_IsIntro = True;
 	StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
 	if (Map.HasCustomIntro) {
@@ -247,7 +247,7 @@ declare netwrite Integer Net_LMS_AFKIdleTime for Teams[0] = 120000;
 Net_LMS_AFKIdleTime = S_AFKIdleTime;
 
 // WorkAround for longloading
-declare StartMapTime = Now;
+declare Integer StartMapTime = Now;
 while (Players.count < 2 && Now < (StartMapTime + 3000)) {
 	MB_Yield();
 }
@@ -477,7 +477,12 @@ if (Players.count > 0 && S_MalusDuration > 0 && MalusTime != -1 && Now > MalusTi
 			Net_NextMalus = 0;
 			Net_TimeBeforeMalus = NextStepMalusTime;
 		} else if (!PendingMalus && ActiveMalus) {
-			if (MalusIndex != 99) {
+			if (MalusIndex == 99) {
+				foreach (Player in Players) {
+					MalusQueue[Player.User.Login] = GetNewMalus(C_Malus_Nightmare);
+				}
+				NextStepMalusTime = Now + (S_MalusDuration*1000);
+			} else {
 				foreach (Player in Players) {
 					MalusQueue[Player.User.Login] = GetNewMalus(C_Malus_Reset);
 				}
@@ -492,11 +497,6 @@ if (Players.count > 0 && S_MalusDuration > 0 && MalusTime != -1 && Now > MalusTi
 				// Players UI update
 				Net_NextMalus = -1;
 				Net_TimeBeforeMalus = NextStepMalusTime;
-			} else {
-				foreach (Player in Players) {
-					MalusQueue[Player.User.Login] = GetNewMalus(C_Malus_Nightmare);
-				}
-				NextStepMalusTime = Now + (S_MalusDuration*1000);
 			}
 		}
 	}
@@ -556,11 +556,10 @@ if (Round_ForceEndRound || Round_SkipPauseRound) {
 	UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::EndRound;
 	UIManager.UIAll.BigMessageSoundVariant = 0;
 
-	declare Text Message = _("|Match|Draw");
-	if (WinnerScore != Null) {
-		UIModules_BigMessage::SetMessage("$<%1$> wins the match!", WinnerScore.User.WebServicesUserId);
-	} else {
+	if (WinnerScore == Null) {
 		UIModules_BigMessage::SetMessage(_("|Match|Draw"));
+	} else {
+		UIModules_BigMessage::SetMessage(_("$<%1$> wins the match!"), WinnerScore.User.WebServicesUserId);
 	}
 
 	Scores::EndRound();
@@ -641,7 +640,7 @@ if (Round_ForceEndRound || Round_SkipPauseRound) {
 		Footer ^= "Malus disabled";
 	} else {
 		declare Text[] Parts;
-		declare Message = "";
+		declare Text Message = "";
 		if (S_TimeBeforeMalus >= 0) {
 			if (Parts.count > 0) Message ^= "\n";
 			Message ^= """%{{{Parts.count + 1}}}{{{TL::TimeToText(S_TimeBeforeMalus*1000)}}}""";
@@ -755,7 +754,7 @@ Boolean SetMalus(CSmPlayer _Player, Integer _Type) {
  *	@param	_Player									Malus Index
  */
 Void SetML() {
-	declare TotalWidth = 44.5;
+	declare Real TotalWidth = 44.5;
 
 	declare Text MLText = """
 	<manialink name="LMS_InfoPanel" version="3">
