@@ -188,7 +188,6 @@ declare Integer Map_RoundsPerMap;
 
 declare Text[] AccountIdsOfPlayers for This = [];
 declare Integer LandmarkIndex for This = 0;
-declare Integer[Text] CustomTimes for This = [];
 declare K_Malus[Text] MalusQueue;
 
 declare Boolean ActiveMalus = False;
@@ -206,6 +205,7 @@ declare netwrite Integer Net_RoundsPerMap for Teams[0] = 0;
 declare netwrite Integer Net_CurrentRoundNb for Teams[0] = 0;
 
 ResetNetworkVariables();
+UIModules_ScoresTable::SetCustomTimes([]);
 
 // Map Intro
 declare Boolean MapIsCompatible;
@@ -258,6 +258,7 @@ declare Boolean ThrottleUpdate;
 ***Match_StartRound***
 ***
 Scores::Clear();
+UIModules_ScoresTable::SetCustomTimes([]);
 
 declare netwrite Integer Net_LMS_AFKIdleTime for Teams[0] = 120000;
 Net_LMS_AFKIdleTime = S_AFKIdleTime;
@@ -504,7 +505,6 @@ ActiveMalus = False;
 Net_DisplayUI = False;
 Net_TimeBeforeMalus = -1;
 Net_NextMalus = -1;
-CustomTimes.clear();
 
 Race::StopSkipOutroAll();
 StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
@@ -610,7 +610,7 @@ Void ResetNetworkVariables() {
 	if (_User == Null) return;
 	
 	if (_OverrideTime) {
-		declare Integer[Text] CustomTimes for This = [];
+		declare Integer[Text] CustomTimes = UIModules_ScoresTable::GetCustomTimes();
 		CustomTimes[_User.WebServicesUserId] = Now - StartTime;
 		UIModules_ScoresTable::SetCustomTimes(CustomTimes);
 	}
