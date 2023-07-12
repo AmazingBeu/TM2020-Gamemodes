@@ -188,6 +188,7 @@ declare Integer NextStepMalusTime = 0;
 declare Integer MalusIndex;
 declare Integer MalusTime;
 
+declare netwrite Boolean Net_DisplayUI for Teams[0] = False;
 declare netwrite Integer Net_NBPlayers for Teams[0] = 0;
 declare netwrite Integer Net_PlayersNbAlive for Teams[0] = 0;
 declare netwrite Integer Net_NextMalus for Teams[0] = -1;
@@ -266,6 +267,7 @@ Map_MalusDuration = S_MalusDuration;
 Map_RoundsPerMap = S_RoundsPerMap;
 UpdateScoresTableFooter();
 MalusTime = GetTimeBeforeMalus(StartTime, S_TimeBeforeMalus, S_TimeBeforeNightmare);
+Net_DisplayUI = True;
 Net_TimeBeforeMalus = MalusTime;
 Net_NextMalus = -1;
 Net_RoundsPerMap = Map_RoundsPerMap;
@@ -488,6 +490,7 @@ foreach (Login => Malus in MalusQueue) {
 ***
 PendingMalus = False;
 ActiveMalus = False;
+Net_DisplayUI = False;
 Net_TimeBeforeMalus = -1;
 Net_NextMalus = -1;
 CustomTimes.clear();
@@ -743,6 +746,7 @@ Void SetML() {
 				 {{{C_Malus_GravityCoef25}}} => "25% Gravity", {{{C_Malus_Nightmare}}} => "NightMare"]
 
 		main() {
+			declare netread Boolean Net_DisplayUI for Teams[0];
 			declare netread Integer Net_NBPlayers for Teams[0];
 			declare netread Integer Net_PlayersNbAlive for Teams[0];
 			declare netread Integer Net_NextMalus for Teams[0];
@@ -750,6 +754,7 @@ Void SetML() {
 			declare netread Integer Net_RoundsPerMap for Teams[0];
 			declare netread Integer Net_CurrentRoundNb for Teams[0];
 
+			declare Boolean Last_DisplayUI;
 			declare Integer Last_PlayersNbAlive;
 			declare Integer Last_NextMalus;
 			declare Integer Last_TimeBeforeMalus;
@@ -758,14 +763,27 @@ Void SetML() {
 
 			declare Boolean NeedUpdateChrono = False;
 
-			declare Label_PlayersAlive <=> (Page.GetFirstChild("label-playersalive") as CMlLabel);
-			declare Label_NextMalus <=> (Page.GetFirstChild("label-nextmalus") as CMlLabel);
-			declare Label_TimeBeforeMalus <=> (Page.GetFirstChild("label-timebeforemalus") as CMlLabel);
-			declare Label_Info_RoundsPerMap <=> (Page.GetFirstChild("label-info-roundspermap") as CMlLabel);
-			declare Label_RoundsPerMap <=> (Page.GetFirstChild("label-roundspermap") as CMlLabel);
+			declare CMlFrame Frame_Global <=> (Page.GetFirstChild("frame-global") as CMlFrame);
+			declare CMlLabel Label_PlayersAlive <=> (Frame_Global.GetFirstChild("label-playersalive") as CMlLabel);
+			declare CMlLabel Label_NextMalus <=> (Frame_Global.GetFirstChild("label-nextmalus") as CMlLabel);
+			declare CMlLabel Label_TimeBeforeMalus <=> (Frame_Global.GetFirstChild("label-timebeforemalus") as CMlLabel);
+			declare CMlLabel Label_Info_RoundsPerMap <=> (Frame_Global.GetFirstChild("label-info-roundspermap") as CMlLabel);
+			declare CMlLabel Label_RoundsPerMap <=> (Frame_Global.GetFirstChild("label-roundspermap") as CMlLabel);
 
 			while(True) {
 				yield;
+
+				if (Last_DisplayUI != Net_DisplayUI) {
+					Last_DisplayUI = Net_DisplayUI;
+
+					AnimMgr.Flush(Frame_Global);
+					if (Last_DisplayUI) {
+						Frame_Global.Visible = True;
+						AnimMgr.Add(Frame_Global, "<a pos=\"-160 0\"/>", 300, CAnimManager::EAnimManagerEasing::Linear);
+					} else {
+						AnimMgr.Add(Frame_Global, "<a hidden=1 pos=\"-225 0\"/>", 300, CAnimManager::EAnimManagerEasing::Linear);
+					}
+				}
 
 				if (Last_CurrentRoundNb != Net_CurrentRoundNb) {
 					Last_CurrentRoundNb = Net_CurrentRoundNb;
@@ -818,7 +836,7 @@ Void SetML() {
 			<style class="text-ingame-number" textfont="GameFontBlack" textcolor="ffffff" textsize="1.25" valign="center2" textprefix="$i"/>
 		</stylesheet>
 
-		<frame z-index="-2" id="frame-global" size="{{{TotalWidth + 20}}} 180" pos="-160 0" valign="center">
+		<frame z-index="-2" id="frame-global" size="{{{TotalWidth + 20}}} 180" pos="-225 0" valign="center" hidden=1>
 			<quad id="quad-info-bg" pos="0 7.75" size="{{{TotalWidth + 4}}} 21" valign="center" z-index="-3" bgcolor="000" opacity="0.5"/>
 			<label id="label-info-roundspermap" pos="1 15" size="{{{TotalWidth/1.75}}} 10" class="text-ingame-text" text="Rounds" halign="left"/>
 			<label pos="1 10" size="{{{TotalWidth/1.75}}} 10" class="text-ingame-text" text="Players Alive" halign="left" />
