@@ -238,6 +238,11 @@ Race::SetRespawnBehaviour(Race::C_RespawnBehaviour_AlwaysGiveUp);
 CarRank::Reset();
 ***
 
+***Match_InitRound***
+***
+declare Boolean ThrottleUpdate;
+***
+
 ***Match_StartRound***
 ***
 Scores::Clear();
@@ -310,48 +315,40 @@ foreach (Player in ShuffledPlayers) {
 	MalusQueue[Player.User.Login] = GetNewMalus(C_Malus_Reset, 1500);
 }
 
-Net_NBPlayers = AccountIdsOfPlayers.count;
+UIModules_ScoresTable::DisplayOnly(AccountIdsOfPlayers);
 
 StateMgr::ForcePlayersStates([StateMgr::C_State_Playing]);
 Race::EnableIntroDuringMatch(False);
 UIManager.UIAll.SendChat("$<$ff3$> Stay the most time on the structure. $<$ff9GL HF!$>");
 ***
 
-/***Match_InitPlayLoop***
-***
-MalusQueue = [];
-***/
 
 ***Match_PlayLoop***
 ***
 // Manage race events
-declare RacePendingEvents = Race::GetPendingEvents();
+declare Events::K_RaceEvent[] RacePendingEvents = Race::GetPendingEvents();
 foreach (Event in RacePendingEvents) {
 	Race::ValidEvent(Event);
 
+	if (Event.Player == Null) continue;
+	
 	// Waypoint
-	if (Event.Type == Events::C_Type_Waypoint) {
-		if (Event.IsEndLap) {
+	switch (Event.Type) {
+		case Events::C_Type_Waypoint: {
+			ThrottleUpdate = True;
+
+			Scores::UpdatePlayerBestRaceIfBetter(Event.Player);
 			Race::StopSkipOutro(Event.Player);
-			foreach (Player in Players) { 
-				CarRank::SetRank(Player, PlayersNbAlive);
-				Net_PlayersNbAlive = PlayersNbAlive;
-			}
-			UpdateCustomRanking(Event.Player, Event.Type);
+			UpdateCustomRanking(Event.Player.User, False);
 		}
-	} else if (Event.Type == Events::C_Type_GiveUp) {
-		foreach (Player in Players) { 
-			CarRank::SetRank(Player, PlayersNbAlive);
-			Net_PlayersNbAlive = PlayersNbAlive;
+		case Events::C_Type_GiveUp: {
+			ThrottleUpdate = True;
+			UpdateCustomRanking(Event.Player.User, True);
 		}
-		UpdateCustomRanking(Event.Player, Event.Type);
-	} else if (Event.Type == Events::C_Type_Eliminated) {
-		Race::StopSkipOutro(Event.Player);
-		foreach (Player in Players) { 
-			CarRank::SetRank(Player, PlayersNbAlive);
-			Net_PlayersNbAlive = PlayersNbAlive;
+		case Events::C_Type_Eliminated: {
+			ThrottleUpdate = True;
+			UpdateCustomRanking(Event.Player.User, True);
 		}
-		UpdateCustomRanking(Event.Player, Event.Type);
 	}
 }
 
@@ -359,11 +356,30 @@ foreach (Event in RacePendingEvents) {
 foreach (Event in PendingEvents) {
 	if (Event.HasBeenPassed || Event.HasBeenDiscarded) continue;
 	Events::Invalid(Event);
+
+	if (Event.Type == CSmModeEvent::EType::OnPlayerRemoved) {
+		if (Event.User == Null ) continue;
+		if (!AccountIdsOfPlayers.exists(Event.User.WebServicesUserId)) continue;
+		ThrottleUpdate = True;
+		UpdateCustomRanking(Event.User, True);
+	}
 }
 
 if (PlayersNbAlive <= 1 && AccountIdsOfPlayers.count >= 2) { //TODO just respawn in case of 1 player
 	Net_TimeBeforeMalus = -1;
 	MB_StopRound();
+}
+
+if (ThrottleUpdate) {
+	ThrottleUpdate = False;
+	Net_PlayersNbAlive = PlayersNbAlive;
+	declare Integer Points = Net_NBPlayers - Net_PlayersNbAlive;
+	foreach (Player in Players) { 
+		CarRank::SetRank(Player, PlayersNbAlive);
+		if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned) {
+			Scores::SetPlayerRoundPoints(Player.Score, Points);
+		}
+	}
 }
 
 
@@ -474,7 +490,6 @@ PendingMalus = False;
 ActiveMalus = False;
 Net_TimeBeforeMalus = -1;
 Net_NextMalus = -1;
-RankInitialized = False;
 CustomTimes.clear();
 
 Race::StopSkipOutroAll();
@@ -557,31 +572,18 @@ if (Round_ForceEndRound || Round_SkipPauseRound) {
 
 /** Update the Scores Table with hidden custom points
  *
- *	@param	_EliminatedPlayer						The Player who is eliminated
- *	@param	_EventType								Type of event that led to the update (EndRace or GiveUp)
+ *	@param	_User									The User who is eliminated
+ *	@param	_OverrideTime							Compute time because it not ended the Map
  */
- Void UpdateCustomRanking(CSmPlayer _EliminatedPlayer, Integer _EventType) {
-	declare Integer[Text] CustomTimes for This;
-	declare Text[] AccountIdsOfPlayers for This;
-	foreach (Score in Scores) {
-		if (Score == Null) continue;
-		declare CSmPlayer Player = GetPlayer(Score.User.Login);
-		if (Player == Null) continue;
-		if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) {
-
-			Scores::UpdatePlayerBestRaceIfBetter(Player);
-			if (_EliminatedPlayer != Null && _EliminatedPlayer == Player) {
-				if (_EventType == Events::C_Type_GiveUp || _EventType == Events::C_Type_Eliminated) {
-					CustomTimes[Score.User.WebServicesUserId] = Now - StartTime;
-				}
-				UIManager.UIAll.SendChat("""$<$ff3$> Player $<$ff9{{{Player.User.Name}}}$> is eliminated""");
-			}
-		} else {
-			Scores::SetPlayerRoundPoints(Score,PlayersNbDead);
-		}
+ Void UpdateCustomRanking(CUser _User, Boolean _OverrideTime) {
+	if (_User == Null) return;
+	
+	if (_OverrideTime) {
+		declare Integer[Text] CustomTimes for This = [];
+		CustomTimes[_User.WebServicesUserId] = Now - StartTime;
+		UIModules_ScoresTable::SetCustomTimes(CustomTimes);
 	}
-	UIModules_ScoresTable::DisplayOnly(AccountIdsOfPlayers);
-	UIModules_ScoresTable::SetCustomTimes(CustomTimes);
+	UIManager.UIAll.SendChat("""$<$ff3$> Player $<$ff9{{{_User.Name}}}$> is eliminated""");
 }
 
 /** Update the scores table footer text
