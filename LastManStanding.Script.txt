@@ -169,7 +169,6 @@ CarRank::Reset();
 ***Match_InitMap***
 ***
 declare Integer Map_ValidRoundsNb;
-declare Boolean RankInitialized = False;
 
 declare Integer Map_TimeBeforeMalus;
 declare Integer Map_TimeBeforeNightmare;
@@ -290,6 +289,9 @@ foreach (Player in Players) {
 
 ShuffledPlayers = ShuffledPlayers.sortkey();
 
+Net_NBPlayers = ShuffledPlayers.count;
+Net_PlayersNbAlive = Net_NBPlayers;
+
 foreach (Player in ShuffledPlayers) {
 	if (Player == Null) continue;
 	PlayerLM = Null;
@@ -303,18 +305,16 @@ foreach (Player in ShuffledPlayers) {
 		LandmarkIndex = LandmarkIndex + 1 ;
 	}
 	Race::Start(Player, PlayerLM , StartTime);
+	CarRank::SetRank(Player, Net_NBPlayers);
 	AccountIdsOfPlayers.add(Player.User.WebServicesUserId);
 	MalusQueue[Player.User.Login] = GetNewMalus(C_Malus_Reset, 1500);
 }
 
 Net_NBPlayers = AccountIdsOfPlayers.count;
 
-UpdateCustomRanking(Null, -1);
 StateMgr::ForcePlayersStates([StateMgr::C_State_Playing]);
-CarRank::Update(CarRank::C_SortCriteria_BestRace);
 Race::EnableIntroDuringMatch(False);
 UIManager.UIAll.SendChat("$<$ff3$> Stay the most time on the structure. $<$ff9GL HF!$>");
-
 ***
 
 /***Match_InitPlayLoop***
@@ -324,53 +324,6 @@ MalusQueue = [];
 
 ***Match_PlayLoop***
 ***
-// Update CarRank & UI Interface
-if (!RankInitialized) {
-	RankInitialized = True;
-	Net_PlayersNbAlive = PlayersNbAlive;
-	Net_NBPlayers = AccountIdsOfPlayers.count;
-	foreach (Player in Players) {
-		CarRank::SetRank(Player, PlayersNbAlive);
-	}
-}
-
-// Spawn players who have longloading
-if (Now < StartTime + 3000) {
-	declare Boolean PlayerSpawned = False;
-	declare CMapLandmark[] Landmarks = Map::GetFinishesAndMultilaps();
-	declare CMapLandmark PlayerLM = Null;
-	if (PlayersNbDead >= 1) {
-		foreach (Player in Players) {
-			if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned && !AccountIdsOfPlayers.exists(Player.User.WebServicesUserId)) {
-				PlayerSpawned = True;
-				PlayerLM = Null;
-				while (PlayerLM == Null) {
-					if (LandmarkIndex > Landmarks.count - 1 ) {
-						LandmarkIndex = 0;
-					}
-					if (Map::IsMultilap(Landmarks[LandmarkIndex])) {
-						PlayerLM = Landmarks[LandmarkIndex];
-					}
-					LandmarkIndex = LandmarkIndex + 1 ;
-				}
-				Race::Start(Player, PlayerLM , StartTime);
-				AccountIdsOfPlayers.add(Player.User.WebServicesUserId);
-
-				MalusQueue[Player.User.Login] = GetNewMalus(C_Malus_Reset);
-			}
-		}
-	}
-	if (PlayerSpawned) {
-		PlayerSpawned = False;
-		Net_NBPlayers = AccountIdsOfPlayers.count;
-		Net_PlayersNbAlive = PlayersNbAlive;
-		UpdateCustomRanking(Null, -1);
-		foreach (Player in Players) {
-			CarRank::SetRank(Player, PlayersNbAlive);
-		}
-	}
-}
-
 // Manage race events
 declare RacePendingEvents = Race::GetPendingEvents();
 foreach (Event in RacePendingEvents) {
