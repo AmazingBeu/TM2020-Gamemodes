@@ -28,7 +28,7 @@
 #Setting S_RoundsPerMap 1 as _("Number of rounds per map") ///< Number of round to play on one map before going to the next one
 
 
-#Setting S_AFKIdleTime 10000 as "Time before being an AFK player will be kicked"
+#Setting S_AFKIdleTime 120000 as "Time before being an AFK player will be kicked"
 
 #Setting S_IntroTime 5 as "Time of the map intro"
 #Setting S_TimeBeforeMalus 10 as "Time Before Malus"
@@ -242,6 +242,9 @@ CarRank::Reset();
 ***Match_StartRound***
 ***
 Scores::Clear();
+
+declare netwrite Integer Net_LMS_AFKIdleTime for Teams[0] = 120000;
+Net_LMS_AFKIdleTime = S_AFKIdleTime;
 
 // WorkAround for longloading
 declare StartMapTime = Now;
@@ -929,6 +932,62 @@ Void SetML() {
 	Layers::Create("LMS_MapInfo", MLText);
 	Layers::SetType("LMS_MapInfo", CUILayer::EUILayerType::Normal);
 	Layers::Attach("LMS_MapInfo");
+
+	MLText = """
+	<manialink name="LMS_AFKManager" version="3">
+		<script><!--
+		#Include "MathLib" as ML
+
+		main() {
+			declare CMlFrame Frame_Global = (Page.GetFirstChild("frame-global") as CMlFrame);
+
+			wait(InputPlayer != Null);
+
+			declare netread Integer Net_LMS_AFKIdleTime for Teams[0] = 120000;
+			declare Integer Last_AFKIdleTime;
+			declare Integer Last_AFKDisplayTime;
+
+			declare Integer Last_NextCheck;
+
+			while(True) {
+				yield;
+
+				if (Now > Last_NextCheck) {
+					Last_NextCheck = Now + 500;
+
+					if (Last_AFKIdleTime != Net_LMS_AFKIdleTime) {
+						Last_AFKIdleTime = Net_LMS_AFKIdleTime;
+						Last_AFKDisplayTime = Last_AFKIdleTime - ML::Clamp(ML::FloorInteger(Net_LMS_AFKIdleTime * 0.33), 3000, 20000);
+					}
+
+					// Check if player is AFK or not
+					if (Input.TimeSinceLatestActivity > Last_AFKIdleTime) {
+						log("Player is AFK");
+						Playground.QuitServer(False);
+					} else if (Input.TimeSinceLatestActivity > Last_AFKDisplayTime) {
+						Frame_Global.Visible = True;
+					} else {
+						Frame_Global.Visible = False;
+					}
+				}
+			}
+		}
+		--></script>
+		<stylesheet>
+			<style class="text" textfont="GameFontBlack" textcolor="ffffffff" textsize="8" valign="center2" halign="center"/>
+		</stylesheet>
+
+		<frame id="frame-global" pos="0 40" hidden="1">
+			<quad size="150 35" halign="center" z-index="-1" bgcolor="000" opacity="0.7"/>
+			<label class="text" pos="0 -8" size="140 10" text="AFK Warning"/>
+			<label class="text" pos="0 -21.5" size="140 20" autonewline=1 textsize="4" text="Move your mouse or press a key on your keyboard or gamepad to prevent to be kicked"/>
+		</frame>
+
+	</manialink>
+	""";
+	Layers::Create("LMS_AFKManager", MLText);
+	Layers::SetType("LMS_AFKManager", CUILayer::EUILayerType::Normal);
+	Layers::Attach("LMS_AFKManager");
 }
 
 
