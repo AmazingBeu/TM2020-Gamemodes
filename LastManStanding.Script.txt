@@ -152,6 +152,14 @@ foreach (Event in PendingEvents) {
 	}
 }
 
+foreach (Event in UIManager.PendingEvents) {
+	if (Event.CustomEventType == "LMS_NotifyAFK") {
+		if (Event.CustomEventData.count > 0) {
+			UIManager.UIAll.SendChat("$ff9" ^ Event.CustomEventData[0]  ^ " has been kicked for being AFK");
+		}
+	}
+}
+
 StateMgr::Yield();
 ***
 
@@ -953,6 +961,8 @@ Void SetML() {
 					// Check if player is AFK or not
 					if (Last_AFKIdleTime > 0 && Input.TimeSinceLatestActivity > Last_AFKIdleTime) {
 						log("Player is AFK");
+						SendCustomEvent("LMS_NotifyAFK", [InputPlayer.User.Name]);
+						sleep(200); // Ensure that the Event is send to the server before leaving
 						Playground.QuitServer(False);
 					} else if (Last_AFKIdleTime > 0 && Input.TimeSinceLatestActivity > Last_AFKDisplayTime) {
 						Frame_Global.Visible = True;
