@@ -197,6 +197,8 @@ declare netwrite Integer Net_TimeBeforeMalus for Teams[0] = -1;
 declare netwrite Integer Net_RoundsPerMap for Teams[0] = 0;
 declare netwrite Integer Net_CurrentRoundNb for Teams[0] = 0;
 
+ResetNetworkVariables();
+
 // Map Intro
 declare Boolean MapIsCompatible;
 declare CMapLandmark[] Landmarks = Map::GetFinishesAndMultilaps();
