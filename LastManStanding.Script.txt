@@ -959,10 +959,10 @@ Void SetML() {
 					}
 
 					// Check if player is AFK or not
-					if (Input.TimeSinceLatestActivity > Last_AFKIdleTime) {
+					if (Last_AFKIdleTime > 0 && Input.TimeSinceLatestActivity > Last_AFKIdleTime) {
 						log("Player is AFK");
 						Playground.QuitServer(False);
-					} else if (Input.TimeSinceLatestActivity > Last_AFKDisplayTime) {
+					} else if (Last_AFKIdleTime > 0 && Input.TimeSinceLatestActivity > Last_AFKDisplayTime) {
 						Frame_Global.Visible = True;
 					} else {
 						Frame_Global.Visible = False;
