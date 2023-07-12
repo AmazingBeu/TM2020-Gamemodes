@@ -278,22 +278,20 @@ declare Integer LandmarkIndex for This = 0;
 AccountIdsOfPlayers = [];
 
 // Suffle Players list to randomise spawn
-declare CSmPlayer[] ShuffledPlayers = Players;
-declare Integer i=0;
-while(i<ShuffledPlayers.count) { // this should be enough, you can use arbitrary values, should the need arise
-	// find a pair (a,b) of valid indices to swap
-	declare a=ML::Rand(0, ShuffledPlayers.count-1);
-	declare b=ML::Rand(0, ShuffledPlayers.count-1);
-	
-	// now swap them
-	declare tmp=ShuffledPlayers[b];
-	ShuffledPlayers[b]=ShuffledPlayers[a];
-	ShuffledPlayers[a]=tmp;
-	
-	i=i+1;
+declare CSmPlayer[Integer] ShuffledPlayers;
+
+foreach (Player in Players) {
+	declare Integer RandomIndex = 0;
+	while (RandomIndex == 0 || ShuffledPlayers.existskey(RandomIndex)) {
+		RandomIndex = ML::Rand(1, 10000);
+	}
+	ShuffledPlayers[RandomIndex] = Player;
 }
 
+ShuffledPlayers = ShuffledPlayers.sortkey();
+
 foreach (Player in ShuffledPlayers) {
+	if (Player == Null) continue;
 	PlayerLM = Null;
 	while (PlayerLM == Null) {
 		if (LandmarkIndex > Landmarks.count - 1 ) {
