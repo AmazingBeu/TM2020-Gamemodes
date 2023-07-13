@@ -467,7 +467,6 @@ if (Players.count > 0 && S_MalusDuration > 0 && MalusTime != -1 && Now > MalusTi
 			ActiveMalus = True;
 			NextStepMalusTime = Now + (S_MalusDuration*1000);
 			
-			UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::Silence;
 			UIModules_BigMessage::SetMessage("Current Effect: "^C_Malus_Name[MalusIndex]);
 
 			// Players UI update
@@ -488,7 +487,6 @@ if (Players.count > 0 && S_MalusDuration > 0 && MalusTime != -1 && Now > MalusTi
 
 				NextStepMalusTime = Now + (S_MalusEveryNSecs*1000);
 
-				UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::Silence;
 				UIModules_BigMessage::SetMessage("");
 	
 				// Players UI update
@@ -549,8 +547,7 @@ if (Round_ForceEndRound || Round_SkipPauseRound) {
 	}
 	Scores::SetPlayerWinner(WinnerScore);
 
-	UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::EndRound;
-	UIManager.UIAll.BigMessageSoundVariant = 0;
+	ModeUtils::PlaySound(CUIConfig::EUISound::EndRound, 0);
 
 	if (WinnerScore == Null) {
 		UIModules_BigMessage::SetMessage(_("|Match|Draw"));
