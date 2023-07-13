@@ -581,6 +581,32 @@ Void ResetNetworkVariables() {
 	Net_CurrentRoundNb = 0;
 }
 
+
+/** Check if a Player is already considered eliminated
+ *
+ *	@param	_User						The User
+ *	@param	_Score						The Score, can be Null but it will search the Score in Scores
+ *
+ *	@return		Return True if the player have a time
+ */
+Boolean IsEliminated(CUser _User, CSmScore _Score) {
+	if (UIModules_ScoresTable::GetCustomTimes().existskey(_User.WebServicesUserId)) return True;
+	if (_Score == Null) {
+		foreach (Score in Scores) {
+			if (Score.User == Null) continue;
+			if (Score.User == _User) {
+				if (Score.PrevRaceTimes.count > 0) return True;
+				else return False;
+				break;
+			}
+		}
+	} else if (_Score.PrevRaceTimes.count > 0) {
+		return True;
+	}
+	
+	return False;
+}
+
 /** Get the Time Before the first Malus or NightMare Mode
  *
  *	@param	_StartTime								The starting time of the map
