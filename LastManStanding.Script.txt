@@ -374,6 +374,7 @@ foreach (Event in PendingEvents) {
 	if (Event.Type == CSmModeEvent::EType::OnPlayerRemoved) {
 		if (Event.User == Null ) continue;
 		if (!AccountIdsOfPlayers.exists(Event.User.WebServicesUserId)) continue;
+		if (IsEliminated(Event.User, Null)) continue;
 		ThrottleUpdate = True;
 		UpdateCustomRanking(Event.User, True);
 	}
