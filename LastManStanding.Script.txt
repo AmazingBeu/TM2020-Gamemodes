@@ -345,8 +345,7 @@ foreach (Event in RacePendingEvents) {
 	Race::ValidEvent(Event);
 
 	if (Event.Player == Null) continue;
-	
-	// Waypoint
+
 	switch (Event.Type) {
 		case Events::C_Type_Waypoint: {
 			ThrottleUpdate = True;
@@ -437,20 +436,11 @@ if (Players.count > 0 && S_MalusDuration > 0 && MalusTime != -1 && Now > MalusTi
 		if (!ActiveMalus && !PendingMalus) {
 			if (S_TimeBeforeNightmare >= 0 &&  Now > (StartTime + (S_TimeBeforeNightmare * 1000))) {
 				MalusIndex = C_Malus_Nightmare;
+			} else if (AllPlayersAreInTurtle()) {	
+				log("All players are in turtle");
+				MalusIndex = ML::Rand(7, 10); // Boost if all players in Turtle
 			} else {
-				declare Boolean AllPlayersInTurtle = True;
-				foreach (Player in Players) {
-					if (Player.WheelsContactCount > 1 || Player.Speed > 1) {
-						AllPlayersInTurtle = False;
-						break;
-					}
-				}
-				if (AllPlayersInTurtle) {
-					log("All players are in turtle");
-					MalusIndex = ML::Rand(7, 10); // Boost if all players in Turtle
-				} else {
-					MalusIndex = ML::Rand(1, 15);
-				}
+				MalusIndex = ML::Rand(1, 15);
 			}
 			PendingMalus = True;
 			ActiveMalus = False;
@@ -574,6 +564,7 @@ if (Round_ForceEndRound || Round_SkipPauseRound) {
 // Functions
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 
+// Reset Network Variables
 Void ResetNetworkVariables() {
 	declare netwrite Boolean Net_DisplayUI for Teams[0] = False;
 	Net_DisplayUI = False;
@@ -615,6 +606,19 @@ Boolean IsEliminated(CUser _User, CSmScore _Score) {
 	}
 	
 	return False;
+}
+
+/** Detect if all players are in Turtle
+ *
+ *	@return		Return False if one player is not in turtle
+ */
+Boolean AllPlayersAreInTurtle() {
+	foreach (Player in Players) {
+		if (Player.WheelsContactCount > 1 || Player.Speed > 1) {
+			return False;
+		}
+	}
+	return True;
 }
 
 /** Get the Time Before the first Malus or NightMare Mode
