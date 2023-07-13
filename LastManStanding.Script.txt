@@ -380,9 +380,17 @@ foreach (Event in PendingEvents) {
 	}
 }
 
-if (PlayersNbAlive <= 1 && AccountIdsOfPlayers.count >= 2) { //TODO just respawn in case of 1 player
-	Net_TimeBeforeMalus = -1;
-	MB_StopRound();
+// Detect when a players count changed without having triggered any of Event (when becoming spectator for example)
+if (!ThrottleUpdate && Net_PlayersNbAlive != PlayersNbAlive) {
+	log("Trying to detect why the player count changed");
+	foreach (Player in AllPlayers) {
+		if (Player.User == Null || Player.Score == Null) continue;
+		if (!AccountIdsOfPlayers.exists(Player.User.WebServicesUserId)) continue;
+		if (Player.SpawnStatus != CSmPlayer::ESpawnStatus::NotSpawned) continue;
+		if (IsEliminated(Player.User, Player.Score)) continue;
+		UpdateCustomRanking(Player.User, True);
+		ThrottleUpdate = True;
+	}
 }
 
 if (ThrottleUpdate) {
@@ -395,6 +403,11 @@ if (ThrottleUpdate) {
 			Scores::SetPlayerRoundPoints(Player.Score, Points);
 		}
 	}
+}
+
+if (PlayersNbAlive <= 1 && AccountIdsOfPlayers.count >= 2) { //TODO just respawn in case of 1 player
+	Net_TimeBeforeMalus = -1;
+	MB_StopRound();
 }
 
 
