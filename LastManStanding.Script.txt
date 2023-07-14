@@ -4,7 +4,7 @@
 #Extends "Libs/Nadeo/TMNext/TrackMania/Modes/TMNextRoundsBase.Script.txt"
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2023-07-13"
+#Const	Version							"2023-07-14"
 #Const	ScriptName					"Modes/TM2020-Gamemodes/LastManStanding.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -360,6 +360,7 @@ foreach (Event in RacePendingEvents) {
 		}
 		case Events::C_Type_Eliminated: {
 			ThrottleUpdate = True;
+			Race::StopSkipOutro(Event.Player);
 			UpdateCustomRanking(Event.Player.User, True);
 		}
 	}
