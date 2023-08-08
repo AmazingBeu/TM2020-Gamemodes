@@ -8,7 +8,7 @@
 #Extends "Libs/Nadeo/TMNext/TrackMania/Modes/TMNextRoundsBase.Script.txt"
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2022-06-11"
+#Const	Version							"2023-08-08"
 #Const	ScriptName					"Modes/TM2020-Gamemodes/TM_ReverseCup.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -159,12 +159,12 @@ foreach (Event in PendingEvents) {
 			if (Server_MatchInfo.RegistrationClosed && !Server_MatchInfo.Participants.exists(Event.Player.User.Login)) {
 				Scores::SetPlayerMatchPoints(Event.Player.Score, C_Points_Spectator);
 				// Equivalent of getCustomPoints: 
-				declare netwrite Text[][Text] Net_TMxSM_ScoresTable_CustomPoints for Teams[0];
+				declare netwrite Text[][Text] Net_TMxSM_ScoresTable_CustomPoints for Teams[0] = [];
 				Net_TMxSM_ScoresTable_CustomPoints[Event.Player.User.WebServicesUserId] = [C_Text_Spectator, C_Color_Spectator];
 			}
 		}
 	}
-	declare netwrite Integer Net_ReverseCup_LiveRanking_Update for Teams[0];
+	declare netwrite Integer Net_ReverseCup_LiveRanking_Update for Teams[0] = 0;
 	Net_ReverseCup_LiveRanking_Update += 1;
 }
 
@@ -292,7 +292,7 @@ MB_WarmUp(S_WarmUpNb, S_WarmUpDuration * 1000, S_WarmUpTimeout * 1000);
 
 ***Match_StartWarmUp***
 ***
-declare netwrite Integer Net_ReverseCup_LiveRanking_Update for Teams[0];
+declare netwrite Integer Net_ReverseCup_LiveRanking_Update for Teams[0] = 0;
 Net_ReverseCup_LiveRanking_Update += 1;
 ***
 
@@ -356,7 +356,7 @@ CarRank::ThrottleUpdate(CarRank::C_SortCriteria_CurrentRace);
 ***Match_PlayLoop***
 ***
 // Manage race events
-declare RacePendingEvents = Race::GetPendingEvents();
+declare Events::K_RaceEvent[] RacePendingEvents = Race::GetPendingEvents();
 foreach (Event in RacePendingEvents) {
 	Race::ValidEvent(Event);
 	
@@ -365,8 +365,8 @@ foreach (Event in RacePendingEvents) {
 		CarRank::ThrottleUpdate(CarRank::C_SortCriteria_CurrentRace);
 		if (Event.Player != Null) {
 			if (Event.IsEndRace) {
-				declare BetterRace = Scores::UpdatePlayerBestRaceIfBetter(Event.Player);
-				declare BetterLap = Scores::UpdatePlayerBestLapIfBetter(Event.Player);
+				Scores::UpdatePlayerBestRaceIfBetter(Event.Player);
+				Scores::UpdatePlayerBestLapIfBetter(Event.Player);
 				Scores::UpdatePlayerPrevRace(Event.Player);
 				ComputeLatestRaceScores();
 
@@ -379,7 +379,7 @@ foreach (Event in RacePendingEvents) {
 				}
 			}
 			if (Event.IsEndLap) {
-				declare Better = Scores::UpdatePlayerBestLapIfBetter(Event.Player);
+				Scores::UpdatePlayerBestLapIfBetter(Event.Player);
 			}
 		}
 	}
@@ -467,11 +467,11 @@ UIModules_ScoresTable::DisplayRoundPoints(False);
 
 Race::SortScores(Race::C_Sort_TotalPoints);
 
-if (!MB_MatchIsRunning()) {
-	declare Eliminated <=> Scores::GetBestPlayer(Scores::C_Sort_MatchPoints);
-	Scores::SetPlayerWinner(Eliminated);
-} else {
+if (MB_MatchIsRunning()) {
 	MB_SkipPodiumSequence();
+} else {
+	declare CSmScore Eliminated <=> Scores::GetBestPlayer(Scores::C_Sort_MatchPoints);
+	Scores::SetPlayerWinner(Eliminated);
 }
 ***
 
@@ -483,10 +483,10 @@ declare Text[] WinnersNames;
 foreach (Player in Players) {
 	if(!Spectators.exists(Player)) {
 		if (Scores::GetPlayerMatchPoints(Player.Score) >= C_Points_LastChance) {
-			if (Player.User.ClubTag != "") {
-				WinnersNames.add("[$<"^Player.User.ClubTag^"$>] " ^ Player.User.Name);
-			} else {
+			if (Player.User.ClubTag == "") {
 				WinnersNames.add(Player.User.Name);
+			} else {
+				WinnersNames.add("[$<"^Player.User.ClubTag^"$>] " ^ Player.User.Name);
 			}
 		} 
 	}
@@ -524,7 +524,7 @@ UIModules_ScoresTable::ResetTrophies();
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 Void UpdateDNFLossPoints(Integer _DNF_LossPoints) {
-	declare netwrite Integer Net_ReverseCup_DNF_LossPoints for Teams[0];
+	declare netwrite Integer Net_ReverseCup_DNF_LossPoints for Teams[0] = 0;
 	Net_ReverseCup_DNF_LossPoints = _DNF_LossPoints;
 }
 
@@ -538,7 +538,7 @@ Void UpdateDNFLossPoints(Integer _DNF_LossPoints) {
  */
  Void UpdateScoresTableFooter(Integer _PointsLimit, Integer _RoundsPerMap, Integer _ValidRoundsNb, Integer _NbOfWinners) {
 	declare Text[] Parts;
-	declare Message = "";
+	declare Text Message = "";
 	
 	if (_PointsLimit > 0) {
 		if (Parts.count > 0) Message ^= "\n";
@@ -573,7 +573,7 @@ Void UpdateDNFLossPoints(Integer _DNF_LossPoints) {
  *	@return 		The time left in ms
  */
 Integer GetFinishTimeout() {
-	declare FinishTimeout = 0;
+	declare Integer FinishTimeout = 0;
 	
 	if (S_FinishTimeout >= 0) {
 		FinishTimeout = S_FinishTimeout * 1000;
@@ -597,7 +597,7 @@ Integer GetFinishTimeout() {
  *	@param	_Rank			The rank of the new looser
  */
 Void AnnounceEliminated(Text _Name, Integer _Rank) {
-	declare Message = "";
+	declare Text Message = "";
 	switch (_Rank) {
 		case 1: Message = TL::Compose("$f90$i$<%1$> takes 1st place!", _Name);
 		case 2: Message = TL::Compose("$f90$i$<%1$> takes 2nd place!", _Name);
@@ -630,8 +630,7 @@ Void ComputeLatestRaceScores() {
 	Race::SortScores(Race::C_Sort_PrevRaceTime);
 	
 	// Points distributed between all players
-	declare I = 0;
-	declare J = 0;
+	declare Integer I = 0;
 	declare CSmPlayer[] LastChancePlayersDNF_WithWorstCheckpoints;
 	declare Integer MinCheckpointNbPassed = 9999;
 
@@ -642,7 +641,7 @@ Void ComputeLatestRaceScores() {
 		if (Scores::GetPlayerMatchPoints(Score) < C_Points_LastChance) continue;
 
 		if (Scores::GetPlayerPrevRaceTime(Score) > 0) {
-			declare Points = 0;
+			declare Integer Points = 0;
 			if (PointsRepartition.count > 0) {
 				if (PointsRepartition.existskey(I)) {
 					Points = 0 - PointsRepartition[I];
@@ -683,7 +682,6 @@ Void ComputeLatestRaceScores() {
 				Scores::SetPlayerRoundPoints(Score, 0 - S_DNF_LossPoints);
 			}
 		}
-		J += 1;
 	}
 	if(S_LastChance_DNF_Mode == 1) {
 		foreach(Player in LastChancePlayersDNF_WithWorstCheckpoints) {
@@ -701,7 +699,7 @@ Void ComputeScores() {
 	
 	Race::SortScores(Race::C_Sort_TotalPoints);
 
-	declare MaxRoundPoints = 0;
+	declare Integer MaxRoundPoints = 0;
 	foreach (Score in Scores) {
 		if (MaxRoundPoints > Scores::GetPlayerRoundPoints(Score) && Scores::GetPlayerMatchPoints(Score) > C_Points_Eliminated) MaxRoundPoints = Scores::GetPlayerRoundPoints(Score);
 	}
@@ -779,7 +777,7 @@ Boolean MapIsOver() {
  */
 Boolean MatchIsOver() {
 	Log::Log("[Cup] MatchIsOver() check | S_PointsStartup : "^S_PointsStartup);
-	declare NbOfPlayersActive = 0;
+	declare Integer NbOfPlayersActive = 0;
 	foreach (Player in Players) {
 		if(!Spectators.exists(Player)) {
 			if (Scores::GetPlayerMatchPoints(Player.Score) >= C_Points_LastChance) NbOfPlayersActive += 1;
@@ -788,7 +786,6 @@ Boolean MatchIsOver() {
 	
 	// If there's only one player they need to reach the points limit to win
 	// If there's more than one player then all players except one must reach the points limit
-	declare PlayerEliminatedLimit = ML::Max(Players.count - 1, 1);
 	Log::Log("""[Cup] Match is over ? {{{(S_NbOfWinners >= NbOfPlayersActive)}}} | ({{{S_NbOfWinners}}} >= {{{NbOfPlayersActive}}})""");
 	if (S_NbOfWinners >= NbOfPlayersActive) return True;
 	
@@ -826,7 +823,7 @@ Void CheckRoundBeforePlay() {
 
 		// Check if no players are LastChance or have more points than the minimum points
 		foreach (Score in Scores) {
-			declare PlayerMatchPoints = Scores::GetPlayerMatchPoints(Score);
+			declare Integer PlayerMatchPoints = Scores::GetPlayerMatchPoints(Score);
 
 			if (PlayerMatchPoints == C_Points_LastChance || PlayerMatchPoints > PointsRepartition[0]) {
 				IsRoundFastForwardCompatible = False;
@@ -837,7 +834,7 @@ Void CheckRoundBeforePlay() {
 		// if no one, do :
 		if(IsRoundFastForwardCompatible == True) {
 			foreach (Score in Scores) {
-				declare PlayerMatchPoints = Scores::GetPlayerMatchPoints(Score);
+				declare Integer PlayerMatchPoints = Scores::GetPlayerMatchPoints(Score);
 				if (PlayerMatchPoints > C_Points_Eliminated) {
 					Scores::SetPlayerMatchPoints(Score, C_Points_LastChance);
 				}
@@ -853,7 +850,7 @@ Void CheckRoundBeforePlay() {
 }
 
 Void UpdateLiveRaceUI() {
-	declare netwrite Integer Net_ReverseCup_LiveRanking_Update for Teams[0];
+	declare netwrite Integer Net_ReverseCup_LiveRanking_Update for Teams[0] = 0;
 	Net_ReverseCup_LiveRanking_Update += 1;
 }
 
