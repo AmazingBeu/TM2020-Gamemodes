@@ -321,7 +321,11 @@ if (S_EnableCollisions) {
 
 
 ModeUtils::PlaySound(CUIConfig::EUISound::PhaseChange, 0);
-UIModules_BigMessage::SetMessage(_("Rounds : ") ^ TL::ToText(G_NbOfValidRounds + 1) ^ " / " ^ TL::ToText(S_RoundsPerMap));
+if (S_RoundsPerMap > 0) {
+	UIModules_BigMessage::SetMessage(_("Round: ") ^ TL::ToText(G_NbOfValidRounds + 1) ^ " / " ^ TL::ToText(S_RoundsPerMap));
+} else {
+	UIModules_BigMessage::SetMessage(_("Round: ") ^ TL::ToText(G_NbOfValidRounds + 1));
+}
 MB_Sleep(3000);
 UIModules_BigMessage::SetMessage("");
 ***
@@ -765,7 +769,7 @@ Void ComputeScores() {
  *	@return		True if it is the case, false otherwise
  */
 Boolean MapIsOver() {
-	if (G_NbOfValidRounds >= S_RoundsPerMap) return True;
+	if (S_RoundsPerMap > 0 && G_NbOfValidRounds >= S_RoundsPerMap) return True;
 	return False;
 }
 
