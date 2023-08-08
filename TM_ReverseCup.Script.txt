@@ -34,6 +34,7 @@
 
 #Setting S_NbOfWinners 1 as _("Number of winners")
 #Setting S_FinishTimeout -1 as _("Finish timeout")
+#Setting S_ComplexPointsRepartition "" as "JSON of PointsRepartition depending for the number of the Players Alive" // Example: {"3": [3, 6, 10], "4,5": [1, 3, 6,10]}
 #Setting S_PointsRepartition "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20"
 #Setting S_RoundsPerMap 5 as _("Number of rounds per map") ///< Number of round to play on one map before going to the next one
 
@@ -177,6 +178,7 @@ declare Integer Server_PointsLimit;
 declare Integer Server_RoundsPerMap;
 declare Integer Server_NbOfWinners;
 declare Integer Server_DNF_LossPoints;
+declare Text Server_ComplexPointsRepartition;
 ***
 
 ***Match_StartServer***
@@ -203,12 +205,14 @@ Server_PointsLimit = S_PointsStartup;
 Server_RoundsPerMap = S_RoundsPerMap;
 Server_NbOfWinners = S_NbOfWinners;
 Server_DNF_LossPoints = S_DNF_LossPoints;
+Server_ComplexPointsRepartition = S_ComplexPointsRepartition;
 ***
 
 ***Match_StartMatch***
 ***
 UIModules_ScoresTable::SetCustomPoints([]);
 
+UpdateComplexPointsRepartition(S_ComplexPointsRepartition);
 declare K_MatchInfo Server_MatchInfo for This = K_MatchInfo {};
 Server_MatchInfo = K_MatchInfo {};
 ***
@@ -328,12 +332,23 @@ if (S_RoundsPerMap > 0) {
 }
 MB_Sleep(3000);
 UIModules_BigMessage::SetMessage("");
+
+declare Integer Round_NbPlayersInThisRound = 0;
 ***
 
 ***Match_StartRound***
 ***
 UpdateScoresTableFooter(S_PointsStartup, S_RoundsPerMap, G_NbOfValidRounds, S_NbOfWinners);
-CheckRoundBeforePlay();
+
+declare K_MatchInfo Server_MatchInfo for This = K_MatchInfo {};
+foreach (Score in Scores) {
+	if (Score.User == Null) continue;
+	if (Scores::GetPlayerMatchPoints(Score) < C_Points_LastChance) continue;
+	if (!Server_MatchInfo.Participants.exists(Score.User.Login)) continue;
+	Round_NbPlayersInThisRound += 1;
+}
+
+CheckRoundBeforePlay(Round_NbPlayersInThisRound);
 UpdateDNFLossPoints(Server_DNF_LossPoints);
 StateMgr::ForcePlayersStates([CupCommon_Const::C_State_Playing]);
 
@@ -372,7 +387,7 @@ foreach (Event in RacePendingEvents) {
 				Scores::UpdatePlayerBestRaceIfBetter(Event.Player);
 				Scores::UpdatePlayerBestLapIfBetter(Event.Player);
 				Scores::UpdatePlayerPrevRace(Event.Player);
-				ComputeLatestRaceScores();
+				ComputeLatestRaceScores(Round_NbPlayersInThisRound);
 
 				Race::SortScores(Race::C_Sort_TotalPoints);
 				
@@ -412,6 +427,11 @@ if (Server_PointsLimit != S_PointsStartup ||
 	UpdateScoresTableFooter(S_PointsStartup, S_RoundsPerMap, G_NbOfValidRounds, S_NbOfWinners);
 	UpdateDNFLossPoints(Server_DNF_LossPoints);
 }
+
+if (Server_ComplexPointsRepartition != S_ComplexPointsRepartition) {
+	Server_ComplexPointsRepartition = S_ComplexPointsRepartition;
+	UpdateComplexPointsRepartition(Server_ComplexPointsRepartition);
+}
 ***
 
 ***Match_EndRound***
@@ -439,7 +459,7 @@ if (Round_ForceEndRound || Round_SkipPauseRound || Round_Skipped) {
 	MB_Sleep(3000);
 } else {
 	// Get the last round points
-	ComputeLatestRaceScores();
+	ComputeLatestRaceScores(Round_NbPlayersInThisRound);
 	+++Cup_EndRound_BeforeScoresUpdate+++
 	Race::SortScores(Race::C_Sort_TotalPoints);
 	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
@@ -571,6 +591,21 @@ Void UpdateDNFLossPoints(Integer _DNF_LossPoints) {
 	}
 }
 
+Void UpdateComplexPointsRepartition(Text _ComplexPointsRepartition) {
+	declare Integer[][Integer] Server_ComplexPointsRepartition for This = [];
+	Server_ComplexPointsRepartition = [];
+
+	declare Integer[][Text] TextComplexPointsRepartition;
+	TextComplexPointsRepartition.fromjson(_ComplexPointsRepartition);
+
+	foreach (TextMultipleRemainingPlayers => PointsRepartition in TextComplexPointsRepartition) {
+		declare Text[] MultipleRemainingPlayers = TL::Split(",", TextMultipleRemainingPlayers);
+		foreach (TextRemainingPlayers in MultipleRemainingPlayers) {
+			Server_ComplexPointsRepartition[TL::ToInteger(TextRemainingPlayers)] = PointsRepartition;
+		}
+	}
+}
+
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 /** Get the time left to the players to finish the round after the first player
  *
@@ -613,11 +648,19 @@ Void AnnounceEliminated(Text _Name, Integer _Rank) {
 	UIModules_BigMessage::SetMessage(Message);
 }
 
-Integer[] GetPointsRepartition() {
-	declare Integer[] PointsRepartition = PointsRepartition::GetPointsRepartition();
+Integer[] GetPointsRepartition(Integer _NbPlayersInThisRound) {
+	declare Integer[] PointsRepartition;
+	declare Integer[][Integer] Server_ComplexPointsRepartition for This = [];
 
-	if (S_FastForwardPointsRepartition) {
+	if (Server_ComplexPointsRepartition.existskey(_NbPlayersInThisRound)) {
+		PointsRepartition = Server_ComplexPointsRepartition[_NbPlayersInThisRound];
+	} else {
+		PointsRepartition = PointsRepartition::GetPointsRepartition();
+	}
+
+	if (S_FastForwardPointsRepartition && _NbPlayersInThisRound > PointsRepartition.count) {
 		foreach (Score in Scores) {
+			if (_NbPlayersInThisRound <= PointsRepartition.count) break;
 			declare Integer Points = Scores::GetPlayerMatchPoints(Score);
 			if (Points > C_Points_Spectator && Points <= C_Points_Eliminated) {
 				PointsRepartition = PointsRepartition.slice(1, PointsRepartition.count - 1);
@@ -630,15 +673,15 @@ Integer[] GetPointsRepartition() {
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 /// Compute the latest race scores
-Void ComputeLatestRaceScores() {
+Void ComputeLatestRaceScores(Integer _NbPlayersInThisRound) {
 	Race::SortScores(Race::C_Sort_PrevRaceTime);
 	
 	// Points distributed between all players
-	declare Integer I = 0;
+	declare Integer Key = 0;
 	declare CSmPlayer[] LastChancePlayersDNF_WithWorstCheckpoints;
 	declare Integer MinCheckpointNbPassed = 9999;
 
-	declare Integer[] PointsRepartition = GetPointsRepartition(); 
+	declare Integer[] PointsRepartition = GetPointsRepartition(_NbPlayersInThisRound); 
 
 	foreach (Score in Scores) {
 		// Skip Spectators and already eliminated players
@@ -647,15 +690,15 @@ Void ComputeLatestRaceScores() {
 		if (Scores::GetPlayerPrevRaceTime(Score) > 0) {
 			declare Integer Points = 0;
 			if (PointsRepartition.count > 0) {
-				if (PointsRepartition.existskey(I)) {
-					Points = 0 - PointsRepartition[I];
+				if (PointsRepartition.existskey(Key)) {
+					Points = 0 - PointsRepartition[Key];
 				} else {
 					Points = 0 - PointsRepartition[PointsRepartition.count - 1];
 				}
 			}
 			
 			Scores::SetPlayerRoundPoints(Score, Points);
-			I += 1;
+			Key += 1;
 		} else {
 			// Apply DNF penality if Disconnected
 			if (Score.User == Null) {
@@ -782,18 +825,16 @@ Boolean MapIsOver() {
 Boolean MatchIsOver() {
 	Log::Log("[Cup] MatchIsOver() check | S_PointsStartup : "^S_PointsStartup);
 	declare Integer NbOfPlayersActive = 0;
-	foreach (Player in Players) {
-		if(!Spectators.exists(Player)) {
-			if (Scores::GetPlayerMatchPoints(Player.Score) >= C_Points_LastChance) NbOfPlayersActive += 1;
-		}
+	foreach (Score in Scores) {
+		if (Scores::GetPlayerMatchPoints(Score) >= C_Points_LastChance) NbOfPlayersActive += 1;
 	}
-	
-	// If there's only one player they need to reach the points limit to win
-	// If there's more than one player then all players except one must reach the points limit
-	Log::Log("""[Cup] Match is over ? {{{(S_NbOfWinners >= NbOfPlayersActive)}}} | ({{{S_NbOfWinners}}} >= {{{NbOfPlayersActive}}})""");
-	if (S_NbOfWinners >= NbOfPlayersActive) return True;
-	
-	return False;
+
+	declare K_MatchInfo Server_MatchInfo for This = K_MatchInfo {};
+	if (Server_MatchInfo.Participants.count == 1) {
+		return NbOfPlayersActive == 0;
+	}
+
+	return S_NbOfWinners >= NbOfPlayersActive;
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -820,9 +861,9 @@ Void DisplayCustomPoints() {
 /** Check round before playing it, if necessary to fast forward it
  *
  */
-Void CheckRoundBeforePlay() {
+Void CheckRoundBeforePlay(Integer _NbPlayersInThisRound) {
 	if(S_AllowFastForwardRounds == True) {
-		declare Integer[] PointsRepartition = GetPointsRepartition();
+		declare Integer[] PointsRepartition = GetPointsRepartition(_NbPlayersInThisRound);
 		declare Boolean IsRoundFastForwardCompatible = True;
 
 		// Check if no players are LastChance or have more points than the minimum points
