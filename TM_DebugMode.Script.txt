@@ -9,7 +9,7 @@
 
 #Setting S_DebugLib_RestrictUIto "" as "Restrict UI Admin to comma separated logins (all if empty)"
 
-#Const C_DebugMode_Version "2023-02-09"
+#Const C_DebugMode_Version "2023-08-28"
 
 #Const C_DebugMode_MainUI "DebugMode_MainUI"
 
