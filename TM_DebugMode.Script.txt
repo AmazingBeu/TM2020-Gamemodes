@@ -818,6 +818,12 @@ Text GetManialink() {
                                     }
                                 }
                             }
+														case CMlScriptEvent::Type::KeyPress: {
+															if (Event.KeyCode == 38) { // F1
+																Frame_MainUI.Visible = !Frame_MainUI.Visible;
+																P_DebugMode_Window_Open = Frame_MainUI.Visible;
+															}
+														}
                         }
                     }
 
