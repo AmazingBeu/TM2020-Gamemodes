@@ -19,6 +19,7 @@
 
 #Include "Libs/Nadeo/ModeLibs/Common/Utils.Script.txt" as ModeUtils
 
+#Setting S_ScriptEnvironment "development"
 
 ***Match_AfterLoadHud***
 ***
