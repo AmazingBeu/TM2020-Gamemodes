@@ -159,18 +159,7 @@ foreach (Event in UIManager.PendingEvents) {
 		}
 		case "DebugMode.VarInsp.ForVars.Dump.Player": {
 			declare CSmPlayer Player;
-			if (TL::Length(Event.CustomEventData[0]) == 36) {
-				Player <=> ModeUtils::GetPlayerFromAccountId(Event.CustomEventData[0]);
-			} else if (TL::Length(Event.CustomEventData[0]) == 22) {
-				Player <=> GetPlayer(Event.CustomEventData[0]);
-			} else {
-				foreach (TmpPlayer in AllPlayers) {
-					if (TL::ToLowerCase(Event.CustomEventData[0]) == TL::ToLowerCase(TmpPlayer.User.Name)) {
-						Player <=> TmpPlayer;
-						break;
-					}
-				}
-			}
+			+++DebugMode_FindPlayer+++
 			
 			if (Player != Null) {
 				if (Event.CustomEventData[1] == "player") {
@@ -191,18 +180,7 @@ foreach (Event in UIManager.PendingEvents) {
 		}
 		case "DebugMode.VarInsp.Struct.Dump.Player": {
 			declare CSmPlayer Player;
-			if (TL::Length(Event.CustomEventData[0]) == 36) {
-				Player <=> ModeUtils::GetPlayerFromAccountId(Event.CustomEventData[0]);
-			} else if (TL::Length(Event.CustomEventData[0]) == 22) {
-				Player <=> GetPlayer(Event.CustomEventData[0]);
-			} else {
-				foreach (TmpPlayer in AllPlayers) {
-					if (TL::ToLowerCase(Event.CustomEventData[0]) == TL::ToLowerCase(TmpPlayer.User.Name)) {
-						Player <=> TmpPlayer;
-						break;
-					}
-				}
-			}
+
 			
 			if (Player != Null) {
 				if (Event.CustomEventData[1] == "player") {
@@ -228,6 +206,22 @@ foreach (Event in UIManager.PendingEvents) {
 }
 
 +++DebugMode_LogEvents+++
+***
+
+***DebugMode_FindPlayer***
+***
+if (TL::Length(Event.CustomEventData[0]) == 36) {
+	Player <=> ModeUtils::GetPlayerFromAccountId(Event.CustomEventData[0]);
+} else if (TL::Length(Event.CustomEventData[0]) == 22) {
+	Player <=> GetPlayer(Event.CustomEventData[0]);
+} else {
+	foreach (TmpPlayer in AllPlayers) {
+		if (TL::ToLowerCase(Event.CustomEventData[0]) == TL::ToLowerCase(TmpPlayer.User.Name)) {
+			Player <=> TmpPlayer;
+			break;
+		}
+	}
+}
 ***
 
 ***DebugMode_LogEvents***
