@@ -146,9 +146,10 @@ foreach (Event in UIManager.PendingEvents) {
 			}
 		}
 		case "DebugMode.VarInsp.Dump.Teams0": {
+			// prevent to dump Net_DebugMode_Logs in the dump
 			declare Text tmp = Net_DebugMode_Logs;
 			Net_DebugMode_Logs = "";
-			Net_DebugMode_Logs = Prefix ^ "Teams[0] dump:\n" ^ Dbg_DumpDeclareForVariables(Teams[0], False) ^"\n" ^ tmp;
+			Net_DebugMode_Logs = Prefix ^ "Teams[0] dump:\n" ^ Dbg_DumpDeclareForVariables(Teams[0], False) ^"\n" ^ Net_DebugMode_Logs;
 		}
 		case "DebugMode.VarInsp.Dump.UIAll": {
 			Net_DebugMode_Logs = Prefix ^ "UIAll dump:\n" ^ Dbg_DumpDeclareForVariables(UIManager.UIAll, False) ^"\n" ^ Net_DebugMode_Logs;
@@ -226,39 +227,59 @@ foreach (Event in UIManager.PendingEvents) {
 	}
 }
 
++++DebugMode_LogEvents+++
+***
+
+***DebugMode_LogEvents***
+***
 foreach (Event in PendingEvents) {
-	+++DebugMode_LogFormat+++
-	Net_DebugMode_Logs = Prefix ^ "CSmMode PendingEvent: " ^ Event.Type ^"\n" ^ Net_DebugMode_Logs;
-	if (Event.Type == CSmModeEvent::EType::OnPlayerAdded) {
-		if (Event.Player != Null && TL::Split(",", S_DebugLib_RestrictUIto).exists(Event.Player.User.Login)) {
-			Layers::Attach(C_DebugMode_MainUI, Event.Player);
-		}
-	}
+	+++DebugMode_PendingEvents+++
 }
 
 foreach (Event in XmlRpc.PendingEvents) {
-	+++DebugMode_LogFormat+++
-	if (Event.Type == CXmlRpcEvent::EType::CallbackArray) {
-		Net_DebugMode_Logs = Prefix ^ "XmlRpc PendingEvent: " ^ Event.ParamArray1 ^"\n" ^ Net_DebugMode_Logs;
-	} else {
-		Net_DebugMode_Logs = Prefix ^ "XmlRpc PendingEvent: " ^ Event.Param1 ^"\n" ^ Net_DebugMode_Logs;
-	}
+	+++DebugMode_XmlRpcPendingEvents+++
 }
 
-declare RacePendingEvents = Race::GetPendingEvents();
+declare Events::K_RaceEvent[] RacePendingEvents = Race::GetPendingEvents();
 foreach (Event in RacePendingEvents) {
-	+++DebugMode_LogFormat+++
-	declare Text Type = "Unknown";
-	switch (Event.Type) {
-		case 1: Type = "Waypoint";
-		case 2: Type = "GiveUp";
-		case 3: Type = "Respawn";
-		case 4: Type = "SkipOutro";
-		case 5: Type = "StartLine";
-		case 6: Type = "Eliminated";
-	}
-	Net_DebugMode_Logs = Prefix ^ "Race Pending Event: " ^ Type ^"\n" ^ Net_DebugMode_Logs;
+	+++DebugMode_RacePendingEvents+++
 }
+***
+
+***DebugMode_PendingEvents***
+***
++++DebugMode_LogFormat+++
+Net_DebugMode_Logs = Prefix ^ "CSmMode PendingEvent: " ^ Event.Type ^"\n" ^ Net_DebugMode_Logs;
+if (Event.Type == CSmModeEvent::EType::OnPlayerAdded) {
+	if (Event.Player != Null && TL::Split(",", S_DebugLib_RestrictUIto).exists(Event.Player.User.Login)) {
+		Layers::Attach(C_DebugMode_MainUI, Event.Player);
+	}
+}
+***
+
+***DebugMode_XmlRpcPendingEvents***
+***
++++DebugMode_LogFormat+++
+if (Event.Type == CXmlRpcEvent::EType::CallbackArray) {
+	Net_DebugMode_Logs = Prefix ^ "XmlRpc PendingEvent: " ^ Event.ParamArray1 ^"\n" ^ Net_DebugMode_Logs;
+} else {
+	Net_DebugMode_Logs = Prefix ^ "XmlRpc PendingEvent: " ^ Event.Param1 ^"\n" ^ Net_DebugMode_Logs;
+}
+***
+
+***DebugMode_RacePendingEvents***
+***
++++DebugMode_LogFormat+++
+declare Text Type = "Unknown";
+switch (Event.Type) {
+	case 1: Type = "Waypoint";
+	case 2: Type = "GiveUp";
+	case 3: Type = "Respawn";
+	case 4: Type = "SkipOutro";
+	case 5: Type = "StartLine";
+	case 6: Type = "Eliminated";
+}
+Net_DebugMode_Logs = Prefix ^ "Race Pending Event: " ^ Type ^"\n" ^ Net_DebugMode_Logs;
 ***
 
 ***DebugMode_LogFormat***
@@ -282,7 +303,6 @@ declare netwrite Text Net_DebugMode_Logs for Teams[0];
 if (TL::Length(Net_DebugMode_Logs) > 1000000) {
 	Net_DebugMode_Logs = TL::SubString(Net_DebugMode_Logs, 0, 1000000);
 }
-
 
 declare netwrite Integer Net_DebugMode_Logs_Serial for Teams[0];
 Net_DebugMode_Logs_Serial += 1;
@@ -360,7 +380,7 @@ Text GetManialink() {
 
 					<frame id="frame-rightpanel" pos="26 0">
 
-					
+
 						<frame id="frame-rightpanel-logs" hidden=1>
 							<frame>
 								<quad id="quad-clearlogs" class="button" pos="0 0" size="15 4" z-index="-1" bgcolor="666" opacity="0.5" scriptevents="1"/>
