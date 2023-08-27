@@ -747,13 +747,9 @@ main() {
 					}
 					if (TL::StartsWith("quad-bots-delbots-", Event.Control.ControlId)) {
 						SendCustomEvent("DebugMode.Bots.DelBots", [Entry_Bots_Name.Value, TL::Split("-",Event.Control.ControlId)[3]]);
-						SwitchToTab(P_DebugMode_SelectedTab, "quad-leftpanel-logs");
-						P_DebugMode_SelectedTab = "quad-leftpanel-logs";
 					}
 					if (TL::StartsWith("quad-bots-addbots-", Event.Control.ControlId)) {
 						SendCustomEvent("DebugMode.Bots.AddBots", [Entry_Bots_Name.Value, Entry_Bots_TeamId.Value, TL::Split("-",Event.Control.ControlId)[3]]);
-						SwitchToTab(P_DebugMode_SelectedTab, "quad-leftpanel-logs");
-						P_DebugMode_SelectedTab = "quad-leftpanel-logs";
 					}
 					if (TL::StartsWith("quad-playerscontrol-player-", Event.Control.ControlId)) {
 						declare Text Target = TL::Split("-",Event.Control.ControlId)[3];
