@@ -76,10 +76,10 @@ foreach (Event in UIManager.PendingEvents) {
 			if (TeamId != -1 && Teams.existskey(TeamId)) {
 				for (I, 1, NumberOfBots) {
 					declare CUser User = Users_CreateFake(Name, TeamId);
-					if (User != Null) {
-						Net_DebugMode_Logs = Prefix ^ "Bots: Add bot \"" ^ User.Name ^ "\"\n" ^ Net_DebugMode_Logs;
-					} else {
+					if (User == Null) {
 						Net_DebugMode_Logs = Prefix ^ "Bots: unknown error while adding bot \"" ^ Name ^ "\"\n" ^ Net_DebugMode_Logs;
+					} else {
+						Net_DebugMode_Logs = Prefix ^ "Bots: Add bot \"" ^ User.Name ^ "\"\n" ^ Net_DebugMode_Logs;
 					}
 				}
 			} else {
@@ -147,9 +147,9 @@ foreach (Event in UIManager.PendingEvents) {
 		}
 		case "DebugMode.VarInsp.Dump.Teams0": {
 			// prevent to dump Net_DebugMode_Logs in the dump
-			declare Text tmp = Net_DebugMode_Logs;
+			declare Text Tmp = Net_DebugMode_Logs;
 			Net_DebugMode_Logs = "";
-			Net_DebugMode_Logs = Prefix ^ "Teams[0] dump:\n" ^ Dbg_DumpDeclareForVariables(Teams[0], False) ^"\n" ^ Net_DebugMode_Logs;
+			Net_DebugMode_Logs = Prefix ^ "Teams[0] dump:\n" ^ Dbg_DumpDeclareForVariables(Teams[0], False) ^"\n" ^ Tmp;
 		}
 		case "DebugMode.VarInsp.Dump.UIAll": {
 			Net_DebugMode_Logs = Prefix ^ "UIAll dump:\n" ^ Dbg_DumpDeclareForVariables(UIManager.UIAll, False) ^"\n" ^ Net_DebugMode_Logs;
@@ -161,42 +161,38 @@ foreach (Event in UIManager.PendingEvents) {
 			declare CSmPlayer Player;
 			+++DebugMode_FindPlayer+++
 			
-			if (Player != Null) {
-				if (Event.CustomEventData[1] == "player") {
-					Net_DebugMode_Logs = Prefix ^ "Player ForVars dump for " ^ Player.User.Name ^ ":\n" ^ Dbg_DumpDeclareForVariables(Player, False) ^"\n" ^ Net_DebugMode_Logs;
-				} else if (Event.CustomEventData[1] == "score") {
-					Net_DebugMode_Logs = Prefix ^ "Score ForVars dump for " ^ Player.User.Name ^ ":\n" ^ Dbg_DumpDeclareForVariables(Player.Score, False) ^"\n" ^ Net_DebugMode_Logs;
-				} else {
-					declare CUIConfig UI = UIManager.GetUI(Player);
-					if (UI != Null) {
-						Net_DebugMode_Logs = Prefix ^ "UI ForVars dump for " ^ Player.User.Name ^ ":\n" ^ Dbg_DumpDeclareForVariables(UI, False) ^"\n" ^ Net_DebugMode_Logs;
-					} else {
-						Net_DebugMode_Logs = Prefix ^ "UI ForVars dump for " ^ Player.User.Name ^ ": no UI found (it's a bot?)\n" ^ Net_DebugMode_Logs;
-					}
-				}
-			} else {
+			if (Player == Null) {
 				Net_DebugMode_Logs = Prefix ^ "ForVars dump: player not found\n" ^ Net_DebugMode_Logs;
+			} else if (Event.CustomEventData[1] == "player") {
+				Net_DebugMode_Logs = Prefix ^ "Player ForVars dump for " ^ Player.User.Name ^ ":\n" ^ Dbg_DumpDeclareForVariables(Player, False) ^"\n" ^ Net_DebugMode_Logs;
+			} else if (Event.CustomEventData[1] == "score") {
+				Net_DebugMode_Logs = Prefix ^ "Score ForVars dump for " ^ Player.User.Name ^ ":\n" ^ Dbg_DumpDeclareForVariables(Player.Score, False) ^"\n" ^ Net_DebugMode_Logs;
+			} else {
+				declare CUIConfig UI = UIManager.GetUI(Player);
+				if (UI == Null) {
+					Net_DebugMode_Logs = Prefix ^ "UI ForVars dump for " ^ Player.User.Name ^ ": no UI found (it's a bot?)\n" ^ Net_DebugMode_Logs;
+				} else {
+					Net_DebugMode_Logs = Prefix ^ "UI ForVars dump for " ^ Player.User.Name ^ ":\n" ^ Dbg_DumpDeclareForVariables(UI, False) ^"\n" ^ Net_DebugMode_Logs;
+				}
 			}
 		}
 		case "DebugMode.VarInsp.Struct.Dump.Player": {
 			declare CSmPlayer Player;
+			+++DebugMode_FindPlayer+++
 
-			
-			if (Player != Null) {
-				if (Event.CustomEventData[1] == "player") {
-					Net_DebugMode_Logs = Prefix ^ "Player Struct dump for " ^ Player.User.Name ^ ":\n" ^ Player ^"\n" ^ Net_DebugMode_Logs;
-				} else if (Event.CustomEventData[1] == "score") {
-					Net_DebugMode_Logs = Prefix ^ "Score Struct dump for " ^ Player.User.Name ^ ":\n" ^ Player.Score ^"\n" ^ Net_DebugMode_Logs;
-				} else {
-					declare CUIConfig UI = UIManager.GetUI(Player);
-					if (UI != Null) {
-						Net_DebugMode_Logs = Prefix ^ "UI ForVars dump for " ^ Player.User.Name ^ ":\n" ^ UI ^"\n" ^ Net_DebugMode_Logs;
-					} else {
-						Net_DebugMode_Logs = Prefix ^ "UI ForVars dump for " ^ Player.User.Name ^ ": no UI found (it's a bot?)\n" ^ Net_DebugMode_Logs;
-					}
-				}
-			} else {
+			if (Player == Null) {
 				Net_DebugMode_Logs = Prefix ^ "Struct dump: player not found\n" ^ Net_DebugMode_Logs;
+			} else if (Event.CustomEventData[1] == "player") {
+				Net_DebugMode_Logs = Prefix ^ "Player Struct dump for " ^ Player.User.Name ^ ":\n" ^ Player ^"\n" ^ Net_DebugMode_Logs;
+			} else if (Event.CustomEventData[1] == "score") {
+				Net_DebugMode_Logs = Prefix ^ "Score Struct dump for " ^ Player.User.Name ^ ":\n" ^ Player.Score ^"\n" ^ Net_DebugMode_Logs;
+			} else {
+				declare CUIConfig UI = UIManager.GetUI(Player);
+				if (UI == Null) {
+					Net_DebugMode_Logs = Prefix ^ "UI ForVars dump for " ^ Player.User.Name ^ ": no UI found (it's a bot?)\n" ^ Net_DebugMode_Logs;
+				} else {
+					Net_DebugMode_Logs = Prefix ^ "UI ForVars dump for " ^ Player.User.Name ^ ":\n" ^ UI ^"\n" ^ Net_DebugMode_Logs;
+				}
 			}
 		}
 		default: {
