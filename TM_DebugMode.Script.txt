@@ -302,7 +302,7 @@ Text GetManialink() {
         <framemodel id="framemodel-tooltip">
             <quad size="4 4" bgcolor="FFF" style="UICommon64_1" substyle="Info_light" scriptevents="1"/>
         </framemodel>
-        <frame id="frame-global" z-index="50">
+        <frame id="frame-global" z-index="100">
             <frame id="frame-displaybutton" pos="-160 -60" z-index="-10">
                 <quad id="quad-displaybutton" class="button" pos="0 0" size="5 5" z-index="-1" bgcolor="000" opacity="0.5" scriptevents="1"/>
                 <quad pos="0 0" size="5 5" style="UICommon64_1" substyle="Debug_light"/>
