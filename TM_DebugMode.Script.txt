@@ -32,6 +32,7 @@ Layers::SetType(C_DebugMode_MainUI, CUILayer::EUILayerType::Normal);
 if (S_DebugLib_RestrictUIto == "") {
 	Layers::Attach(C_DebugMode_MainUI);
 } else {
+	Layers::Detach(C_DebugMode_MainUI);
 	foreach (Login in TL::Split(",", S_DebugLib_RestrictUIto)) {
 		declare CSmPlayer Player = GetPlayer(Login);
 		if (Player != Null) Layers::Attach(C_DebugMode_MainUI, Player);
