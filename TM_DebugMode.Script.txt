@@ -6,20 +6,32 @@
 #Extends "Modes/TM_TeamsCup.Script.txt"
 
 // #RequireContext CSmMode
-
-#Setting S_DebugLib_RestrictUIto "" as "Restrict UI Admin to comma separated logins (all if empty)"
-
-#Const C_DebugMode_Version "2023-08-28"
-
-#Const C_DebugMode_MainUI "DebugMode_MainUI"
-
 #Include "TimeLib" as TiL
 #Include "MathLib" as ML
 #Include "TextLib" as TL
 
-#Include "Libs/Nadeo/ModeLibs/Common/Utils.Script.txt" as ModeUtils
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+// Constants
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+#Const C_DebugMode_Version "2023-09-01"
+#Const C_DebugMode_MainUI "DebugMode_MainUI"
 
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+// Settings
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 #Setting S_ScriptEnvironment "development"
+#Setting S_DebugLib_RestrictUIto "" as "Restrict UI Admin to comma separated logins (all if empty)"
+
+***Match_LogVersions***
+***
+log("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+log("~~~~~~~~~~~~~ Starting DebugMode v" ^ C_DebugMode_Version ^ " ~~~~~~~~~~~~~");
+log("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+log("~~ Launched at: "^ System.CurrentLocalDateText ^" ("^ System.CurrentTimezone ^")");
+log("~~ Server version: "^ System.ExeVersion);
+log("~~ TitlePack version: "^ TL::Split(" ", LoadedTitle.TitleVersion)[0]);
+log("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+***
 
 ***Match_AfterLoadHud***
 ***
