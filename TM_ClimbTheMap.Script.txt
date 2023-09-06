@@ -1,0 +1,452 @@
+/**
+*	Time Attack mode
+*/
+#Extends "Libs/Nadeo/TMNext/TrackMania/Modes/TMNextBase.Script.txt"
+
+//#RequireContext CSmMode
+
+#Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
+#Const	Version							"2023-09-04"
+#Const	ScriptName					"Modes/TrackMania/TM_TimeAttack_Online.Script.txt"
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+// Libraries
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+#Include "TextLib" as TL
+#Include "MathLib" as ML
+#Include "Libs/Nadeo/CommonLibs/Common/Task.Script.txt" as Task
+#Include "Libs/Nadeo/TMNext/TrackMania/Modes/TimeAttack/StateManager.Script.txt" as StateMgr
+#Include "Libs/Nadeo/TMNext/TrackMania/Modes/TrophyRanking.Script.txt" as TrophyRanking
+#Include "Libs/Nadeo/TMNext/TrackMania/Menu/Constants.Script.txt" as MenuConsts
+#Include "Libs/Nadeo/CommonLibs/Common/Tracking.Script.txt" as Tracking
+// UI from Race
+#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/TimeGap_Server.Script.txt" as UIModules_TimeGap
+#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/Checkpoint_Server.Script.txt" as UIModules_Checkpoint
+#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/PauseMenuOnline_Server.Script.txt" as UIModules_PauseMenu_Online
+#Include "ManiaApps/Nadeo/TMNext/TrackMania/TimeAttack/UIModules/EndMatchTrophy_Server.Script.txt" as UIModules_EndMatchTrophy
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+// Settings
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+#Setting S_AltitudeUpdateFrequency 500 as "Altitude Update Frequency"
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+// Constants
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+#Const C_ModeName "Time Attack"
+//L16N [Time Attack] Description of the mode rules
+#Const Description _("$zIn $<$t$6F9Time Attack$> mode, the goal is to set the $<$t$6F9best time$>.\n\nYou have as many tries as you want, and you can $<$t$6F9retry$> when you want by pressing the respawn button.\n\nWhen the time is up, the $<$t$6F9winner$> is the player with the $<$t$6F9best time$>.")
+
+#Const C_HudModulePath "" //< Path to the hud module
+#Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/TMNext/TrackMania/TimeAttack/TimeAttack.Script.txt" //< Url of the mania app
+
+#Const C_UploadRecord True
+#Const C_DisplayRecordGhost False
+#Const C_DisplayRecordMedal False
+#Const C_CelebrateRecordGhost False
+#Const C_CelebrateRecordMedal False
+#Const C_DisplayWorldTop False
+
+#Const C_MlId_LiveAltitude "ClimbTheMap_Altidude"
+
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+// Extends
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+***Match_LogVersions***
+***
+Log::RegisterScript(ScriptName, Version);
+Log::RegisterScript(StateMgr::ScriptName, StateMgr::Version);
+***
+
+***Match_LoadLibraries***
+***
+StateMgr::Load();
+***
+
+***Match_UnloadLibraries***
+***
+StateMgr::Unload();
+***
+
+***Match_Settings***
+***
+MB_Settings_UseDefaultTimer = False;
+MB_Settings_UseDefaultHud = (C_HudModulePath == "");
+MB_Settings_UseDefaultPodiumSequence = False;
+***
+
+***Match_Rules***
+***
+ModeInfo::SetName(C_ModeName);
+ModeInfo::SetType(ModeInfo::C_Type_FreeForAll);
+ModeInfo::SetRules(Description);
+ModeInfo::SetStatusMessage(_("TYPE: Free for all\nOBJECTIVE: Set the best time on the track."));
+***
+
+***Match_LoadHud***
+***
+if (C_HudModulePath != "") Hud_Load(C_HudModulePath);
+***
+
+***Match_AfterLoadHud***
+***
+UIManager.UIAll.ScoreTableOnlyManialink = True;
+UIModules_Checkpoint::SetRankMode(UIModules_Checkpoint::C_RankMode_BestRace);
+ClientManiaAppUrl = C_ManiaAppUrl;
+Race::SortScores(UIModules_ScoresTable::C_Mode_BestTime);
+UIModules_TimeGap::SetTimeGapMode(UIModules_TimeGap::C_TimeGapMode_BestRace);
+UIModules_PauseMenu_Online::SetHelp(Description);
+UIModules_Sign16x9Small::SetScoreMode(UIModules_Sign16x9Small::C_ScoreMode_BestRaceTime);
+UIManager.UIAll.OverlayHideCountdown = True;
+UIManager.UIAll.OverlayHideSpectatorInfos = True;
+UIManager.UIAll.OverlayHideChrono = True;
+
+SetMl();
+***
+
+***Match_Yield***
+***
+foreach (Event in PendingEvents) {
+	switch (Event.Type) {
+		// Initialize players when they join the server
+		case CSmModeEvent::EType::OnPlayerAdded: {
+			StateMgr::InitializePlayer(Event.Player);
+			CarRank::InitializePlayer(Event.Player);
+		}
+	}
+}
+
+StateMgr::Yield();
+***
+
+***Match_StartServer***
+***
+// Initialize mode
+Clans::SetClansNb(0);
+GiveUpBehaviour_RespawnAfter = True;
+CrudeExtrapolation_AllowDelay = True;
+Race::SetRespawnBehaviour(Race::C_RespawnBehaviour_GiveUpBeforeFirstCheckpoint);
+StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
+WarmUp::SetAvailability(True);
+Race::SetupRecord(
+	MenuConsts::C_ScopeType_Season,
+	MenuConsts::C_ScopeType_PersonalBest,
+	MenuConsts::C_GameMode_TimeAttack,
+	"",
+	C_UploadRecord,
+	C_DisplayRecordGhost,
+	C_DisplayRecordMedal,
+	C_CelebrateRecordGhost,
+	C_CelebrateRecordMedal,
+	C_DisplayWorldTop
+);
+CarRank::Reset();
+***
+
+***Match_InitMap***
+***
+declare Integer Map_NextUpdate;
+declare netwrite Integer[Text] Net_ClimbTheMap_AltitudePerName for Teams[0];
+declare netwrite Integer Net_ClimbTheMap_AltitudePerName_Update for Teams[0];
+
+declare netwrite Integer Net_ClimbTheMap_UpdateFrequency for Teams[0] = 500;
+***
+
+***Match_StartMap***
+***
+// Check if the map is valid or not
+declare CMapLandmark Start = Map::GetStart();
+declare CMapLandmark[] Finishes = Map::GetFinishes();
+
+if (Start == Null && Finishes.count == 0) {
+	RaceStateMgr::ForcePlayersStates([RaceStateMgr::C_State_Waiting]);
+	UIModules_BigMessage::SetMessage( _("This map is not valid"));
+	MB_Sleep(3000);
+	UIModules_BigMessage::SetMessage("");
+	MB_StopMap();
+} else {
+	declare netwrite Int2 Net_ClimbTheMap_AltitudeOfWaypoints for Teams[0];
+	declare netwrite Integer Net_ClimbTheMap_AltitudeOfWaypoints_Update for Teams[0];
+
+
+	declare Real FinishAltitude;
+
+	foreach (Finish in Finishes) {
+		FinishAltitude = ML::Max(Finish.Position.Y, FinishAltitude);
+	}
+
+	Net_ClimbTheMap_AltitudeOfWaypoints = <ML::CeilingInteger(Start.Position.Y), ML::CeilingInteger(FinishAltitude)>;
+	Net_ClimbTheMap_AltitudeOfWaypoints_Update += 1;
+
+	Net_ClimbTheMap_UpdateFrequency = S_AltitudeUpdateFrequency;
+
+	// Initialize race
+	StartTime = Now + Race::C_SpawnDuration;
+	EndTime = -1;
+	
+	// Spawn players for the race
+	foreach (Player in Players) {
+		Race::Start(Player, StartTime);
+	}
+	
+	StateMgr::ForcePlayersStates([StateMgr::C_State_Playing]);
+	CarRank::Update(CarRank::C_SortCriteria_BestRace);
+	Race::EnableIntroDuringMatch(True);
+}
+***
+
+***Match_PlayLoop***
+***
+// Manage race events
+declare Events::K_RaceEvent[] RacePendingEvents = Race::GetPendingEvents();
+foreach (Event in RacePendingEvents) {
+	Race::ValidEvent(Event);
+	// Waypoint
+	if (Event.Type == Events::C_Type_Waypoint) {
+		if (Event.Player != Null) {
+			if (Event.IsEndRace) {
+				// Change Score
+				Scores::UpdatePlayerBestRaceIfBetter(Event.Player);
+				Scores::UpdatePlayerBestLapIfBetter(Event.Player);
+				Scores::UpdatePlayerPrevRace(Event.Player);
+			}
+			CarRank::ThrottleUpdate(CarRank::C_SortCriteria_BestRace);
+		}
+	}
+}
+
+if (Now > Map_NextUpdate) {
+	Map_NextUpdate = Now + S_AltitudeUpdateFrequency;
+	
+	declare Integer[Text] AltitudePerName;
+	
+	foreach (Player in Players) {
+		if (Player.User == Null) continue;
+		if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) continue;
+		
+		AltitudePerName[Player.User.Name] = ML::FloorInteger(Player.Position.Y);
+	}
+	Net_ClimbTheMap_AltitudePerName = AltitudePerName;
+	Net_ClimbTheMap_AltitudePerName_Update += 1;
+}
+
+// Manage mode events
+foreach (Event in PendingEvents) {
+	if (Event.HasBeenPassed || Event.HasBeenDiscarded) continue;
+	Events::Invalid(Event);
+}
+
+// Spawn players
+if (PlayersNbDead > 0) { //< Check for unspawned players only if at least one player is unspawned
+	foreach (Player in Players) {
+		if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned && Race::IsReadyToStart(Player)) {
+			Race::Start(Player);
+		}
+	}
+}
+
+if (Net_ClimbTheMap_UpdateFrequency != S_AltitudeUpdateFrequency) {
+	Net_ClimbTheMap_UpdateFrequency = S_AltitudeUpdateFrequency;
+}
+***
+
+***Match_EndMap***
+***
+// Ensure that we stop the match (after a vote for the next map, ...)
+MB_StopMatch();
+
+StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
+Race::EnableIntroDuringMatch(False);
+
+TrophyRanking::UpdateUsersRank();
+CarRank::Update(CarRank::C_SortCriteria_BestRace);
+Race::StopSkipOutroAll();
+***
+
+***Match_BeforePodiumSequence***
+***
+ModeUtils::PlaySound(CUIConfig::EUISound::EndRound, 0);
+
+UIModules_BigMessage::SetMessage("Changing Map");
+***
+
+***Match_AfterPodiumSequence***
+***
+UIModules_BigMessage::SetMessage("");
+***
+
+Void SetMl() {
+	declare Text FrameInstances;
+
+	for (I, 0, 100) {
+		FrameInstances ^= """<frameinstance modelid="framemodel-marker"/>""";
+	}
+
+
+	declare Text MLText = """
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<manialink version="3" name="{{{C_MlId_LiveAltitude}}}">
+	<stylesheet>
+		<style class="background" bgcolor="000" opacity="0.8" textcolor="000"/>
+	</stylesheet>
+
+	<framemodel id="framemodel-dot">
+		<quad class="background" size="1 1"/>
+		<label id="label-dotaltitude" class="background" pos="2 0" valign="center" textsize="1" textfont="GameFontExtraBold"/>
+	</framemodel>
+	<framemodel id="framemodel-marker">
+		<quad class="background" size="2 3.5" valign="center" image="https://cdn.discordapp.com/attachments/767738540687228948/1148961256334688387/triangle.png"/>
+		<quad id="quad-background" class="background" pos="2 0" size="0 3.5" valign="center"/>
+		<label id="label-playername"  pos="3 -0.2" valign="center2" textsize="1" textfont="GameFontExtraBold"/>
+	</framemodel>
+	<frame id="frame-global" hidden="1" pos="-150 75">
+		<frame z-index="-10">
+			<quad class="background" size="1 121"/>
+			<frame id="frame-dots" pos="1 -120">
+				<frameinstance modelid="framemodel-dot" pos="0 0"/>
+				<frameinstance modelid="framemodel-dot" pos="0 15"/>
+				<frameinstance modelid="framemodel-dot" pos="0 30"/>
+				<frameinstance modelid="framemodel-dot" pos="0 45"/>
+				<frameinstance modelid="framemodel-dot" pos="0 60"/>
+				<frameinstance modelid="framemodel-dot" pos="0 75"/>
+				<frameinstance modelid="framemodel-dot" pos="0 90"/>
+				<frameinstance modelid="framemodel-dot" pos="0 105"/>
+				<frameinstance modelid="framemodel-dot" pos="0 120"/>
+			</frame>
+		</frame>
+		<frame id="frame-markers" pos="2 -120">
+			{{{FrameInstances}}}
+		</frame>
+	</frame>
+<script><!--
+
+#Include "TextLib" as TL
+#Include "MathLib" as ML
+
+Real GetPosition(Int2 _AltitudeOfWaypoints, Integer _Altitude) {
+	return (120. * (_Altitude - _AltitudeOfWaypoints.X)) / (_AltitudeOfWaypoints.Y - _AltitudeOfWaypoints.X);
+}
+
+main() {
+	declare CMlFrame Frame_Global <=> (Page.GetFirstChild("frame-global") as CMlFrame) ;
+
+	declare CMlFrame Frame_Dots <=> (Frame_Global.GetFirstChild("frame-dots") as CMlFrame);
+	declare CMlFrame Frame_Markers <=> (Frame_Global.GetFirstChild("frame-markers") as CMlFrame);
+
+	declare CMlFrame[] Markers;
+	foreach (Control in Frame_Markers.Controls) {
+		Markers.add(Control as CMlFrame);
+	}
+
+	wait(InputPlayer != Null);
+	Frame_Global.Visible = True;
+
+	declare netread Integer Net_ClimbTheMap_UpdateFrequency for Teams[0] = 500;
+
+	declare netread Int2 Net_ClimbTheMap_AltitudeOfWaypoints for Teams[0];
+	declare netread Integer Net_ClimbTheMap_AltitudeOfWaypoints_Update for Teams[0];
+
+	declare Integer Last_AltitudeOfWaypoints = -1;
+
+	declare netread Integer[Text] Net_ClimbTheMap_AltitudePerName for Teams[0];
+	declare netread Integer Net_ClimbTheMap_AltitudePerName_Update for Teams[0];
+	
+	declare Integer Last_AltitudePerName = -1;
+	declare Integer[Text] Previous_AltitudePerName;
+
+	declare Boolean Last_PageWasVisible;
+
+	declare Ident Last_GUIPlayerId;
+	
+	while (True) {
+		yield;
+		
+		if (PageIsVisible) {
+			if (Last_AltitudeOfWaypoints != Net_ClimbTheMap_AltitudeOfWaypoints_Update) {
+				Last_AltitudeOfWaypoints = Net_ClimbTheMap_AltitudeOfWaypoints_Update;
+				
+				foreach (Key => Control in Frame_Dots.Controls) {
+					declare CMlFrame Frame <=> (Control as CMlFrame);
+					declare CMlLabel Label_DotAltidude <=> (Frame.GetFirstChild("label-dotaltitude") as CMlLabel);
+	
+					if (Key == 0) {
+						Label_DotAltidude.Value = "Start";
+					} else if (Key == Frame_Dots.Controls.count - 1) {
+						Label_DotAltidude.Value = "Finish";
+					} else {
+						Label_DotAltidude.Value = TL::ToText(Net_ClimbTheMap_AltitudeOfWaypoints.Y / Frame_Dots.Controls.count * Key);
+					}
+				}
+			}
+	
+			if (Last_AltitudePerName != Net_ClimbTheMap_AltitudePerName_Update) {
+				Last_AltitudePerName = Net_ClimbTheMap_AltitudePerName_Update;
+
+				declare Integer I;
+	
+				foreach (Name => Altitude in Net_ClimbTheMap_AltitudePerName) {
+					if (!Markers.existskey(I)) break;
+
+					Markers[I].Visible = True;
+
+
+					declare Text PlayerName for Markers[I];
+
+					// Change Label only if name changed
+					declare Boolean ChangeLabel = (PlayerName != Name);
+					PlayerName = Name;
+
+					declare CMlLabel Label_PlayerName <=> (Markers[I].GetFirstChild("label-playername") as CMlLabel);
+					if (ChangeLabel) {
+						Label_PlayerName.Value = Name; 
+						declare CMlQuad Quad_Background <=> (Markers[I].GetFirstChild("quad-background") as CMlQuad);
+						Quad_Background.Size.X = Label_PlayerName.ComputeWidth(Label_PlayerName.Value) + 2.5; 
+					}
+
+					if (Last_PageWasVisible) {
+						if (ChangeLabel) {
+							log("ChangeLabel");
+							Markers[I].RelativePosition_V3.Y = GetPosition(Net_ClimbTheMap_AltitudeOfWaypoints, Previous_AltitudePerName.get(Name, Altitude));
+						}
+						
+						AnimMgr.Flush(Markers[I]);
+						AnimMgr.Add(Markers[I], "<a pos=\"0 " ^ GetPosition(Net_ClimbTheMap_AltitudeOfWaypoints, Altitude) ^ "\"/>", Net_ClimbTheMap_UpdateFrequency, CAnimManager::EAnimManagerEasing::Linear);
+					} else {
+						Markers[I].RelativePosition_V3.Y = GetPosition(Net_ClimbTheMap_AltitudeOfWaypoints, Altitude);
+					}
+
+					Previous_AltitudePerName = Net_ClimbTheMap_AltitudePerName;
+
+					if (GUIPlayer == Null || GUIPlayer.User == Null || GUIPlayer.User.Name != Name) {
+						Label_PlayerName.TextColor = <.5, .5, .5>;
+						Label_PlayerName.TextFont = "GameFontSemiBold";
+						Markers[I].ZIndex = 0.;
+					} else {
+						Label_PlayerName.TextColor = <1., 1., 1.>;
+						Label_PlayerName.TextFont = "GameFontExtraBold";
+						Markers[I].ZIndex = 5.;
+					}
+
+					I += 1;
+				}
+	
+	
+				while (Markers.existskey(I) && Markers[I].Visible) {
+					Markers[I].Visible = False;
+					I += 1;
+				}
+			}
+			Last_PageWasVisible = True;
+		} else {
+			Last_PageWasVisible = False;
+		}
+	}
+}
+--></script>
+</manialink>
+	""";
+	Layers::Create(C_MlId_LiveAltitude, MLText);
+	Layers::SetType(C_MlId_LiveAltitude, CUILayer::EUILayerType::Normal);
+	Layers::Attach(C_MlId_LiveAltitude);
+}
