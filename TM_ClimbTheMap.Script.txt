@@ -484,12 +484,11 @@ main() {
 
 				declare Text OwnerName = Owner.User.Name;
 
-
 				declare netread Integer Net_ClimbTheMap_AltitudeOfPB for Owner;
 				if (Net_ClimbTheMap_AltitudeOfPB > 0 && Net_ClimbTheMap_AltitudeOfPB != Net_ClimbTheMap_AltitudeOfWR) {
 					UpdateMarker(Frame_Marker_PB, Net_ClimbTheMap_AltitudeOfWaypoints, AnimationDuration, C_Type_PB, OwnerName, Net_ClimbTheMap_AltitudeOfPB);
 				} else {
-					Frame_Marker_PB.Visible = False;
+					Frame_Marker_Owner.Visible = False;
 				}
 
 				declare Integer I;
