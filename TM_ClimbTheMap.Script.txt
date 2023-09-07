@@ -147,6 +147,9 @@ CarRank::Reset();
 ***Match_InitMap***
 ***
 declare Integer Map_NextUpdate;
+declare netwrite Integer Net_ClimbTheMap_AltitudeOfWR for Teams[0];
+declare netwrite Text Net_ClimbTheMap_NamefWR for Teams[0];
+
 declare netwrite Integer[Text] Net_ClimbTheMap_AltitudePerName for Teams[0];
 declare netwrite Integer Net_ClimbTheMap_AltitudePerName_Update for Teams[0];
 
@@ -225,7 +228,20 @@ if (Now > Map_NextUpdate) {
 		if (Player.User == Null) continue;
 		if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) continue;
 		
-		AltitudePerName[Player.User.Name] = ML::FloorInteger(Player.Position.Y);
+		declare Integer Altitude = ML::FloorInteger(Player.Position.Y);
+
+		if (Net_ClimbTheMap_AltitudeOfWR < Altitude) {
+			Net_ClimbTheMap_AltitudeOfWR = Altitude;
+			Net_ClimbTheMap_NamefWR = Player.User.Name;
+		}
+
+		declare netwrite Integer Net_ClimbTheMap_AltitudeOfPB for Player;
+
+		if (Net_ClimbTheMap_AltitudeOfPB < Altitude) {
+			Net_ClimbTheMap_AltitudeOfPB = Altitude;
+		}
+		
+		AltitudePerName[Player.User.Name] = Altitude;
 	}
 	Net_ClimbTheMap_AltitudePerName = AltitudePerName;
 	Net_ClimbTheMap_AltitudePerName_Update += 1;
@@ -280,7 +296,7 @@ Void SetMl() {
 	declare Text FrameInstances;
 
 	for (I, 0, 100) {
-		FrameInstances ^= """<frameinstance modelid="framemodel-marker"/>""";
+		FrameInstances ^= """<frameinstance modelid="framemodel-marker" hidden="1"/>""";
 	}
 
 
@@ -298,7 +314,7 @@ Void SetMl() {
 	<framemodel id="framemodel-marker">
 		<quad class="background" size="2 3.5" valign="center" image="https://cdn.discordapp.com/attachments/767738540687228948/1148961256334688387/triangle.png"/>
 		<quad id="quad-background" class="background" pos="2 0" size="0 3.5" valign="center"/>
-		<label id="label-playername"  pos="3 -0.2" valign="center2" textsize="1" textfont="GameFontExtraBold"/>
+		<label id="label-playername"  pos="3 -0.2" valign="center2" textsize="1" textcolor="888" textfont="GameFontSemiBold"/>
 	</framemodel>
 	<frame id="frame-global" hidden="1" pos="-150 75">
 		<frame z-index="-10">
@@ -315,8 +331,13 @@ Void SetMl() {
 				<frameinstance modelid="framemodel-dot" pos="0 120"/>
 			</frame>
 		</frame>
-		<frame id="frame-markers" pos="2 -120">
-			{{{FrameInstances}}}
+		<frame pos="2 -120">
+			<frameinstance id="frame-marker-wr" modelid="framemodel-marker" z-index="-1" hidden="1"/>
+			<frameinstance id="frame-marker-pb" modelid="framemodel-marker" z-index="-2" hidden="1"/>
+			<frameinstance id="frame-marker-owner" modelid="framemodel-marker" z-index="2" hidden="1"/>
+			<frame id="frame-markers-live" >
+				{{{FrameInstances}}}
+			</frame>
 		</frame>
 	</frame>
 <script><!--
@@ -324,25 +345,94 @@ Void SetMl() {
 #Include "TextLib" as TL
 #Include "MathLib" as ML
 
+#Const C_Type_Live 0
+#Const C_Type_Owner 1
+#Const C_Type_PB 2
+#Const C_Type_WR 3
+
 Real GetPosition(Int2 _AltitudeOfWaypoints, Integer _Altitude) {
+	if (_AltitudeOfWaypoints.Y == _AltitudeOfWaypoints.X) return 0.;
 	return (120. * (_Altitude - _AltitudeOfWaypoints.X)) / (_AltitudeOfWaypoints.Y - _AltitudeOfWaypoints.X);
+}
+
+Void UpdateMarker(CMlFrame _Frame, Int2 _AltitudeOfWaypoints, Integer _AnimationDuration, Integer _Type, Text _Name, Integer _Altitude) {
+	_Frame.Visible = True;
+
+	declare Text PlayerName for _Frame;
+
+	// Change Label only if name changed
+	declare Boolean ChangeLabel = (PlayerName != _Name);
+	PlayerName = _Name;
+
+	declare CMlLabel Label_PlayerName <=> (_Frame.GetFirstChild("label-playername") as CMlLabel);
+
+	if (ChangeLabel && _Type != C_Type_PB) {
+		Label_PlayerName.Value = _Name; 
+		declare CMlQuad Quad_Background <=> (_Frame.GetFirstChild("quad-background") as CMlQuad);
+		Quad_Background.Size.X = Label_PlayerName.ComputeWidth(_Name) + 2.5; 
+	}
+
+	if (_AnimationDuration <= 0 || ChangeLabel) {		
+		_Frame.RelativePosition_V3.Y = GetPosition(_AltitudeOfWaypoints, _Altitude);
+	} else {
+		AnimMgr.Flush(_Frame);
+		AnimMgr.Add(_Frame, "<a pos=\"0 " ^ GetPosition(_AltitudeOfWaypoints, _Altitude) ^ "\"/>", _AnimationDuration, CAnimManager::EAnimManagerEasing::Linear);
+	}
+}
+
+Void SetMarkerStyle(CMlFrame _Frame, Integer _Type) {
+	declare CMlLabel Label_PlayerName <=> (_Frame.GetFirstChild("label-playername") as CMlLabel);
+
+	switch (_Type) {
+		case C_Type_Live: {
+			Label_PlayerName.TextColor = <.5, .5, .5>;
+			Label_PlayerName.TextFont = "GameFontSemiBold";
+			_Frame.ZIndex = 0.;
+		}
+		case C_Type_Owner: {
+			Label_PlayerName.TextColor = <1., 1., 1.>;
+			Label_PlayerName.TextFont = "GameFontExtraBold";
+		}
+		case C_Type_PB: {
+			Label_PlayerName.TextColor = <0.251,0.741,0.239>;
+			Label_PlayerName.TextFont = "GameFontExtraBold";
+			Label_PlayerName.Value = "Personal Best";
+
+			declare CMlQuad Quad_Background <=> (_Frame.GetFirstChild("quad-background") as CMlQuad);
+			Quad_Background.Size.X = Label_PlayerName.ComputeWidth(Label_PlayerName.Value) + 2.5; 
+		}
+		case C_Type_WR: {
+			Label_PlayerName.TextColor = <1.,0.733,0.043>;
+			Label_PlayerName.TextFont = "GameFontExtraBold";
+		}
+	}
 }
 
 main() {
 	declare CMlFrame Frame_Global <=> (Page.GetFirstChild("frame-global") as CMlFrame) ;
 
 	declare CMlFrame Frame_Dots <=> (Frame_Global.GetFirstChild("frame-dots") as CMlFrame);
-	declare CMlFrame Frame_Markers <=> (Frame_Global.GetFirstChild("frame-markers") as CMlFrame);
+	declare CMlFrame Frame_MarkersLive <=> (Frame_Global.GetFirstChild("frame-markers-live") as CMlFrame);
 
-	declare CMlFrame[] Markers;
-	foreach (Control in Frame_Markers.Controls) {
-		Markers.add(Control as CMlFrame);
+	declare CMlFrame[] LiveMarkers;
+	foreach (Control in Frame_MarkersLive.Controls) {
+		LiveMarkers.add(Control as CMlFrame);
 	}
+
+	declare CMlFrame Frame_Marker_WR <=> (Frame_Global.GetFirstChild("frame-marker-wr") as CMlFrame);
+	SetMarkerStyle(Frame_Marker_WR, C_Type_WR);
+	declare CMlFrame Frame_Marker_PB <=> (Frame_Global.GetFirstChild("frame-marker-pb") as CMlFrame);
+	SetMarkerStyle(Frame_Marker_PB, C_Type_PB);
+	declare CMlFrame Frame_Marker_Owner <=> (Frame_Global.GetFirstChild("frame-marker-owner") as CMlFrame);
+	SetMarkerStyle(Frame_Marker_Owner, C_Type_Owner);
 
 	wait(InputPlayer != Null);
 	Frame_Global.Visible = True;
 
 	declare netread Integer Net_ClimbTheMap_UpdateFrequency for Teams[0] = 500;
+
+	declare netread Integer Net_ClimbTheMap_AltitudeOfWR for Teams[0];
+	declare netread Text Net_ClimbTheMap_NamefWR for Teams[0];
 
 	declare netread Int2 Net_ClimbTheMap_AltitudeOfWaypoints for Teams[0];
 	declare netread Integer Net_ClimbTheMap_AltitudeOfWaypoints_Update for Teams[0];
@@ -353,11 +443,8 @@ main() {
 	declare netread Integer Net_ClimbTheMap_AltitudePerName_Update for Teams[0];
 	
 	declare Integer Last_AltitudePerName = -1;
-	declare Integer[Text] Previous_AltitudePerName;
 
 	declare Boolean Last_PageWasVisible;
-
-	declare Ident Last_GUIPlayerId;
 	
 	while (True) {
 		yield;
@@ -383,57 +470,45 @@ main() {
 			if (Last_AltitudePerName != Net_ClimbTheMap_AltitudePerName_Update) {
 				Last_AltitudePerName = Net_ClimbTheMap_AltitudePerName_Update;
 
-				declare Integer I;
-	
-				foreach (Name => Altitude in Net_ClimbTheMap_AltitudePerName) {
-					if (!Markers.existskey(I)) break;
+				declare Integer AnimationDuration = 0;
+				if (Last_PageWasVisible) AnimationDuration = Net_ClimbTheMap_UpdateFrequency;
 
-					Markers[I].Visible = True;
-
-
-					declare Text PlayerName for Markers[I];
-
-					// Change Label only if name changed
-					declare Boolean ChangeLabel = (PlayerName != Name);
-					PlayerName = Name;
-
-					declare CMlLabel Label_PlayerName <=> (Markers[I].GetFirstChild("label-playername") as CMlLabel);
-					if (ChangeLabel) {
-						Label_PlayerName.Value = Name; 
-						declare CMlQuad Quad_Background <=> (Markers[I].GetFirstChild("quad-background") as CMlQuad);
-						Quad_Background.Size.X = Label_PlayerName.ComputeWidth(Label_PlayerName.Value) + 2.5; 
-					}
-
-					if (Last_PageWasVisible) {
-						if (ChangeLabel) {
-							log("ChangeLabel");
-							Markers[I].RelativePosition_V3.Y = GetPosition(Net_ClimbTheMap_AltitudeOfWaypoints, Previous_AltitudePerName.get(Name, Altitude));
-						}
-						
-						AnimMgr.Flush(Markers[I]);
-						AnimMgr.Add(Markers[I], "<a pos=\"0 " ^ GetPosition(Net_ClimbTheMap_AltitudeOfWaypoints, Altitude) ^ "\"/>", Net_ClimbTheMap_UpdateFrequency, CAnimManager::EAnimManagerEasing::Linear);
-					} else {
-						Markers[I].RelativePosition_V3.Y = GetPosition(Net_ClimbTheMap_AltitudeOfWaypoints, Altitude);
-					}
-
-					Previous_AltitudePerName = Net_ClimbTheMap_AltitudePerName;
-
-					if (GUIPlayer == Null || GUIPlayer.User == Null || GUIPlayer.User.Name != Name) {
-						Label_PlayerName.TextColor = <.5, .5, .5>;
-						Label_PlayerName.TextFont = "GameFontSemiBold";
-						Markers[I].ZIndex = 0.;
-					} else {
-						Label_PlayerName.TextColor = <1., 1., 1.>;
-						Label_PlayerName.TextFont = "GameFontExtraBold";
-						Markers[I].ZIndex = 5.;
-					}
-
-					I += 1;
+				if (Net_ClimbTheMap_AltitudeOfWR > 0) {
+					UpdateMarker(Frame_Marker_WR, Net_ClimbTheMap_AltitudeOfWaypoints, AnimationDuration, C_Type_WR, Net_ClimbTheMap_NamefWR, Net_ClimbTheMap_AltitudeOfWR);
 				}
+
+				declare CSmPlayer Owner <=> InputPlayer;
+				if (GUIPlayer != Null && GUIPlayer.User != Null) {
+					Owner <=> GUIPlayer;
+				}
+
+				declare Text OwnerName = Owner.User.Name;
+
+
+				declare netread Integer Net_ClimbTheMap_AltitudeOfPB for Owner;
+				if (Net_ClimbTheMap_AltitudeOfPB > 0 && Net_ClimbTheMap_AltitudeOfPB != Net_ClimbTheMap_AltitudeOfWR) {
+					UpdateMarker(Frame_Marker_PB, Net_ClimbTheMap_AltitudeOfWaypoints, AnimationDuration, C_Type_PB, OwnerName, Net_ClimbTheMap_AltitudeOfPB);
+				} else {
+					Frame_Marker_PB.Visible = False;
+				}
+
+				declare Integer I;
+
+				foreach (Name => Altitude in Net_ClimbTheMap_AltitudePerName) {
+					if (!LiveMarkers.existskey(I)) break;
+
+					if (OwnerName == Name) {
+						UpdateMarker(Frame_Marker_Owner, Net_ClimbTheMap_AltitudeOfWaypoints, AnimationDuration, C_Type_Owner, Name, Altitude);
+
+					} else {
+						UpdateMarker(LiveMarkers[I], Net_ClimbTheMap_AltitudeOfWaypoints, AnimationDuration, C_Type_Live, Name, Altitude);
+
+						I += 1;
+					}
+				}	
 	
-	
-				while (Markers.existskey(I) && Markers[I].Visible) {
-					Markers[I].Visible = False;
+				while (LiveMarkers.existskey(I) && LiveMarkers[I].Visible) {
+					LiveMarkers[I].Visible = False;
 					I += 1;
 				}
 			}
