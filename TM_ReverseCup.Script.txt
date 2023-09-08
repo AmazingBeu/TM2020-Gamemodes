@@ -8,7 +8,7 @@
 #Extends "Libs/Nadeo/TMNext/TrackMania/Modes/TMNextRoundsBase.Script.txt"
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2023-08-08"
+#Const	Version							"2023-09-09"
 #Const	ScriptName					"Modes/TM2020-Gamemodes/TM_ReverseCup.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -503,26 +503,27 @@ if (MB_MatchIsRunning()) {
 ***
 ModeUtils::PlaySound(CUIConfig::EUISound::EndRound, 0);
 
-declare Text[] WinnersNames;
-foreach (Player in Players) {
-	if(!Spectators.exists(Player)) {
-		if (Scores::GetPlayerMatchPoints(Player.Score) >= C_Points_LastChance) {
-			if (Player.User.ClubTag == "") {
-				WinnersNames.add(Player.User.Name);
-			} else {
-				WinnersNames.add("[$<"^Player.User.ClubTag^"$>] " ^ Player.User.Name);
-			}
-		} 
+if (!MB_Private_SkipPodiumSequence) {
+	declare Text[] WinnersNames;
+	foreach (Player in Players) {
+		if(!Spectators.exists(Player)) {
+			if (Scores::GetPlayerMatchPoints(Player.Score) >= C_Points_LastChance) {
+				if (Player.User.ClubTag == "") {
+					WinnersNames.add(Player.User.Name);
+				} else {
+					WinnersNames.add("[$<"^Player.User.ClubTag^"$>] " ^ Player.User.Name);
+				}
+			} 
+		}
+	}
+
+	if(WinnersNames.count >= 1) {
+		UIModules_BigMessage::SetMessage(TL::Compose(_("$<%1$> wins the match!"), TL::Join(", ", WinnersNames)));
+		UIManager.UIAll.SendChat(TL::Compose(_("$<%1$> wins the match!"), TL::Join(", ", WinnersNames)));
+	} else {
+		UIModules_BigMessage::SetMessage(_("|Match|Draw"));
 	}
 }
-
-if(WinnersNames.count >= 1) {
-	UIModules_BigMessage::SetMessage(TL::Compose(_("$<%1$> wins the match!"), TL::Join(", ", WinnersNames)));
-	UIManager.UIAll.SendChat(TL::Compose(_("$<%1$> wins the match!"), TL::Join(", ", WinnersNames)));
-} else {
-	UIModules_BigMessage::SetMessage(_("|Match|Draw"));
-}
-
 ***
 
 ***Match_PodiumSequence***
