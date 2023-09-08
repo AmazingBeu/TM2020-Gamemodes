@@ -51,6 +51,7 @@
 #Const C_MlId_LiveAltitude "ClimbTheMap_Altidude"
 
 #Const C_Callback_UpdatePBs "Trackmania.ClimbTheMap.UpdatePBs"
+#Const C_Callback_RequestPB "Trackmania.ClimbTheMap.RequestPB"
 #Const C_Method_SetPlayersPB "Trackmania.ClimbTheMap.SetPlayersPB"
 #Const C_Method_SetWR "Trackmania.ClimbTheMap.SetWR"
 
@@ -71,7 +72,7 @@ StateMgr::Load();
 XmlRpc::RegisterCallback(C_Callback_UpdatePBs, """
 * Name: {{{C_Callback_UpdatePBs}}}
 * Type: CallbackArray
-* Description: 
+* Description: List of the new PB
 * Data:
 	- Version >=2.0.0:
 	```
@@ -83,11 +84,23 @@ XmlRpc::RegisterCallback(C_Callback_UpdatePBs, """
 	]
 	```
 """);
+XmlRpc::RegisterCallback(C_Callback_RequestPB, """
+* Name: {{{C_Callback_RequestPB}}}
+* Type: CallbackArray
+* Description: Request PB to be sure that the Player is initialized by the ManiaScript
+* Data:
+	- Version >=2.0.0:
+	```
+	[
+		"Vvjdn4WBRE6irR6Oie7RpA"
+	]
+	```
+""");
 
 XmlRpc::RegisterMethod(C_Method_SetPlayersPB, """
 * Name: {{{C_Method_SetPlayersPB}}}
 * Type: TriggerModeScriptEventArray
-* Description: Request the current properties of the AFK libraries.
+* Description: List of the new PB
 * Data:
 	- Version >=3.5.0: 
 	```
@@ -102,7 +115,7 @@ XmlRpc::RegisterMethod(C_Method_SetPlayersPB, """
 XmlRpc::RegisterMethod(C_Method_SetWR, """
 * Name: {{{C_Method_SetWR}}}
 * Type: TriggerModeScriptEventArray
-* Description: Request the current properties of the AFK libraries.
+* Description: WR
 * Data:
 	- Version >=3.5.0: 
 	```
@@ -118,6 +131,7 @@ XmlRpc::RegisterMethod(C_Method_SetWR, """
 ***
 StateMgr::Unload();
 XmlRpc::UnregisterCallback(C_Callback_UpdatePBs);
+XmlRpc::UnregisterCallback(C_Callback_RequestPB);
 XmlRpc::UnregisterMethod(C_Method_SetPlayersPB);
 XmlRpc::UnregisterMethod(C_Method_SetWR);
 ***
@@ -166,6 +180,7 @@ foreach (Event in PendingEvents) {
 		case CSmModeEvent::EType::OnPlayerAdded: {
 			StateMgr::InitializePlayer(Event.Player);
 			CarRank::InitializePlayer(Event.Player);
+			XmlRpc::SendCallback(C_Callback_RequestPB, [Event.Player.User.Login]);
 		}
 	}
 }
