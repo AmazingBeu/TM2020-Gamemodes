@@ -386,6 +386,12 @@ if (Net_ClimbTheMap_UpdateFrequency != S_AltitudeUpdateFrequency) {
 // Ensure that we stop the match (after a vote for the next map, ...)
 MB_StopMatch();
 
+// Flush queue
+if (Map_XmlRpc_AltitudePerLogin_Queue.count > 0) {
+	XmlRpc::SendCallback(C_Callback_UpdatePBs, [Map_XmlRpc_AltitudePerLogin_Queue.tojson()]);
+	Map_XmlRpc_AltitudePerLogin_Queue = [];
+}
+
 StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
 Race::EnableIntroDuringMatch(False);
 
