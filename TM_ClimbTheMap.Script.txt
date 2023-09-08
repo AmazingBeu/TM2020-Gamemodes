@@ -451,6 +451,7 @@ Void SetMl() {
 				<frameinstance modelid="framemodel-dot" pos="0 120"/>
 			</frame>
 		</frame>
+		<quad id="quad-invisiblebutton" pos="-10 10" size="45 140" scriptevents="1"/>
 		<frame pos="2 -120">
 			<frameinstance id="frame-marker-wr" modelid="framemodel-marker" z-index="-1" hidden="1"/>
 			<frameinstance id="frame-marker-pb" modelid="framemodel-marker" z-index="-2" hidden="1"/>
@@ -631,6 +632,13 @@ main() {
 					I += 1;
 				}
 			}
+
+			foreach (Event in PendingEvents) {
+				if (Event.Type == CMlScriptEvent::Type::MouseClick && Event.ControlId == "quad-invisiblebutton") {
+					TriggerPageAction("Trackmania.ClimbTheMap.ShowAltitudeRecords");
+				} 
+			}
+
 			Last_PageWasVisible = True;
 		} else {
 			Last_PageWasVisible = False;
