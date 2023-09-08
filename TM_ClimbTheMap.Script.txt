@@ -433,6 +433,7 @@ Race::StopSkipOutroAll();
 ModeUtils::PlaySound(CUIConfig::EUISound::EndRound, 0);
 
 UIModules_BigMessage::SetMessage("Changing Map");
+MB_Sleep(5000);
 ***
 
 ***Match_AfterPodiumSequence***
