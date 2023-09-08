@@ -190,19 +190,22 @@ foreach (Event in XmlRpc.PendingEvents) {
 			declare netwrite Integer Net_ClimbTheMap_AltitudePerName_Update for Teams[0];
 			Net_ClimbTheMap_AltitudePerName_Update += 1;
 		} else if (Event.ParamArray1 == C_Method_SetWR) {
-			if (Event.ParamArray2.count < 2) continue;
+			if (Event.ParamArray2.count < 3) continue;
 			declare netwrite Int2 Net_ClimbTheMap_AltitudeOfWaypoints for Teams[0];
 			declare Integer Altitude = ML::Min(TL::ToInteger(Event.ParamArray2[1]), Net_ClimbTheMap_AltitudeOfWaypoints.Y);
+			declare Integer Time = TL::ToInteger(Event.ParamArray2[2]);
+			declare netwrite Integer Net_ClimbTheMap_TimeOfWR for Teams[0];
 			declare netwrite Integer Net_ClimbTheMap_AltitudeOfWR for Teams[0];
-			if (Net_ClimbTheMap_AltitudeOfWR < Altitude) {
+
+			if ((Time > 0 && Net_ClimbTheMap_TimeOfWR <= 0 || Net_ClimbTheMap_TimeOfWR > Time) || 
+					(Time <= 0 && Net_ClimbTheMap_AltitudeOfWR < Altitude)) {
+				Net_ClimbTheMap_TimeOfWR = Time;		
 				Net_ClimbTheMap_AltitudeOfWR = Altitude;
 				declare netwrite Text Net_ClimbTheMap_NamefWR for Teams[0];
 				Net_ClimbTheMap_NamefWR = Event.ParamArray2[0];
 				declare netwrite Integer Net_ClimbTheMap_AltitudePerName_Update for Teams[0];
 				Net_ClimbTheMap_AltitudePerName_Update += 1;
 			}
-
-
 		}
 	}
 }
@@ -240,8 +243,8 @@ declare Integer Map_NextUpdate;
 declare Integer[Text] Map_XmlRpc_AltitudePerLogin_Queue;
 declare Integer Map_XmlRpc_Queue_NextUpdate;
 
+declare netwrite Integer Net_ClimbTheMap_TimeOfWR for Teams[0];
 declare netwrite Integer Net_ClimbTheMap_AltitudeOfWR for Teams[0];
-
 declare netwrite Text Net_ClimbTheMap_NamefWR for Teams[0];
 
 declare netwrite Integer[Text] Net_ClimbTheMap_AltitudePerName for Teams[0];
@@ -276,6 +279,7 @@ if (Start == Null && Finishes.count == 0) {
 
 	Net_ClimbTheMap_UpdateFrequency = S_AltitudeUpdateFrequency;
 
+	Net_ClimbTheMap_TimeOfWR = 0;
 	Net_ClimbTheMap_AltitudeOfWR = 0;
 	Net_ClimbTheMap_NamefWR = "";
 	Net_ClimbTheMap_AltitudePerName = [];
@@ -314,6 +318,15 @@ foreach (Event in RacePendingEvents) {
 				Scores::UpdatePlayerBestRaceIfBetter(Event.Player);
 				Scores::UpdatePlayerBestLapIfBetter(Event.Player);
 				Scores::UpdatePlayerPrevRace(Event.Player);
+
+				declare Integer Time = Event.Player.RaceWaypointTimes[Event.Player.RaceWaypointTimes.count - 1];
+
+				if (Net_ClimbTheMap_TimeOfWR <= 0 || Net_ClimbTheMap_TimeOfWR > Time) {
+					Net_ClimbTheMap_TimeOfWR = Time;
+					declare netwrite Int2 Net_ClimbTheMap_AltitudeOfWaypoints for Teams[0];
+					Net_ClimbTheMap_AltitudeOfWR = Net_ClimbTheMap_AltitudeOfWaypoints.Y;
+					Net_ClimbTheMap_NamefWR = Event.Player.User.Name;
+				}
 			}
 			CarRank::ThrottleUpdate(CarRank::C_SortCriteria_BestRace);
 		}
@@ -331,7 +344,7 @@ if (Now > Map_NextUpdate) {
 		
 		declare Integer Altitude = ML::FloorInteger(Player.Position.Y);
 
-		if (Net_ClimbTheMap_AltitudeOfWR < Altitude) {
+		if (Net_ClimbTheMap_TimeOfWR <= 0 && Net_ClimbTheMap_AltitudeOfWR < Altitude) {
 			declare netwrite Int2 Net_ClimbTheMap_AltitudeOfWaypoints for Teams[0];
 			Net_ClimbTheMap_AltitudeOfWR = ML::Min(Altitude, Net_ClimbTheMap_AltitudeOfWaypoints.Y);
 			Net_ClimbTheMap_NamefWR = Player.User.Name;
