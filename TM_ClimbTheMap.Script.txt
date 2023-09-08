@@ -6,7 +6,7 @@
 //#RequireContext CSmMode
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2023-09-04"
+#Const	Version							"2023-09-08"
 #Const	ScriptName					"Modes/TrackMania/TM_TimeAttack_Online.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -28,7 +28,8 @@
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Settings
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
-#Setting S_AltitudeUpdateFrequency 500 as "Altitude Update Frequency"
+#Setting S_AltitudeUpdateFrequency 500 as "Altitude Update Frequency in ms"
+#Setting S_XmlRpcUpdateFrequency 10000 as "XmlRpc update frequency in ms"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Constants
@@ -49,6 +50,10 @@
 
 #Const C_MlId_LiveAltitude "ClimbTheMap_Altidude"
 
+#Const C_Callback_UpdatePBs "Trackmania.ClimbTheMap.UpdatePBs"
+#Const C_Method_SetPlayersPB "Trackmania.ClimbTheMap.SetPlayersPB"
+#Const C_Method_SetWR "Trackmania.ClimbTheMap.SetWR"
+
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Extends
@@ -62,11 +67,59 @@ Log::RegisterScript(StateMgr::ScriptName, StateMgr::Version);
 ***Match_LoadLibraries***
 ***
 StateMgr::Load();
+
+XmlRpc::RegisterCallback(C_Callback_UpdatePBs, """
+* Name: {{{C_Callback_UpdatePBs}}}
+* Type: CallbackArray
+* Description: 
+* Data:
+	- Version >=2.0.0:
+	```
+	[
+		"[
+				"Vvjdn4WBRE6irR6Oie7RpA": 2000,
+				...
+		]"
+	]
+	```
+""");
+
+XmlRpc::RegisterMethod(C_Method_SetPlayersPB, """
+* Name: {{{C_Method_SetPlayersPB}}}
+* Type: TriggerModeScriptEventArray
+* Description: Request the current properties of the AFK libraries.
+* Data:
+	- Version >=3.5.0: 
+	```
+	[
+		"[
+			"Vvjdn4WBRE6irR6Oie7RpA": 2000,
+			...
+		]"
+	]
+	```
+""");
+XmlRpc::RegisterMethod(C_Method_SetWR, """
+* Name: {{{C_Method_SetWR}}}
+* Type: TriggerModeScriptEventArray
+* Description: Request the current properties of the AFK libraries.
+* Data:
+	- Version >=3.5.0: 
+	```
+	[
+		"Beu_",
+		"2000"
+	]
+	```
+""");
 ***
 
 ***Match_UnloadLibraries***
 ***
 StateMgr::Unload();
+XmlRpc::UnregisterCallback(C_Callback_UpdatePBs);
+XmlRpc::UnregisterMethod(C_Method_SetPlayersPB);
+XmlRpc::UnregisterMethod(C_Method_SetWR);
 ***
 
 ***Match_Settings***
@@ -117,6 +170,43 @@ foreach (Event in PendingEvents) {
 	}
 }
 
+foreach (Event in XmlRpc.PendingEvents) {
+	if (Event.Type == CXmlRpcEvent::EType::CallbackArray) {
+		if (Event.ParamArray1 == C_Method_SetPlayersPB) {
+			if (Event.ParamArray2.count < 1) continue;
+
+			declare Integer[Text] AltitudePerLogin;
+			AltitudePerLogin.fromjson(Event.ParamArray2[0]);
+
+			foreach (Login => Altitude in AltitudePerLogin) {
+				declare CSmPlayer Player <=> GetPlayer(Login);
+				if (Player == Null) continue;
+				declare netwrite Integer Net_ClimbTheMap_AltitudeOfPB for Player;
+				if (Net_ClimbTheMap_AltitudeOfPB < Altitude) {
+					Net_ClimbTheMap_AltitudeOfPB = Altitude;
+				}
+			}
+
+			declare netwrite Integer Net_ClimbTheMap_AltitudePerName_Update for Teams[0];
+			Net_ClimbTheMap_AltitudePerName_Update += 1;
+		} else if (Event.ParamArray1 == C_Method_SetWR) {
+			if (Event.ParamArray2.count < 2) continue;
+			declare netwrite Int2 Net_ClimbTheMap_AltitudeOfWaypoints for Teams[0];
+			declare Integer Altitude = ML::Min(TL::ToInteger(Event.ParamArray2[1]), Net_ClimbTheMap_AltitudeOfWaypoints.Y);
+			declare netwrite Integer Net_ClimbTheMap_AltitudeOfWR for Teams[0];
+			if (Net_ClimbTheMap_AltitudeOfWR < Altitude) {
+				Net_ClimbTheMap_AltitudeOfWR = Altitude;
+				declare netwrite Text Net_ClimbTheMap_NamefWR for Teams[0];
+				Net_ClimbTheMap_NamefWR = Event.ParamArray2[0];
+				declare netwrite Integer Net_ClimbTheMap_AltitudePerName_Update for Teams[0];
+				Net_ClimbTheMap_AltitudePerName_Update += 1;
+			}
+
+
+		}
+	}
+}
+
 StateMgr::Yield();
 ***
 
@@ -147,12 +237,15 @@ CarRank::Reset();
 ***Match_InitMap***
 ***
 declare Integer Map_NextUpdate;
+declare Integer[Text] Map_XmlRpc_AltitudePerLogin_Queue;
+declare Integer Map_XmlRpc_Queue_NextUpdate;
+
 declare netwrite Integer Net_ClimbTheMap_AltitudeOfWR for Teams[0];
+
 declare netwrite Text Net_ClimbTheMap_NamefWR for Teams[0];
 
 declare netwrite Integer[Text] Net_ClimbTheMap_AltitudePerName for Teams[0];
 declare netwrite Integer Net_ClimbTheMap_AltitudePerName_Update for Teams[0];
-
 declare netwrite Integer Net_ClimbTheMap_UpdateFrequency for Teams[0] = 500;
 ***
 
@@ -172,7 +265,6 @@ if (Start == Null && Finishes.count == 0) {
 	declare netwrite Int2 Net_ClimbTheMap_AltitudeOfWaypoints for Teams[0];
 	declare netwrite Integer Net_ClimbTheMap_AltitudeOfWaypoints_Update for Teams[0];
 
-
 	declare Real FinishAltitude;
 
 	foreach (Finish in Finishes) {
@@ -184,6 +276,10 @@ if (Start == Null && Finishes.count == 0) {
 
 	Net_ClimbTheMap_UpdateFrequency = S_AltitudeUpdateFrequency;
 
+	Net_ClimbTheMap_AltitudeOfWR = 0;
+	Net_ClimbTheMap_NamefWR = "";
+	Net_ClimbTheMap_AltitudePerName = [];
+
 	// Initialize race
 	StartTime = Now + Race::C_SpawnDuration;
 	EndTime = -1;
@@ -191,7 +287,12 @@ if (Start == Null && Finishes.count == 0) {
 	// Spawn players for the race
 	foreach (Player in Players) {
 		Race::Start(Player, StartTime);
+		declare netwrite Integer Net_ClimbTheMap_AltitudeOfPB for Player;
+		Net_ClimbTheMap_AltitudeOfPB = 0;
 	}
+
+	Net_ClimbTheMap_AltitudePerName_Update += 1;
+
 	
 	StateMgr::ForcePlayersStates([StateMgr::C_State_Playing]);
 	CarRank::Update(CarRank::C_SortCriteria_BestRace);
@@ -231,7 +332,8 @@ if (Now > Map_NextUpdate) {
 		declare Integer Altitude = ML::FloorInteger(Player.Position.Y);
 
 		if (Net_ClimbTheMap_AltitudeOfWR < Altitude) {
-			Net_ClimbTheMap_AltitudeOfWR = Altitude;
+			declare netwrite Int2 Net_ClimbTheMap_AltitudeOfWaypoints for Teams[0];
+			Net_ClimbTheMap_AltitudeOfWR = ML::Min(Altitude, Net_ClimbTheMap_AltitudeOfWaypoints.Y);
 			Net_ClimbTheMap_NamefWR = Player.User.Name;
 		}
 
@@ -239,12 +341,24 @@ if (Now > Map_NextUpdate) {
 
 		if (Net_ClimbTheMap_AltitudeOfPB < Altitude) {
 			Net_ClimbTheMap_AltitudeOfPB = Altitude;
+
+			Map_XmlRpc_AltitudePerLogin_Queue[Player.User.Login] = Altitude;
 		}
 		
 		AltitudePerName[Player.User.Name] = Altitude;
 	}
 	Net_ClimbTheMap_AltitudePerName = AltitudePerName;
 	Net_ClimbTheMap_AltitudePerName_Update += 1;
+}
+
+if (Now > Map_XmlRpc_Queue_NextUpdate) {
+	Map_XmlRpc_Queue_NextUpdate = Now +	S_XmlRpcUpdateFrequency;
+
+	if (Map_XmlRpc_AltitudePerLogin_Queue.count > 0) {
+
+    XmlRpc::SendCallback(C_Callback_UpdatePBs, [Map_XmlRpc_AltitudePerLogin_Queue.tojson()]);
+		Map_XmlRpc_AltitudePerLogin_Queue = [];
+	}
 }
 
 // Manage mode events
@@ -488,7 +602,7 @@ main() {
 				if (Net_ClimbTheMap_AltitudeOfPB > 0 && Net_ClimbTheMap_AltitudeOfPB != Net_ClimbTheMap_AltitudeOfWR) {
 					UpdateMarker(Frame_Marker_PB, Net_ClimbTheMap_AltitudeOfWaypoints, AnimationDuration, C_Type_PB, OwnerName, Net_ClimbTheMap_AltitudeOfPB);
 				} else {
-					Frame_Marker_Owner.Visible = False;
+					Frame_Marker_PB.Visible = False;
 				}
 
 				declare Integer I;
