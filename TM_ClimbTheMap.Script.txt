@@ -6,7 +6,7 @@
 //#RequireContext CSmMode
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2023-09-08"
+#Const	Version							"2023-09-24"
 #Const	ScriptName					"Modes/TrackMania/TM_TimeAttack_Online.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -265,6 +265,8 @@ declare netwrite Text Net_ClimbTheMap_NamefWR for Teams[0];
 declare netwrite Integer[Text] Net_ClimbTheMap_AltitudePerName for Teams[0];
 declare netwrite Integer Net_ClimbTheMap_AltitudePerName_Update for Teams[0];
 declare netwrite Integer Net_ClimbTheMap_UpdateFrequency for Teams[0] = 500;
+
+declare netwrite Int2 Net_ClimbTheMap_AltitudeOfWaypoints for Teams[0];
 ***
 
 ***Match_StartMap***
@@ -280,7 +282,6 @@ if (Start == Null && Finishes.count == 0) {
 	UIModules_BigMessage::SetMessage("");
 	MB_StopMap();
 } else {
-	declare netwrite Int2 Net_ClimbTheMap_AltitudeOfWaypoints for Teams[0];
 	declare netwrite Integer Net_ClimbTheMap_AltitudeOfWaypoints_Update for Teams[0];
 
 	declare Real FinishAltitude;
@@ -360,7 +361,6 @@ if (Now > Map_NextUpdate) {
 		declare Integer Altitude = ML::FloorInteger(Player.Position.Y);
 
 		if (Net_ClimbTheMap_TimeOfWR <= 0 && Net_ClimbTheMap_AltitudeOfWR < Altitude) {
-			declare netwrite Int2 Net_ClimbTheMap_AltitudeOfWaypoints for Teams[0];
 			Net_ClimbTheMap_AltitudeOfWR = ML::Min(Altitude, Net_ClimbTheMap_AltitudeOfWaypoints.Y);
 			Net_ClimbTheMap_NamefWR = Player.User.Name;
 		}
