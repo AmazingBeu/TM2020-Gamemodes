@@ -370,7 +370,8 @@ if (Now > Map_NextUpdate) {
 		if (Net_ClimbTheMap_AltitudeOfPB < Altitude) {
 			Net_ClimbTheMap_AltitudeOfPB = Altitude;
 
-			Map_XmlRpc_AltitudePerLogin_Queue[Player.User.Login] = Altitude;
+			// Map_XmlRpc_AltitudePerLogin_Queue is relative with the Start waypoint
+			Map_XmlRpc_AltitudePerLogin_Queue[Player.User.Login] = Altitude - Net_ClimbTheMap_AltitudeOfWaypoints.X;
 		}
 		
 		AltitudePerName[Player.User.Name] = Altitude;
