@@ -193,9 +193,12 @@ foreach (Event in XmlRpc.PendingEvents) {
 			declare Integer[Text] AltitudePerLogin;
 			AltitudePerLogin.fromjson(Event.ParamArray2[0]);
 
-			foreach (Login => Altitude in AltitudePerLogin) {
+			declare netwrite Int2 Net_ClimbTheMap_AltitudeOfWaypoints for Teams[0];
+
+			foreach (Login => RelativeAltitude in AltitudePerLogin) {
 				declare CSmPlayer Player <=> GetPlayer(Login);
 				if (Player == Null) continue;
+				declare Integer Altitude = RelativeAltitude + Net_ClimbTheMap_AltitudeOfWaypoints.X;
 				declare netwrite Integer Net_ClimbTheMap_AltitudeOfPB for Player;
 				if (Net_ClimbTheMap_AltitudeOfPB < Altitude) {
 					Net_ClimbTheMap_AltitudeOfPB = Altitude;
@@ -207,7 +210,7 @@ foreach (Event in XmlRpc.PendingEvents) {
 		} else if (Event.ParamArray1 == C_Method_SetWR) {
 			if (Event.ParamArray2.count < 3) continue;
 			declare netwrite Int2 Net_ClimbTheMap_AltitudeOfWaypoints for Teams[0];
-			declare Integer Altitude = ML::Min(TL::ToInteger(Event.ParamArray2[1]), Net_ClimbTheMap_AltitudeOfWaypoints.Y);
+			declare Integer Altitude = ML::Min(TL::ToInteger(Event.ParamArray2[1]) + Net_ClimbTheMap_AltitudeOfWaypoints.X, Net_ClimbTheMap_AltitudeOfWaypoints.Y);
 			declare Integer Time = TL::ToInteger(Event.ParamArray2[2]);
 			declare netwrite Integer Net_ClimbTheMap_TimeOfWR for Teams[0];
 			declare netwrite Integer Net_ClimbTheMap_AltitudeOfWR for Teams[0];
@@ -503,7 +506,7 @@ Void SetMl() {
 
 Real GetPosition(Int2 _AltitudeOfWaypoints, Integer _Altitude) {
 	if (_AltitudeOfWaypoints.Y == _AltitudeOfWaypoints.X) return 0.;
-	return (120. * (_Altitude - _AltitudeOfWaypoints.X)) / (_AltitudeOfWaypoints.Y - _AltitudeOfWaypoints.X);
+	return (120. * (_Altitude - _AltitudeOfWaypoints.X))  / (_AltitudeOfWaypoints.Y - _AltitudeOfWaypoints.X);
 }
 
 Void UpdateMarker(CMlFrame _Frame, Int2 _AltitudeOfWaypoints, Integer _AnimationDuration, Integer _Type, Text _Name, Integer _Altitude) {
@@ -613,7 +616,7 @@ main() {
 					} else if (Key == Frame_Dots.Controls.count - 1) {
 						Label_DotAltidude.Value = "Finish";
 					} else {
-						Label_DotAltidude.Value = TL::ToText(Net_ClimbTheMap_AltitudeOfWaypoints.Y / Frame_Dots.Controls.count * Key);
+						Label_DotAltidude.Value = TL::ToText((Net_ClimbTheMap_AltitudeOfWaypoints.Y - Net_ClimbTheMap_AltitudeOfWaypoints.X) / (Frame_Dots.Controls.count - 1) * Key);
 					}
 				}
 			}
