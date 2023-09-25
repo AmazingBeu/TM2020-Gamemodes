@@ -50,7 +50,7 @@
 #Const Description _("$zIn $<$t$6F9Time Attack$> mode, the goal is to set the $<$t$6F9best time$>.\n\nYou have as many tries as you want, and you can $<$t$6F9retry$> when you want by pressing the respawn key.\n\nWhen the time is up, the $<$t$6F9winner$> is the player with the $<$t$6F9best time$>.")
 
 #Const C_HudModulePath "" //< Path to the hud module
-#Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/TMNext/TrackMania/TimeAttack/TimeAttack.Script.txt" //< Url of the mania app
+#Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/Trackmania/Modes/TimeAttack.Script.txt" //< Url of the mania app
 #Const C_FakeUsersNb 0
 
 #Const C_UploadRecord True

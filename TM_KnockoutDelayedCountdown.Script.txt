@@ -69,7 +69,7 @@
 #Const Description _("$zIn $<$t$6F9Knockout$> mode, the goal is to be the last player standing. \n\nYou play a series of races as in Round mode. $<$t$6F9At the end of each race, the last players are eliminated$>!\n\nThe winner is the player who eliminates all of their opponents.")
 
 #Const C_HudModulePath "" //< Path to the hud module
-#Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/TMNext/TrackMania/Knockout/Knockout.Script.txt" //< Url of the mania app
+#Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/Trackmania/Modes/Knockout.Script.txt" //< Url of the mania app
 #Const C_FakeUsersNb 0
 
 #Const C_Callback_Elimination "Trackmania.Knockout.Elimination"

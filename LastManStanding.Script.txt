@@ -47,7 +47,7 @@
 #Const Description "$zIn $<$t$6F9LastManStanding$> mode, The goal is to be the last player not to fall off the structure. Collisions are activated and you can push your opponents to win. From a certain time, malus are sent to all the players of the game to accelerate its end."
 
 #Const C_HudModulePath "" //< Path to the hud module
-#Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/TMNext/TrackMania/Rounds/Rounds.Script.txt" //< Url of the mania app
+#Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/Trackmania/Modes/Rounds.Script.txt" //< Url of the mania app
 #Const C_FakeUsersNb 0
 
 #Const C_Malus_Reset 0

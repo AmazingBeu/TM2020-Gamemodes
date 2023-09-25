@@ -54,7 +54,7 @@
 #Const Description _("$zThe cup mode consists of $<$t$6F9a series of races on multiple maps$>.\n\nWhen you finish a race in a bad $<$t$6F9position$>, you loose $<$t$6F9points$> substracted from your total.\nServers might propose warmup races to get familiar with a map first.\n\nTo win, you must be the last player with points. Once you are a LastChance, if you finish a race last you will be eliminated.The cup mode ends once there is one player left.")
 
 #Const C_HudModulePath "" //< Path to the hud module
-#Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/TMNext/TrackMania/Cup/Cup.Script.txt" //< Url of the mania app
+#Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/Trackmania/Modes/Cup.Script.txt" //< Url of the mania app
 #Const C_FakeUsersNb 0
 
 #Const C_UploadRecord True

@@ -1,0 +1,248 @@
+#Extends "Modes/TrackMania/TM_Cup_Online.Script.txt"
+
+#Setting S_PointsLimit 50
+#Setting S_RoundsPerMap 4
+#Setting S_PointsRepartition "10,6,4,3,0"
+#Setting S_PlayersPerMatch 12
+
+#Const C_ML_TeamPicker "Custom_TeamPicker"
+
+***Match_StartServer***
+***
+Clans::SetClansNb(6);
+Clans::SetUseForcedClans(True);
+WarmUp::SetSpawnInRequestedClan(False); // Must be disabled because Clans are forced
+***
+
+***Match_StartMatch***
+***
+declare netwrite Integer[Text] Net_Custom_PlayersClan for Teams[0] ;
+Net_Custom_PlayersClan = [];
+
+Teams[2].Name = "Cyan";
+Teams[3].Name = "Pink";
+Teams[4].Name = "Yellow";
+Teams[5].Name = "Green";
+***
+
+
+***Match_InitMap***
+***
+log(Dbg_DumpDeclareForVariables(This, False));
+
+Users_SetNbFakeUsers(11,0);
+if (GetPlayersNb() < S_PlayersPerMatch) {
+    SendPickManialink();
+    declare netwrite Integer[Text] Net_Custom_PlayersClan for Teams[0] = [];
+
+    foreach (Player in AllPlayers) {
+        if (Player.IsFakePlayer) {
+            Net_Custom_PlayersClan[Player.User.WebServicesUserId] = ML::Rand(1,6);
+            Player.Score.LadderClan = Net_Custom_PlayersClan[Player.User.WebServicesUserId];
+        }
+    }
+
+
+    while (GetPlayersNb() < S_PlayersPerMatch) {
+        MB_Yield();
+
+        foreach (Event in UIManager.PendingEvents) {
+            if (Event.Type == CUIConfigEvent::EType::OnLayerCustomEvent && Event.CustomEventType == "Custom_Join_Clan") {
+                declare CSmPlayer Player = GetPlayer(Event.UI);
+                if (Player != Null) {
+                    Net_Custom_PlayersClan[Player.User.WebServicesUserId] = TL::ToInteger(Event.CustomEventData[0]);
+                    Player.Score.LadderClan = Net_Custom_PlayersClan[Player.User.WebServicesUserId];
+                    SetPlayerClan(Player, Net_Custom_PlayersClan[Player.User.WebServicesUserId]);
+                }
+            }
+        }
+    }
+
+    Layers::Detach(C_ML_TeamPicker);
+}
+declare Int2[] Custom_RoundsVersus for This = [];
+Custom_RoundsVersus = GenerateRoundVersus();
+***
+
+
+***Match_InitRound***
+***
+declare Integer Custom_NbOfValidRounds for This = 0;
+Custom_NbOfValidRounds = G_NbOfValidRounds;
+declare Int2[] Custom_RoundsVersus for This = [];
+if (Custom_NbOfValidRounds >= 3) {
+    UIModules_BigMessage::SetMessage("All teams play");
+} else {
+    declare CTeam Team1 <=> Teams[Custom_RoundsVersus[Custom_NbOfValidRounds].X - 1];
+    declare CTeam Team2 <=> Teams[Custom_RoundsVersus[Custom_NbOfValidRounds].Y - 1];
+
+    UIModules_BigMessage::SetMessage(Team1.Name ^ " vs " ^ Team2.Name);
+}
+MB_Sleep(3000);
+UIModules_BigMessage::SetMessage("");
+***
+
+***Match_Yield***
+***
+foreach (Event in PendingEvents) {
+    if (Event.Type == CSmModeEvent::EType::OnPlayerAdded) {
+        declare netwrite Integer[Text] Net_Custom_PlayersClan for Teams[0] = [];
+        if (Net_Custom_PlayersClan.existskey(Event.Player.User.WebServicesUserId)) {
+            Event.Player.Score.LadderClan = Net_Custom_PlayersClan[Event.Player.User.WebServicesUserId];
+            SetPlayerClan(Event.Player, Net_Custom_PlayersClan[Event.Player.User.WebServicesUserId]);
+        }
+    }
+}
+***
+
+***Rounds_SpawnPlayer***
+***
+SetPlayerClan(Player, Player.Score.LadderClan);
+Race::Start(Player, StartTime);
+***
+
+
+***Rounds_CheckCanSpawn***
+***
+
+declare netwrite Integer[Text] Net_Custom_PlayersClan for Teams[0] = [];
+if (!Net_Custom_PlayersClan.existskey(_Player.Score.User.WebServicesUserId)) return False;
+// TODO Team can spawn
+declare Integer Custom_NbOfValidRounds for This = 0;
+if (Custom_NbOfValidRounds <= 2) {
+    declare Int2[] Custom_RoundsVersus for This = [];
+    if (Custom_RoundsVersus.existskey(Custom_NbOfValidRounds)) {
+        if (Custom_RoundsVersus[Custom_NbOfValidRounds].X != Net_Custom_PlayersClan[_Player.Score.User.WebServicesUserId] 
+             && Custom_RoundsVersus[Custom_NbOfValidRounds].Y != Net_Custom_PlayersClan[_Player.Score.User.WebServicesUserId]) {
+            return False;
+        }
+    }
+}
+log(_Player.Score.User.Name ^" " ^_Player.Score.LadderClan);
+***
+
+Integer GetPlayersNb() {
+    declare netwrite Integer[Text] Net_Custom_PlayersClan for Teams[0] = [];
+    return Net_Custom_PlayersClan.count;
+}
+
+Int2[] GenerateRoundVersus() {
+    declare Integer[Integer] SortingTeam;
+    for (I, 1, 6) {
+        SortingTeam[I] = ML::Rand(0, 10000);
+    }
+
+    SortingTeam = SortingTeam.sort();
+
+    declare Integer[] SortedTeam;
+
+    foreach (ClanId => Rand in SortingTeam.sort()) {
+        SortedTeam.add(ClanId);
+    }
+
+    declare Int2[] RoundOrder;
+    for (I, 0, 2) {
+        RoundOrder.add(<SortedTeam[I * 2], SortedTeam[I * 2 + 1]>);
+    }
+    return RoundOrder;
+}
+
+Void SendPickManialink() {
+    declare Text Manialink = """
+    <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+    <manialink version="3" name="{{{C_ML_TeamPicker}}}">
+        <stylesheet>
+			<style class="center" halign="center" valign="center" />
+		</stylesheet>
+        <framemodel id="framemodel-team">
+            <label id="label-team-name" pos="0 -5" class="center" textsize=3 textfont="GameFontExtraBold"/>
+
+            <frame id="frame-players" pos="0 -15">
+                <label pos="0 0" class="center" textsize=2 textfont="GameFontSemiBold"/>
+                <label pos="0 -5" class="center" textsize=2 textfont="GameFontSemiBold"/>
+                <label pos="0 -10" class="center" textsize=2 textfont="GameFontSemiBold"/>
+                <label pos="0 -15" class="center" textsize=2 textfont="GameFontSemiBold"/>
+            </frame>
+
+            <label id="label-join-clan" pos="0 -76" class="center" style="CardButtonSmallS" text="Join" scriptevents=2/>
+        </framemodel>
+        <frame id="frame-global">
+            <quad id="background" class="center" z-index="-1" size="180 80" bgcolor="000" opacity="0.7" />
+
+            <frame id="frame-teams">
+                <frameinstance modelid="framemodel-team" pos="-45 40" data-clanid="2"/>
+                <frameinstance modelid="framemodel-team" pos="-15 40" data-clanid="3"/>
+                <frameinstance modelid="framemodel-team" pos="15 40" data-clanid="4"/>
+                <frameinstance modelid="framemodel-team" pos="45 40" data-clanid="5"/>
+                <frameinstance modelid="framemodel-team" pos="75 40" data-clanid="6"/>
+            </frame>
+        </frame>
+        <script><!--
+            #Include "TextLib" as TL
+            #Include "TimeLib" as TimeLib
+
+            #Const C_AttachId {{{dump(C_ML_TeamPicker)}}}
+
+            main() {
+                log("Init");
+
+                declare CMlFrame Frame_Teams <=> (Page.GetFirstChild("frame-teams") as CMlFrame);
+                foreach (Key => Control in Frame_Teams.Controls) {
+                    if (!Teams.existskey(Key)) break;
+                    declare CMlFrame Frame <=> Control as CMlFrame;
+                    declare CMlLabel Label_TeamName <=> (Frame.GetFirstChild("label-team-name") as CMlLabel);
+                    Label_TeamName.Value = Teams[Key].Name;
+                    Label_TeamName.TextColor = Teams[Key].ColorPrimary;
+                }
+
+                // Wait C++ initialize the player
+                wait (InputPlayer != Null);
+
+                declare netread Integer[Text] Net_Custom_PlayersClan for Teams[0] = [];
+
+                while(True) {
+                    yield;
+
+                    declare Text[][Integer] PlayerPerTeams = [];
+
+                    foreach (Player in Players) {
+                        if (!Net_Custom_PlayersClan.existskey(Player.User.WebServicesUserId)) continue;
+
+                        declare Integer TeamId = Net_Custom_PlayersClan[Player.User.WebServicesUserId] - 1;
+
+                        if (!PlayerPerTeams.existskey(TeamId)) PlayerPerTeams[TeamId] = [];
+                        PlayerPerTeams[TeamId].add(Player.User.Name);
+                    }
+
+                    foreach (TeamId => Control in Frame_Teams.Controls) {
+                        declare CMlFrame Frame_Team <=> Control as CMlFrame;
+                        declare CMlFrame Frame_Players <=> (Frame_Team.GetFirstChild("frame-players") as CMlFrame);
+                        foreach (Key => Control in Frame_Players.Controls) {
+                            declare CMlLabel Label <=> Control as CMlLabel ;
+                            //declare CMlLabel Label <=> (Frame_Player.GetFirstChild("") as CMlLabel);
+                            if (PlayerPerTeams.existskey(TeamId) && PlayerPerTeams[TeamId].existskey(Key)) {
+                                Label.Value = PlayerPerTeams[TeamId][Key];
+                            } else {
+                                Label.Value = "";
+                            }
+                        }
+                    }
+
+                    foreach (Event in PendingEvents) {
+                        if (Event.Type == CMlScriptEvent::Type::MouseClick) {
+                            if (Event.ControlId == "label-join-clan") {
+                                declare Text ClanId = Event.Control.Parent.DataAttributeGet("clanid");
+                                SendCustomEvent("Custom_Join_Clan", [ClanId]);
+                            }
+                        }
+                    }
+                }
+            }
+        --></script>
+    </manialink>
+    """;
+
+	Layers::Create(C_ML_TeamPicker, Manialink);
+	Layers::SetType(C_ML_TeamPicker, CUILayer::EUILayerType::Normal);
+    Layers::Attach(C_ML_TeamPicker);
+}

@@ -69,7 +69,7 @@
 #Const Description _("$zIn $<$t$6F9Laps$> mode, the goal is to drive as far as possible by passing $<$t$6F9checkpoints$>.\n\nThe laps mode takes place on multilap (cyclical) maps, and is played in one go for every map.\n\nWhen the time is up, the $<$t$6F9winner$> is the player who passed the most $<$t$6F9checkpoints$>. In case of draws, the winner is the player who passed the last checkpoint first.")
 
 #Const C_HudModulePath "" //< Path to the hud module
-#Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/TMNext/TrackMania/Laps/Laps.Script.txt" //< Url of the mania app
+#Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/Trackmania/Modes/Laps.Script.txt" //< Url of the mania app
 #Const C_FakeUsersNb 0
 
 #Const C_UploadRecord True
