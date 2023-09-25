@@ -526,10 +526,10 @@ Void UpdateMarker(CMlFrame _Frame, Int2 _AltitudeOfWaypoints, Integer _Animation
 		Quad_Background.Size.X = Label_PlayerName.ComputeWidth(_Name) + 2.5; 
 	}
 
-	if (_AnimationDuration <= 0 || ChangeLabel) {		
+	AnimMgr.Flush(_Frame);
+	if (_AnimationDuration <= 0 || ChangeLabel) {
 		_Frame.RelativePosition_V3.Y = GetPosition(_AltitudeOfWaypoints, _Altitude);
 	} else {
-		AnimMgr.Flush(_Frame);
 		AnimMgr.Add(_Frame, "<a pos=\"0 " ^ GetPosition(_AltitudeOfWaypoints, _Altitude) ^ "\"/>", _AnimationDuration, CAnimManager::EAnimManagerEasing::Linear);
 	}
 }
