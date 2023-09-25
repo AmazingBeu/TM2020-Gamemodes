@@ -647,18 +647,24 @@ main() {
 
 				declare Integer I;
 
+				declare Boolean OwnerIsPassed;
+
 				foreach (Name => Altitude in Net_ClimbTheMap_AltitudePerName) {
 					if (!LiveMarkers.existskey(I)) break;
 
 					if (OwnerName == Name) {
 						UpdateMarker(Frame_Marker_Owner, Net_ClimbTheMap_AltitudeOfWaypoints, AnimationDuration, C_Type_Owner, Name, Altitude);
-
+						OwnerIsPassed = True;
 					} else {
 						UpdateMarker(LiveMarkers[I], Net_ClimbTheMap_AltitudeOfWaypoints, AnimationDuration, C_Type_Live, Name, Altitude);
 
 						I += 1;
 					}
-				}	
+				}
+
+				if (!OwnerIsPassed) {
+					Frame_Marker_Owner.Visible = False;
+				}
 	
 				while (LiveMarkers.existskey(I) && LiveMarkers[I].Visible) {
 					LiveMarkers[I].Visible = False;
