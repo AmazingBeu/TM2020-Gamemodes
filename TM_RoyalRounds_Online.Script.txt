@@ -1,10 +1,10 @@
 /**
 *	Royal Rounds mode
 */
-#Extends "Libs/Nadeo/TMNext/TrackMania/Modes/TMNextRoundsBase.Script.txt"
+#Extends "Modes/Nadeo/Trackmania/Base/TrackmaniaRoundsBase.Script.txt"
 
 #Const CompatibleMapTypes			"TrackMania\\TM_Royal,TM_Royal"
-#Const Version						"2021-08-21"
+#Const Version						"2023-09-25"
 #Const ScriptName					"Modes/TrackMania/TM_RoyalRounds_Online.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -12,17 +12,17 @@
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 #Include "TextLib" as TL
 #Include "MathLib" as ML
-#Include "Libs/Nadeo/CommonLibs/Common/Semver.Script.txt" as Semver
+#Include "Libs/Nadeo/CMGame/Utils/Semver.Script.txt" as Semver
 
-#Include "Libs/Nadeo/ModeLibs/Common/Utils.Script.txt" as ModeUtils
-#Include "Libs/Nadeo/TMNext/TrackMania/Menu/Constants.Script.txt" as MenuConsts
-#Include "Libs/Nadeo/TMNext/TrackMania/Modes/Rounds/StateManager.Script.txt" as StateMgr
-#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/ScoresTable_Server.Script.txt" as UIModules_ScoresTable
-#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/PauseMenuOnline_Server.Script.txt" as UIModules_PauseMenu_Online
-#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/Checkpoint_Server.Script.txt" as UIModules_Checkpoint
-#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/BigMessage_Server.Script.txt" as UIModules_BigMessage
-#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/Chrono_Server.Script.txt" as UIModules_Chrono
-#Include "ManiaApps/Nadeo/TMNext/TrackMania/Rounds/UIModules/SmallScoresTable_Server.Script.txt" as UIModules_SmallScoresTable
+#Include "Libs/Nadeo/CMGame/Modes/Utils.Script.txt" as ModeUtils
+#Include "Libs/Nadeo/Trackmania/MainMenu/Constants.Script.txt" as MenuConsts
+#Include "Libs/Nadeo/Trackmania/Modes/Rounds/StateManager.Script.txt" as StateMgr
+#Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/ScoresTable_Server.Script.txt" as UIModules_ScoresTable
+#Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/PauseMenuOnline_Server.Script.txt" as UIModules_PauseMenu_Online
+#Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/Checkpoint_Server.Script.txt" as UIModules_Checkpoint
+#Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/BigMessage_Server.Script.txt" as UIModules_BigMessage
+#Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/Chrono_Server.Script.txt" as UIModules_Chrono
+#Include "Libs/Nadeo/Trackmania/Modes/Rounds/UIModules/SmallScoresTable_Server.Script.txt" as UIModules_SmallScoresTable
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Settings
@@ -119,9 +119,7 @@ UIModules_Checkpoint::SetVisibleFor(UIModules_Checkpoint::C_Target_None);
 UIModules_TimeGap::SetTimeGapMode(UIModules_TimeGap::C_TimeGapMode_Hidden);
 UIModules_PauseMenu_Online::SetHelp(Description);
 // Hide SM Overlay
-UIManager.UIAll.OverlayHideSpectatorControllers = True;
 UIManager.UIAll.OverlayHideSpectatorInfos = True;
-UIManager.UIAll.OverlayHideChrono = True; 
 UIManager.UIAll.OverlayHideCountdown = True;
 
 SetML();

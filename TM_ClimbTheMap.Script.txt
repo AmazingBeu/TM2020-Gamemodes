@@ -1,12 +1,12 @@
 /**
 *	Time Attack mode
 */
-#Extends "Libs/Nadeo/TMNext/TrackMania/Modes/TMNextBase.Script.txt"
+#Extends "Modes/Nadeo/Trackmania/Base/TrackmaniaBase.Script.txt"
 
 //#RequireContext CSmMode
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2023-09-24"
+#Const	Version							"2023-09-25"
 #Const	ScriptName					"Modes/TrackMania/TM_TimeAttack_Online.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -14,16 +14,13 @@
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 #Include "TextLib" as TL
 #Include "MathLib" as ML
-#Include "Libs/Nadeo/CommonLibs/Common/Task.Script.txt" as Task
-#Include "Libs/Nadeo/TMNext/TrackMania/Modes/TimeAttack/StateManager.Script.txt" as StateMgr
-#Include "Libs/Nadeo/TMNext/TrackMania/Modes/TrophyRanking.Script.txt" as TrophyRanking
-#Include "Libs/Nadeo/TMNext/TrackMania/Menu/Constants.Script.txt" as MenuConsts
-#Include "Libs/Nadeo/CommonLibs/Common/Tracking.Script.txt" as Tracking
+#Include "Libs/Nadeo/CMGame/Utils/Task.Script.txt" as Task
+#Include "Libs/Nadeo/Trackmania/Modes/TimeAttack/StateManager.Script.txt" as StateMgr
+#Include "Libs/Nadeo/Trackmania/MainMenu/Constants.Script.txt" as MenuConsts
 // UI from Race
-#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/TimeGap_Server.Script.txt" as UIModules_TimeGap
-#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/Checkpoint_Server.Script.txt" as UIModules_Checkpoint
-#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/PauseMenuOnline_Server.Script.txt" as UIModules_PauseMenu_Online
-#Include "ManiaApps/Nadeo/TMNext/TrackMania/TimeAttack/UIModules/EndMatchTrophy_Server.Script.txt" as UIModules_EndMatchTrophy
+#Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/TimeGap_Server.Script.txt" as UIModules_TimeGap
+#Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/Checkpoint_Server.Script.txt" as UIModules_Checkpoint
+#Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/PauseMenuOnline_Server.Script.txt" as UIModules_PauseMenu_Online
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Settings
@@ -427,7 +424,6 @@ if (Map_XmlRpc_AltitudePerLogin_Queue.count > 0) {
 StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
 Race::EnableIntroDuringMatch(False);
 
-TrophyRanking::UpdateUsersRank();
 CarRank::Update(CarRank::C_SortCriteria_BestRace);
 Race::StopSkipOutroAll();
 ***

@@ -1,9 +1,9 @@
 // #RequireContext CSmMode
 
 #Include "MathLib" as ML
-#Include "Libs/Nadeo/CommonLibs/Common/Log.Script.txt" as Log
-#Include "Libs/Nadeo/TMxSM/Race/Events.Script.txt" as Events
-#Include "Libs/Nadeo/TMxSM/Race/Race.Script.txt" as Race
+#Include "Libs/Nadeo/CMGame/Utils/Log.Script.txt" as Log
+#Include "Libs/Nadeo/TMGame/Modes/Events.Script.txt" as Events
+#Include "Libs/Nadeo/TMGame/Modes/Race.Script.txt" as Race
 
 #Const C_Malus_Reset 0
 #Const C_Malus_ForceEngine 1

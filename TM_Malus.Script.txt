@@ -7,7 +7,7 @@
 
 #Extends "Modes/TrackMania/TM_Rounds_Online.Script.txt"
 
-#Include "Libs/Nadeo/TMNext/TrackMania/Menu/Constants.Script.txt" as MenuConsts
+#Include "Libs/Nadeo/Trackmania/MainMenu/Constants.Script.txt" as MenuConsts
 
 #Include "Modes/TM2020-Gamemodes/Libs/Malus.Script.txt" as Malus
 
@@ -99,8 +99,8 @@ Void AddMalusUI() {
                 declare CMlFrame Frame_Global <=> (Page.GetFirstChild("frame-global") as CMlFrame);
                 declare CMlLabel Label_Message <=> (Frame_Global.GetFirstChild("label-message") as CMlLabel);
 
-                G_Sound_CountDown = Audio.CreateSound("file://Media/Manialinks/Nadeo/TMConsole/MapEditor/Sounds/MenuDialogHidden.wav", 1.0, False, False, False);
-                G_Sound_Malus = Audio.CreateSound("file://Media/Manialinks/Nadeo/TMConsole/MapEditor/Sounds/MenuDialogDisplayed.wav", 1.0, False, False, False);
+                G_Sound_CountDown = Audio.CreateSound("https://cdn.discordapp.com/attachments/767738540687228948/1155897620242366506/MenuDialogHidden-06471.wav", 1.0, False, False, False);
+                G_Sound_Malus = Audio.CreateSound("https://cdn.discordapp.com/attachments/767738540687228948/1155897620573737121/MenuDialogDisplayed-21252.wav", 1.0, False, False, False);
 
                 // Wait C++ initialize the player
                 wait (InputPlayer != Null);

@@ -2,10 +2,10 @@
 /*
 * This mode uses the TMGL World Cup mode and removes all references to it
 */
-#Extends "Modes/TrackMania/TM_Final86TMGL_Online.Script.txt"
+#Extends "Modes/TrackMania/Deprecated/TM_Final86TMGL_Online.Script.txt"
 // #RequireContext CSmMode
 
-#Include "ManiaApps/Nadeo/TMNext/TrackMania/UIModules/TMGLMarkers_Server.Script.txt" as UIModules_TMGLMarkers
+#Include "Libs/Nadeo/Trackmania/Modes/UIModules/TMGLMarkers_Server.Script.txt" as UIModules_TMGLMarkers
 
 #Setting S_PointsLimit 100
 #Setting S_RoundsPerMap 3
