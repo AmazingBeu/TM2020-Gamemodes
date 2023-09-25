@@ -532,12 +532,12 @@ Void SetML() {
 
 			declare Real GlobalEndPosX;
 			if (Frame_UI.Visible) {
-				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_RIGHT_OBLIQUE.dds");
+				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/CMGame/Utils/Icons/128x128/ICON_ARROW_RIGHT_OBLIQUE.dds");
 				Quad_Toggle.RelativePosition_V3.X = 5.;
 				GlobalEndPosX = -220.;
 				AnimMgr.Add(Frame_UI, "<frame hidden=\"1\" />", Now, 250, CAnimManager::EAnimManagerEasing::Linear);
 			} else {
-				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds");
+				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/CMGame/Utils/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds");
 				Quad_Toggle.RelativePosition_V3.X = 0.;
 				GlobalEndPosX = -160.;
 				Frame_UI.Visible = True;
@@ -1076,7 +1076,7 @@ Void SetML() {
 		</stylesheet>
 		<frame id="frame-global" hidden="1" pos="-160 40">
 			<frame pos="58 -2.5" id="frame-toggle" z-index=1>
-				<quad id="Toggle_SettingButton" pos="0 0" size="4 4" class="quad-base" z-index="3" opacity="0.9" scriptevents="1" halign="center" valign="center" image="file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds" colorize="fff"/>
+				<quad id="Toggle_SettingButton" pos="0 0" size="4 4" class="quad-base" z-index="3" opacity="0.9" scriptevents="1" halign="center" valign="center" image="file://Media/Manialinks/Nadeo/CMGame/Utils/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds" colorize="fff"/>
 			</frame>
 			<frame id="frame-UI">
 				<quad id="quad-bg" pos="0 0" z-index="-1" size="60 74" bgcolor="000" opacity="0.5" /> <!-- 85 for regular, 74 without spec control-->
@@ -1086,7 +1086,7 @@ Void SetML() {
 				<label class="text-suffix" pos="30 -9" textsize="1.5" z-index="0" size="50 10" id="SubTitle" text=""/>
 				<frame pos="58 -6">
 					<quad id="BindKey_SettingButton" size="4 4" z-index="1" class="quad-base" opacity="0" halign="center" valign="center" bgcolor="fff" scriptevents="1"/>
-					<quad size="4 4" class="quad-base" z-index="3" opacity="0.9" halign="center" valign="center" image="file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/Icones_128_icon_settings_key_02.dds" colorize="fff"/>
+					<quad size="4 4" class="quad-base" z-index="3" opacity="0.9" halign="center" valign="center" image="file://Media/Manialinks/Nadeo/CMGame/Utils/Icons/128x128/Icones_128_icon_settings_key_02.dds" colorize="fff"/>
 				</frame>
 				<frame pos="0.5 -6">
 					<frame pos="30 0">

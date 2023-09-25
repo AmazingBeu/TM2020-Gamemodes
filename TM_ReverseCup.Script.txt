@@ -921,7 +921,7 @@ Void SetManialink_LiveRace() {
 		</framemodel>
 		<frame id="frame-global" pos="-160 50">
 			<frame id="frame-toggle" pos="58 -2.5" >
-				<quad id="Toggle_SettingButton" pos="0 0" size="4 4" class="quad-base" z-index="3" opacity="0.9" scriptevents="1" halign="center" valign="center" image="file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds" colorize="fff"/>
+				<quad id="Toggle_SettingButton" pos="0 0" size="4 4" class="quad-base" z-index="3" opacity="0.9" scriptevents="1" halign="center" valign="center" image="file://Media/Manialinks/Nadeo/CMGame/Utils/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds" colorize="fff"/>
 			</frame>
 			<frame id="frame-UI">
 				<quad id="quad-bg" pos="0 0" z-index="-1" size="60 14" bgcolor="000" opacity="0.5" /><!-- 16 + (ML::Max(NB_Players,16) * 5) -->
@@ -1027,12 +1027,12 @@ Void SetManialink_LiveRace() {
 
 			declare Real GlobalEndPosX;
 			if (Frame_UI.Visible) {
-				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_RIGHT_OBLIQUE.dds");
+				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/CMGame/Utils/Icons/128x128/ICON_ARROW_RIGHT_OBLIQUE.dds");
 				Quad_Toggle.RelativePosition_V3.X = 5.;
 				GlobalEndPosX = -220.;
 				AnimMgr.Add(Frame_UI, "<frame hidden=\"1\" />", Now, 250, CAnimManager::EAnimManagerEasing::Linear);
 			} else {
-				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds");
+				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/CMGame/Utils/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds");
 				Quad_Toggle.RelativePosition_V3.X = 0.;
 				GlobalEndPosX = -160.;
 				Frame_UI.Visible = True;

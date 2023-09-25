@@ -670,12 +670,12 @@ Void SetML() {
 
 			declare Real GlobalEndPosX;
 			if (Frame_UI.Visible) {
-				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_RIGHT_OBLIQUE.dds");
+				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/CMGame/Utils/Icons/128x128/ICON_ARROW_RIGHT_OBLIQUE.dds");
 				Quad_Toggle.RelativePosition_V3.X = 5.;
 				GlobalEndPosX = -215.;
 				AnimMgr.Add(Frame_UI, "<frame hidden=\"1\" />", Now, 250, CAnimManager::EAnimManagerEasing::Linear);
 			} else {
-				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds");
+				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/CMGame/Utils/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds");
 				Quad_Toggle.RelativePosition_V3.X = 0.;
 				GlobalEndPosX = -160.;
 				Frame_UI.Visible = True;
@@ -826,7 +826,7 @@ Void SetML() {
 		</framemodel>
 		<frame id="frame-global" pos="-160 30">
 			<frame pos="53 -2.5" id="frame-toggle" z-index="1" >
-				<quad id="quad-toggle" pos="0 0" size="4 4" class="quad-base" z-index="3" opacity="0.9" scriptevents="1" halign="center" valign="center" image="file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds" colorize="fff"/>
+				<quad id="quad-toggle" pos="0 0" size="4 4" class="quad-base" z-index="3" opacity="0.9" scriptevents="1" halign="center" valign="center" image="file://Media/Manialinks/Nadeo/CMGame/Utils/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds" colorize="fff"/>
 			</frame>
 			<frame id="frame-ui" z-index="1">
 				<quad pos="0 0" z-index="0" size="55 69" bgcolor="000" opacity="0.5"/>

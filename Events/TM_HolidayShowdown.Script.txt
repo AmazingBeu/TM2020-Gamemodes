@@ -381,11 +381,11 @@ Void SetHolidayShowdownControlML() {
 
 			declare Real GlobalEndPosY;
 			if (Frame_UI.Visible) {
-				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_TOP.dds");
+				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/CMGame/Utils/Icons/128x128/ICON_ARROW_TOP.dds");
 				GlobalEndPosY = -28.;
 				AnimMgr.Add(Frame_UI, "<frame hidden=\"1\" />", Now, 250, CAnimManager::EAnimManagerEasing::Linear);
 			} else {
-				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_BOTTOM.dds");
+				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/CMGame/Utils/Icons/128x128/ICON_ARROW_BOTTOM.dds");
 				GlobalEndPosY = 0.;
 				Frame_UI.Visible = True;
 			}
@@ -761,13 +761,13 @@ Void SetHolidayShowdownControlML() {
 		<frame id="frame-global" hidden="1" pos="-60 -63">
 			<frame pos="-2 -25" id="frame-toggle">
 				<quad id="Toggle_Bg_SettingButton" size="4 4" class="quad-base"  opacity="0.5" halign="center" valign="center" bgcolor="000" scriptevents="1"/>
-				<quad id="Toggle_Icon_SettingButton" size="4 4" class="quad-base" z-index="3" opacity="0.9" halign="center" valign="center" image="file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_BOTTOM.dds" colorize="fff"/>
+				<quad id="Toggle_Icon_SettingButton" size="4 4" class="quad-base" z-index="3" opacity="0.9" halign="center" valign="center" image="file://Media/Manialinks/Nadeo/CMGame/Utils/Icons/128x128/ICON_ARROW_BOTTOM.dds" colorize="fff"/>
 			</frame>
 			<frame id="frame-UI">
 				<quad id="quad-bg" z-index="-1" size="27 27" bgcolor="000" opacity="0.5"  pos="0 0"/>
 				<frame pos="-2 -21">
 					<quad id="BindKey_SettingButton" size="4 4" class="quad-base" opacity="0.5" halign="center" valign="center" bgcolor="000" scriptevents="1"/>
-					<quad size="4 4" class="quad-base" z-index="3" opacity="0.9" halign="center" valign="center" image="file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/Icones_128_icon_settings_key_02.dds" colorize="fff"/>
+					<quad size="4 4" class="quad-base" z-index="3" opacity="0.9" halign="center" valign="center" image="file://Media/Manialinks/Nadeo/CMGame/Utils/Icons/128x128/Icones_128_icon_settings_key_02.dds" colorize="fff"/>
 				</frame>
 				<frame id="Admin_Frame" pos="-2 -13">
 					<frame pos="0 0">
@@ -873,12 +873,12 @@ Void SetHolidayShowdownLiveRaceML() {
 
 			declare Real GlobalEndPosX;
 			if (Frame_UI.Visible) {
-				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_RIGHT_OBLIQUE.dds");
+				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/CMGame/Utils/Icons/128x128/ICON_ARROW_RIGHT_OBLIQUE.dds");
 				Quad_Toggle.RelativePosition_V3.X = 5.;
 				GlobalEndPosX = -220.;
 				AnimMgr.Add(Frame_UI, "<frame hidden=\"1\" />", Now, 250, CAnimManager::EAnimManagerEasing::Linear);
 			} else {
-				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds");
+				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/CMGame/Utils/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds");
 				Quad_Toggle.RelativePosition_V3.X = 0.;
 				GlobalEndPosX = -160.;
 				Frame_UI.Visible = True;
@@ -911,15 +911,15 @@ Void SetHolidayShowdownLiveRaceML() {
 
 			if (_PlayerInfo.RoundPoints > 0) {
 				Label_Player_PointsValue.Value = "+" ^ _PlayerInfo.RoundPoints;
-				Quad_Player_PointsIcon.ChangeImageUrl("file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/256x256/Icones_256_icon_damier_02.dds");
+				Quad_Player_PointsIcon.ChangeImageUrl("file://Media/Manialinks/Nadeo/CMGame/Utils/Icons/256x256/Icones_256_icon_damier_02.dds");
 				Quad_Player_PointsBg.BgColor = <0.839,0.098,0.098>;
 			} else if (_PlayerInfo.RaceTime > 0) {
 				Label_Player_PointsValue.Value = TL::TimeToText(_PlayerInfo.RaceTime, True, True) ;
-				Quad_Player_PointsIcon.ChangeImageUrl("file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/256x256/Icones_256_icon_damier_02.dds");
+				Quad_Player_PointsIcon.ChangeImageUrl("file://Media/Manialinks/Nadeo/CMGame/Utils/Icons/256x256/Icones_256_icon_damier_02.dds");
 				Quad_Player_PointsBg.BgColor = <0.839,0.098,0.098>;
 			} else if (_PlayerInfo.Eliminated) {
 				Label_Player_PointsValue.Value = _("|DidNotFinish|DNF");
-				Quad_Player_PointsIcon.ChangeImageUrl("file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/256x256/Icones_256_icon_cross_01.dds");
+				Quad_Player_PointsIcon.ChangeImageUrl("file://Media/Manialinks/Nadeo/CMGame/Utils/Icons/256x256/Icones_256_icon_cross_01.dds");
 				Quad_Player_PointsBg.BgColor = <0.588,0.588,0.588>;
 			} else {
 				Label_Player_PointsValue.Value = TL::ToText(_PlayerInfo.Altitude);
@@ -1096,7 +1096,7 @@ Void SetHolidayShowdownLiveRaceML() {
 		</framemodel>
 		<frame id="frame-global" pos="-160 50">
 			<frame pos="58 -2.5" id="frame-toggle">
-				<quad id="Toggle_SettingButton" pos="0 0" size="4 4" class="quad-base" z-index="3" opacity="0.9" scriptevents="1" halign="center" valign="center" image="file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds" colorize="fff"/>
+				<quad id="Toggle_SettingButton" pos="0 0" size="4 4" class="quad-base" z-index="3" opacity="0.9" scriptevents="1" halign="center" valign="center" image="file://Media/Manialinks/Nadeo/CMGame/Utils/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds" colorize="fff"/>
 			</frame>
 			<frame id="frame-UI">
 				<quad id="quad-bg" pos="0 0" z-index="-1" size="60 14" bgcolor="000" opacity="0.5" /><!-- 16 + (ML::Max(NB_Players,16) * 6) -->

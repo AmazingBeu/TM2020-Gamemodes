@@ -946,9 +946,9 @@ Boolean MapIsOver(Boolean _UseTieBreak, Integer _PointsLimit, Integer _ValidRoun
 			<quad pos="-0.75 -10" z-index="0" size="50 10" opacity="0.7" image="https://files.virtit.fr/TrackMania/UI/tilted_bg_half.dds" colorize="000" halign="center"/>
 			<label id="label-text" pos="-1 -15" z-index="1" size="45 10" text="You are on the $<$fffwhite$> segment" textfont="GameFontSemiBold" halign="center" valign="center2" textprefix="$i" textsize="1.5" textcolor="D8D8D8"/>
 			<quad id="quad-left-button" pos="-30 1.9" z-index="0" size="13 23" opacity="0.7" image="https://files.virtit.fr/TrackMania/UI/tilted_bg_left_button.dds" colorize="000" halign="center" scriptevents="1"/>
-			<quad id="quad-left-arrow" pos="-30 -5" z-index="1" size="10 10" image="file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds" halign="center" colorize="000"/>
+			<quad id="quad-left-arrow" pos="-30 -5" z-index="1" size="10 10" image="file://Media/Manialinks/Nadeo/CMGame/Utils/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds" halign="center" colorize="000"/>
 			<quad id="quad-right-button" pos="30.2 1.6" z-index="0" size="13 23.5" opacity="0.7" image="https://files.virtit.fr/TrackMania/UI/tilted_bg_right_button.dds" colorize="000" halign="center" scriptevents="1"/>
-			<quad id="quad-right-arrow" pos="30 -5" z-index="1" size="10 10" image="file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_RIGHT_OBLIQUE.dds" halign="center" colorize="1b2"/>
+			<quad id="quad-right-arrow" pos="30 -5" z-index="1" size="10 10" image="file://Media/Manialinks/Nadeo/CMGame/Utils/Icons/128x128/ICON_ARROW_RIGHT_OBLIQUE.dds" halign="center" colorize="1b2"/>
 		</frame>
 	</manialink>
 """;
