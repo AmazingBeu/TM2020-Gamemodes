@@ -3,7 +3,7 @@
 * This mode is used to debug your modes during development.
 * To use it, you just have to change the line below to put the path of your mode:
 */
-#Extends "Modes/TrackMania/TM_TimeAttack_Online.Script.txt"
+#Extends "Modes/TrackMania/TM_Rounds_Online.Script.txt"
 
 // #RequireContext CSmMode
 #Include "TimeLib" as TiL

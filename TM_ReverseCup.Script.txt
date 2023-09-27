@@ -157,8 +157,8 @@ foreach (Event in PendingEvents) {
 			if (Server_MatchInfo.RegistrationClosed && !Server_MatchInfo.Participants.exists(Event.Player.User.Login)) {
 				Scores::SetPlayerMatchPoints(Event.Player.Score, C_Points_Spectator);
 				// Equivalent of getCustomPoints: 
-				declare netwrite Text[][Text] Net_TMxSM_ScoresTable_CustomPoints for Teams[0] = [];
-				Net_TMxSM_ScoresTable_CustomPoints[Event.Player.User.WebServicesUserId] = [C_Text_Spectator, C_Color_Spectator];
+				declare netwrite Text[][Text] Net_TMGame_ScoresTable_CustomPoints for Teams[0] = [];
+				Net_TMGame_ScoresTable_CustomPoints[Event.Player.User.WebServicesUserId] = [C_Text_Spectator, C_Color_Spectator];
 			}
 		}
 	}

@@ -292,8 +292,8 @@ foreach (Event in Race::GetPendingEvents()) {
 
 			if (Event.IsEndRace) {
 				// waiting GetCustomPoints function in ScoresTable_Server
-				declare netwrite Text[][Text] Net_TMxSM_ScoresTable_CustomPoints for Teams[0];
-				declare Text[][Text] CustomTimes = Net_TMxSM_ScoresTable_CustomPoints;
+				declare netwrite Text[][Text] Net_TMGame_ScoresTable_CustomPoints for Teams[0];
+				declare Text[][Text] CustomTimes = Net_TMGame_ScoresTable_CustomPoints;
 				foreach (Player in Players) {
 					if (Player != Event.Player) {
 						CustomTimes[Player.User.WebServicesUserId] = [_("|Status|K.O."), "f00"];

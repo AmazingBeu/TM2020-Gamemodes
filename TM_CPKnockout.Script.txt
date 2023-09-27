@@ -387,6 +387,6 @@ Void EliminatePlayer(CSmPlayer _Player) {
 	UIManager.UIAll.SendChat("Player $<$ff6" ^ _Player.User.Name ^ "$> is $<$f00eliminated$>");
 
 	// waiting GetCustomPoints function in ScoresTable_Server
-	declare netwrite Text[][Text] Net_TMxSM_ScoresTable_CustomPoints for Teams[0];
-	Net_TMxSM_ScoresTable_CustomPoints[_Player.User.WebServicesUserId] = [_("|Status|K.O."), "f00"];
+	declare netwrite Text[][Text] Net_TMGame_ScoresTable_CustomPoints for Teams[0];
+	Net_TMGame_ScoresTable_CustomPoints[_Player.User.WebServicesUserId] = [_("|Status|K.O."), "f00"];
 }
