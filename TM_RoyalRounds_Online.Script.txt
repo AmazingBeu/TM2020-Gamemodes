@@ -1,10 +1,10 @@
 /**
 *	Royal Rounds mode
 */
-#Extends "Libs/Nadeo/TMNext/TrackMania/Modes/TMNextRoundsBase.Script.txt"
+#Extends "Modes/Nadeo/Trackmania/Base/TrackmaniaRoundsBase.Script.txt"
 
 #Const CompatibleMapTypes			"TrackMania\\TM_Royal,TM_Royal"
-#Const Version						"2021-08-21"
+#Const Version						"2023-09-25"
 #Const ScriptName					"Modes/TrackMania/TM_RoyalRounds_Online.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -12,17 +12,17 @@
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 #Include "TextLib" as TL
 #Include "MathLib" as ML
-#Include "Libs/Nadeo/CommonLibs/Common/Semver.Script.txt" as Semver
+#Include "Libs/Nadeo/CMGame/Utils/Semver.Script.txt" as Semver
 
-#Include "Libs/Nadeo/ModeLibs/Common/Utils.Script.txt" as ModeUtils
-#Include "Libs/Nadeo/TMNext/TrackMania/Menu/Constants.Script.txt" as MenuConsts
-#Include "Libs/Nadeo/TMNext/TrackMania/Modes/Rounds/StateManager.Script.txt" as StateMgr
-#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/ScoresTable_Server.Script.txt" as UIModules_ScoresTable
-#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/PauseMenuOnline_Server.Script.txt" as UIModules_PauseMenu_Online
-#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/Checkpoint_Server.Script.txt" as UIModules_Checkpoint
-#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/BigMessage_Server.Script.txt" as UIModules_BigMessage
-#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/Chrono_Server.Script.txt" as UIModules_Chrono
-#Include "ManiaApps/Nadeo/TMNext/TrackMania/Rounds/UIModules/SmallScoresTable_Server.Script.txt" as UIModules_SmallScoresTable
+#Include "Libs/Nadeo/CMGame/Modes/Utils.Script.txt" as ModeUtils
+#Include "Libs/Nadeo/Trackmania/MainMenu/Constants.Script.txt" as MenuConsts
+#Include "Libs/Nadeo/Trackmania/Modes/Rounds/StateManager.Script.txt" as StateMgr
+#Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/ScoresTable_Server.Script.txt" as UIModules_ScoresTable
+#Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/PauseMenuOnline_Server.Script.txt" as UIModules_PauseMenu_Online
+#Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/Checkpoint_Server.Script.txt" as UIModules_Checkpoint
+#Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/BigMessage_Server.Script.txt" as UIModules_BigMessage
+#Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/Chrono_Server.Script.txt" as UIModules_Chrono
+#Include "Libs/Nadeo/Trackmania/Modes/Rounds/UIModules/SmallScoresTable_Server.Script.txt" as UIModules_SmallScoresTable
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Settings
@@ -51,7 +51,7 @@
 #Const Description _("$zIn $<$t$6F9RoyalRounds$z$z$> mode, the goal is to win a maximum number of $<$t$6F9points.\n\n$z$>The rounds mode consists of $<$t$6F9a series of races$z$>.\nWhen you finish a race in a good $<$t$6F9position$z$>, you get $<$t$6F9points$z$>, added to your total.\n\nThe $<$t$6F9winner$z$> is the first player whose total reaches the $<$t$6F9point limit$z$> (30 for example).")
 
 #Const C_HudModulePath "" //< Path to the hud module
-#Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/TMNext/TrackMania/Rounds/Rounds.Script.txt" //< Url of the mania app
+#Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/Trackmania/Modes/Rounds.Script.txt" //< Url of the mania app
 
 #Const C_FakeUsersNb 0
 
@@ -119,9 +119,7 @@ UIModules_Checkpoint::SetVisibleFor(UIModules_Checkpoint::C_Target_None);
 UIModules_TimeGap::SetTimeGapMode(UIModules_TimeGap::C_TimeGapMode_Hidden);
 UIModules_PauseMenu_Online::SetHelp(Description);
 // Hide SM Overlay
-UIManager.UIAll.OverlayHideSpectatorControllers = True;
 UIManager.UIAll.OverlayHideSpectatorInfos = True;
-UIManager.UIAll.OverlayHideChrono = True; 
 UIManager.UIAll.OverlayHideCountdown = True;
 
 SetML();
@@ -948,9 +946,9 @@ Boolean MapIsOver(Boolean _UseTieBreak, Integer _PointsLimit, Integer _ValidRoun
 			<quad pos="-0.75 -10" z-index="0" size="50 10" opacity="0.7" image="https://files.virtit.fr/TrackMania/UI/tilted_bg_half.dds" colorize="000" halign="center"/>
 			<label id="label-text" pos="-1 -15" z-index="1" size="45 10" text="You are on the $<$fffwhite$> segment" textfont="GameFontSemiBold" halign="center" valign="center2" textprefix="$i" textsize="1.5" textcolor="D8D8D8"/>
 			<quad id="quad-left-button" pos="-30 1.9" z-index="0" size="13 23" opacity="0.7" image="https://files.virtit.fr/TrackMania/UI/tilted_bg_left_button.dds" colorize="000" halign="center" scriptevents="1"/>
-			<quad id="quad-left-arrow" pos="-30 -5" z-index="1" size="10 10" image="file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds" halign="center" colorize="000"/>
+			<quad id="quad-left-arrow" pos="-30 -5" z-index="1" size="10 10" image="file://Media/Manialinks/Nadeo/CMGame/Utils/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds" halign="center" colorize="000"/>
 			<quad id="quad-right-button" pos="30.2 1.6" z-index="0" size="13 23.5" opacity="0.7" image="https://files.virtit.fr/TrackMania/UI/tilted_bg_right_button.dds" colorize="000" halign="center" scriptevents="1"/>
-			<quad id="quad-right-arrow" pos="30 -5" z-index="1" size="10 10" image="file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_RIGHT_OBLIQUE.dds" halign="center" colorize="1b2"/>
+			<quad id="quad-right-arrow" pos="30 -5" z-index="1" size="10 10" image="file://Media/Manialinks/Nadeo/CMGame/Utils/Icons/128x128/ICON_ARROW_RIGHT_OBLIQUE.dds" halign="center" colorize="1b2"/>
 		</frame>
 	</manialink>
 """;

@@ -1,10 +1,10 @@
 /**
 *	Seeding Time Attack mode
 */
-#Extends "Libs/Nadeo/TMNext/TrackMania/Modes/TMNextBase.Script.txt"
+#Extends "Modes/Nadeo/Trackmania/Base/TrackmaniaBase.Script.txt"
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2021-10-16"
+#Const	Version							"2023-09-25"
 #Const	ScriptName					"Modes/TM2020-Gamemodes/TM_SeedingTimeAttack_Online.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -12,20 +12,20 @@
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 #Include "TextLib" as TL
 #Include "MathLib" as ML
-#Include "Libs/Nadeo/CommonLibs/Common/Task.Script.txt" as Task
-#Include "Libs/Nadeo/TMNext/TrackMania/Modes/TimeAttack/StateManager.Script.txt" as StateMgr
-#Include "Libs/Nadeo/TMNext/TrackMania/Modes/TrophyRanking.Script.txt" as TrophyRanking
-#Include "Libs/Nadeo/TMNext/TrackMania/Menu/Constants.Script.txt" as MenuConsts
-#Include "Libs/Nadeo/ModeLibs/Common/Utils.Script.txt" as ModeUtils
-#Include "Libs/Nadeo/CommonLibs/Common/Semver.Script.txt" as Semver
+#Include "Libs/Nadeo/CMGame/Utils/Task.Script.txt" as Task
+#Include "Libs/Nadeo/Trackmania/Modes/TimeAttack/StateManager.Script.txt" as StateMgr
+#Include "Libs/Nadeo/Trackmania/Modes/TrophyRanking.Script.txt" as TrophyRanking
+#Include "Libs/Nadeo/Trackmania/MainMenu/Constants.Script.txt" as MenuConsts
+#Include "Libs/Nadeo/CMGame/Modes/Utils.Script.txt" as ModeUtils
+#Include "Libs/Nadeo/CMGame/Utils/Semver.Script.txt" as Semver
 
 // UI from Race
-#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/TimeGap_Server.Script.txt" as UIModules_TimeGap
-#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/BigMessage_Server.Script.txt" as UIModules_BigMessage
-#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/Checkpoint_Server.Script.txt" as UIModules_Checkpoint
-#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/ScoresTable_Server.Script.txt" as UIModules_ScoresTable
-#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/PauseMenuOnline_Server.Script.txt" as UIModules_PauseMenu_Online
-#Include "ManiaApps/Nadeo/TMNext/TrackMania/TimeAttack/UIModules/EndMatchTrophy_Server.Script.txt" as UIModules_EndMatchTrophy
+#Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/TimeGap_Server.Script.txt" as UIModules_TimeGap
+#Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/BigMessage_Server.Script.txt" as UIModules_BigMessage
+#Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/Checkpoint_Server.Script.txt" as UIModules_Checkpoint
+#Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/ScoresTable_Server.Script.txt" as UIModules_ScoresTable
+#Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/PauseMenuOnline_Server.Script.txt" as UIModules_PauseMenu_Online
+#Include "Libs/Nadeo/Trackmania/Modes/TimeAttack/UIModules/EndMatchTrophy_Server.Script.txt" as UIModules_EndMatchTrophy
 
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -48,7 +48,7 @@
 #Const Description _("$zIn $<$t$6F9Time Attack$> mode, the goal is to set the $<$t$6F9best time$>.\n\nYou have as many tries as you want, and you can $<$t$6F9retry$> when you want by pressing the respawn key.\n\nWhen the time is up, the $<$t$6F9winner$> is the player with the $<$t$6F9best time$>.")
 
 #Const C_HudModulePath "" //< Path to the hud module
-#Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/TMNext/TrackMania/TimeAttack/TimeAttack.Script.txt" //< Url of the mania app
+#Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/Trackmania/Modes/TimeAttack.Script.txt" //< Url of the mania app
 #Const C_FakeUsersNb 0
 
 #Const C_UploadRecord True
@@ -170,7 +170,7 @@ UIModules_Record::SetSpecialVisibility(False);
 
 ***Match_InitMatch***
 ***
-declare Task::LibCommonTask_K_Task Match_TrophyTask;
+declare Task::K_Task Match_TrophyTask;
 declare Integer Match_TrophyTaskEndTime;
 declare Integer Match_MatchDuration;
 declare Boolean Match_CanForceTrophyRankUpdate for This = False;
@@ -670,12 +670,12 @@ Void SetML() {
 
 			declare Real GlobalEndPosX;
 			if (Frame_UI.Visible) {
-				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_RIGHT_OBLIQUE.dds");
+				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/CMGame/Utils/Icons/128x128/ICON_ARROW_RIGHT_OBLIQUE.dds");
 				Quad_Toggle.RelativePosition_V3.X = 5.;
 				GlobalEndPosX = -215.;
 				AnimMgr.Add(Frame_UI, "<frame hidden=\"1\" />", Now, 250, CAnimManager::EAnimManagerEasing::Linear);
 			} else {
-				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds");
+				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/CMGame/Utils/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds");
 				Quad_Toggle.RelativePosition_V3.X = 0.;
 				GlobalEndPosX = -160.;
 				Frame_UI.Visible = True;
@@ -826,7 +826,7 @@ Void SetML() {
 		</framemodel>
 		<frame id="frame-global" pos="-160 30">
 			<frame pos="53 -2.5" id="frame-toggle" z-index="1" >
-				<quad id="quad-toggle" pos="0 0" size="4 4" class="quad-base" z-index="3" opacity="0.9" scriptevents="1" halign="center" valign="center" image="file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds" colorize="fff"/>
+				<quad id="quad-toggle" pos="0 0" size="4 4" class="quad-base" z-index="3" opacity="0.9" scriptevents="1" halign="center" valign="center" image="file://Media/Manialinks/Nadeo/CMGame/Utils/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds" colorize="fff"/>
 			</frame>
 			<frame id="frame-ui" z-index="1">
 				<quad pos="0 0" z-index="0" size="55 69" bgcolor="000" opacity="0.5"/>

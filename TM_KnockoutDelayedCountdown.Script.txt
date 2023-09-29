@@ -1,10 +1,10 @@
 /**
  *	Official Knockout mode with delayed countdown (Finish Timeout)
  */
-#Extends "Libs/Nadeo/TMNext/TrackMania/Modes/TMNextRoundsBase.Script.txt"
+#Extends "Modes/Nadeo/Trackmania/Base/TrackmaniaRoundsBase.Script.txt"
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2023-06-21"
+#Const	Version							"2023-09-25"
 #Const	ScriptName					"Modes/TrackMania/TM_Knockout_Online.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -12,21 +12,24 @@
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 #Include "TextLib" as TL
 #Include "MathLib" as ML
-#Include "Libs/Nadeo/CommonLibs/Common/Semver.Script.txt" as Semver
-#Include "Libs/Nadeo/TMNext/TrackMania/Modes/Knockout/StateManager.Script.txt" as StateMgr
-#Include "Libs/Nadeo/TMNext/TrackMania/Menu/Constants.Script.txt" as MenuConsts
-#Include "ManiaApps/Nadeo/TMNext/TrackMania/Knockout/UIModules/KnockoutInfo_Server.Script.txt" as UIModules_KnockoutInfo
-#Include "ManiaApps/Nadeo/TMNext/TrackMania/TimeAttack/UIModules/BestRaceViewer_Server.Script.txt" as UIModules_BestRaceViewer
-#Include "ManiaApps/Nadeo/TMNext/TrackMania/Knockout/UIModules/KnockedOutPlayers_Server.Script.txt" as UIModules_KnockedOutPlayers
-#Include "ManiaApps/Nadeo/TMNext/TrackMania/Knockout/UIModules/KnockoutReward_Server.Script.txt" as UIModules_KnockoutReward
-#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/PauseMenuOnline_Server.Script.txt" as UIModules_PauseMenu_Online
-#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/Checkpoint_Server.Script.txt" as UIModules_Checkpoint
+#Include "Libs/Nadeo/CMGame/Utils/Semver.Script.txt" as Semver
+#Include "Libs/Nadeo/CMGame/Modes/Utils.Script.txt" as ModeUtils
+#Include "Libs/Nadeo/Trackmania/Modes/Knockout/StateManager.Script.txt" as StateMgr
+#Include "Libs/Nadeo/Trackmania/MainMenu/Constants.Script.txt" as MenuConsts
+#Include "Libs/Nadeo/Trackmania/Modes/Knockout/UIModules/KnockoutInfo_Server.Script.txt" as UIModules_KnockoutInfo
+#Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/ScoresTable_Server.Script.txt" as UIModules_ScoresTable
+#Include "Libs/Nadeo/Trackmania/Modes/TimeAttack/UIModules/BestRaceViewer_Server.Script.txt" as UIModules_BestRaceViewer
+#Include "Libs/Nadeo/Trackmania/Modes/Knockout/UIModules/KnockedOutPlayers_Server.Script.txt" as UIModules_KnockedOutPlayers
+#Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/BigMessage_Server.Script.txt" as UIModules_BigMessage
+#Include "Libs/Nadeo/Trackmania/Modes/Knockout/UIModules/KnockoutReward_Server.Script.txt" as UIModules_KnockoutReward
+#Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/PauseMenuOnline_Server.Script.txt" as UIModules_PauseMenu_Online
+#Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/Checkpoint_Server.Script.txt" as UIModules_Checkpoint
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Settings
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 #Setting S_FinishTimeout 5 as _("Finish timeout")
-#Setting S_RoundsPerMap -1 as _("Number of rounds per track") ///< Number of round to play on one map before going to the next one
+#Setting S_RoundsPerMap -1 as _("Number of rounds per map") ///< Number of round to play on one map before going to the next one
 #Setting S_WarmUpNb 0 as _("Number of warm up")
 #Setting S_WarmUpDuration 0 as _("Duration of one warm up")
 #Setting S_WarmUpTimeout -1 as _("Warm up timeout")
@@ -66,7 +69,7 @@
 #Const Description _("$zIn $<$t$6F9Knockout$> mode, the goal is to be the last player standing. \n\nYou play a series of races as in Round mode. $<$t$6F9At the end of each race, the last players are eliminated$>!\n\nThe winner is the player who eliminates all of their opponents.")
 
 #Const C_HudModulePath "" //< Path to the hud module
-#Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/TMNext/TrackMania/Knockout/Knockout.Script.txt" //< Url of the mania app
+#Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/Trackmania/Modes/Knockout.Script.txt" //< Url of the mania app
 #Const C_FakeUsersNb 0
 
 #Const C_Callback_Elimination "Trackmania.Knockout.Elimination"

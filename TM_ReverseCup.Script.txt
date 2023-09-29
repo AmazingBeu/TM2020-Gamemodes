@@ -5,10 +5,10 @@
 */
 
 // #RequireContext CSmMode
-#Extends "Libs/Nadeo/TMNext/TrackMania/Modes/TMNextRoundsBase.Script.txt"
+#Extends "Modes/Nadeo/Trackmania/Base/TrackmaniaRoundsBase.Script.txt"
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2023-09-09"
+#Const	Version							"2023-09-25"
 #Const	ScriptName					"Modes/TM2020-Gamemodes/TM_ReverseCup.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -16,14 +16,14 @@
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 #Include "TextLib" as TL
 #Include "MathLib" as ML
-#Include "Libs/Nadeo/CommonLibs/Common/Semver.Script.txt" as Semver
-#Include "Libs/Nadeo/TMNext/TrackMania/Menu/Constants.Script.txt" as Menu_Const
-#Include "Libs/Nadeo/TMNext/TrackMania/Modes/CupCommon/Constants.Script.txt" as CupCommon_Const
-#Include "Libs/Nadeo/TMNext/TrackMania/Modes/Cup/StateManager.Script.txt" as StateMgr
-#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/ScoresTable_Server.Script.txt" as UIModules_ScoresTable
-#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/Checkpoint_Server.Script.txt" as UIModules_Checkpoint
-#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/PauseMenuOnline_Server.Script.txt" as UIModules_PauseMenu_Online
-#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/BigMessage_Server.Script.txt" as UIModules_BigMessage
+#Include "Libs/Nadeo/CMGame/Utils/Semver.Script.txt" as Semver
+#Include "Libs/Nadeo/Trackmania/MainMenu/Constants.Script.txt" as Menu_Const
+#Include "Libs/Nadeo/Trackmania/Modes/CupCommon/Constants.Script.txt" as CupCommon_Const
+#Include "Libs/Nadeo/Trackmania/Modes/Cup/StateManager.Script.txt" as StateMgr
+#Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/ScoresTable_Server.Script.txt" as UIModules_ScoresTable
+#Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/Checkpoint_Server.Script.txt" as UIModules_Checkpoint
+#Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/PauseMenuOnline_Server.Script.txt" as UIModules_PauseMenu_Online
+#Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/BigMessage_Server.Script.txt" as UIModules_BigMessage
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Settings
@@ -34,7 +34,6 @@
 
 #Setting S_NbOfWinners 1 as _("Number of winners")
 #Setting S_FinishTimeout -1 as _("Finish timeout")
-#Setting S_ComplexPointsRepartition "" as "JSON of PointsRepartition depending for the number of the Players Alive" // Example: {"3": [3, 6, 10], "4,5": [1, 3, 6,10]}
 #Setting S_PointsRepartition "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20"
 #Setting S_RoundsPerMap 5 as _("Number of rounds per map") ///< Number of round to play on one map before going to the next one
 
@@ -55,7 +54,7 @@
 #Const Description _("$zThe cup mode consists of $<$t$6F9a series of races on multiple maps$>.\n\nWhen you finish a race in a bad $<$t$6F9position$>, you loose $<$t$6F9points$> substracted from your total.\nServers might propose warmup races to get familiar with a map first.\n\nTo win, you must be the last player with points. Once you are a LastChance, if you finish a race last you will be eliminated.The cup mode ends once there is one player left.")
 
 #Const C_HudModulePath "" //< Path to the hud module
-#Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/TMNext/TrackMania/Cup/Cup.Script.txt" //< Url of the mania app
+#Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/Trackmania/Modes/Cup.Script.txt" //< Url of the mania app
 #Const C_FakeUsersNb 0
 
 #Const C_UploadRecord True
@@ -136,9 +135,7 @@ UIModules_Checkpoint::SetRankMode(UIModules_Checkpoint::C_RankMode_CurrentRace);
 UIModules_PauseMenu_Online::SetHelp(Description);
 
 // Hide SM Overlay
-UIManager.UIAll.OverlayHideSpectatorControllers = True;
 UIManager.UIAll.OverlayHideSpectatorInfos = True;
-UIManager.UIAll.OverlayHideChrono = True; 
 UIManager.UIAll.OverlayHideCountdown = True;
 
 // Unload default UI 
@@ -160,8 +157,8 @@ foreach (Event in PendingEvents) {
 			if (Server_MatchInfo.RegistrationClosed && !Server_MatchInfo.Participants.exists(Event.Player.User.Login)) {
 				Scores::SetPlayerMatchPoints(Event.Player.Score, C_Points_Spectator);
 				// Equivalent of getCustomPoints: 
-				declare netwrite Text[][Text] Net_TMxSM_ScoresTable_CustomPoints for Teams[0] = [];
-				Net_TMxSM_ScoresTable_CustomPoints[Event.Player.User.WebServicesUserId] = [C_Text_Spectator, C_Color_Spectator];
+				declare netwrite Text[][Text] Net_TMGame_ScoresTable_CustomPoints for Teams[0] = [];
+				Net_TMGame_ScoresTable_CustomPoints[Event.Player.User.WebServicesUserId] = [C_Text_Spectator, C_Color_Spectator];
 			}
 		}
 	}
@@ -924,7 +921,7 @@ Void SetManialink_LiveRace() {
 		</framemodel>
 		<frame id="frame-global" pos="-160 50">
 			<frame id="frame-toggle" pos="58 -2.5" >
-				<quad id="Toggle_SettingButton" pos="0 0" size="4 4" class="quad-base" z-index="3" opacity="0.9" scriptevents="1" halign="center" valign="center" image="file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds" colorize="fff"/>
+				<quad id="Toggle_SettingButton" pos="0 0" size="4 4" class="quad-base" z-index="3" opacity="0.9" scriptevents="1" halign="center" valign="center" image="file://Media/Manialinks/Nadeo/CMGame/Utils/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds" colorize="fff"/>
 			</frame>
 			<frame id="frame-UI">
 				<quad id="quad-bg" pos="0 0" z-index="-1" size="60 14" bgcolor="000" opacity="0.5" /><!-- 16 + (ML::Max(NB_Players,16) * 5) -->
@@ -1030,12 +1027,12 @@ Void SetManialink_LiveRace() {
 
 			declare Real GlobalEndPosX;
 			if (Frame_UI.Visible) {
-				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_RIGHT_OBLIQUE.dds");
+				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/CMGame/Utils/Icons/128x128/ICON_ARROW_RIGHT_OBLIQUE.dds");
 				Quad_Toggle.RelativePosition_V3.X = 5.;
 				GlobalEndPosX = -220.;
 				AnimMgr.Add(Frame_UI, "<frame hidden=\"1\" />", Now, 250, CAnimManager::EAnimManagerEasing::Linear);
 			} else {
-				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/TMNext/Menus/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds");
+				Quad_Toggle.ChangeImageUrl("file://Media/Manialinks/Nadeo/CMGame/Utils/Icons/128x128/ICON_ARROW_LEFT_OBLIQUE.dds");
 				Quad_Toggle.RelativePosition_V3.X = 0.;
 				GlobalEndPosX = -160.;
 				Frame_UI.Visible = True;
