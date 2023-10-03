@@ -1,0 +1,201 @@
+// #RequireContext CSmMode
+#Extends "Modes/TrackMania/TM_TimeAttack_Online.Script.txt"
+
+#Const C_MLID_WaitingMessage "WaitYourMate_WaitingMessage"
+
+#Setting S_ForceRespawnWhenAhead False as ""
+#Setting S_TeamsConfig "" as "" // {"56f8dd9f-8581-444e-a2ad-1e8e89eed1a4":1,"56f8dd9f-8581-444e-a2ad-1e8e89eed1a2":2}
+
+
+***Match_Yield***
+***
+foreach (Event in PendingEvents) {
+	if (Event.Type == CSmModeEvent::EType::OnPlayerAdded) {
+		if (S_TeamsConfig == "") continue;
+		if (Event.Player == Null || Event.Player.User == Null || Event.Player.Score == Null) continue;
+		if (Event.Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned) continue;
+
+		declare Integer[Text] TeamsConfig;
+		TeamsConfig.fromjson(S_TeamsConfig);
+
+		declare Integer ClanId = TeamsConfig.get(Event.Player.User.WebServicesUserId, 0);
+		Event.Player.Score.LadderClan = ClanId;
+		SetPlayerClan(Event.Player, ClanId);
+		log("Attributing Player "^ Event.Player.User.Name ^"to the clan " ^ ClanId);
+	}
+}
+***
+
+***Match_AfterLoadHud***
+***
+LoadManialinks();
+***
+
+***Match_StartMatch***
+***
+Clans::SetClansNb(30);
+***
+
+***Match_InitMap***
+***
+foreach (Player in AllPlayers) {
+	declare netwrite Boolean Net_WaitYourMate_IsWaiting for Player = False;
+	Net_WaitYourMate_IsWaiting = False;
+	Player.TrustClientSimu = True;
+}
+
+declare Text[] Map_LoginsToRespawn;
+***
+
+***Match_StartMap***
+***
+Users_SetNbFakeUsers(1, 0);
+
+if (S_TeamsConfig != "") {
+	declare Integer[Text] TeamsConfig ;
+	TeamsConfig.fromjson(S_TeamsConfig);
+	
+	foreach (Player in AllPlayers) {
+		if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned) continue;
+		declare Integer ClanId = TeamsConfig.get(Player.User.WebServicesUserId, 0);
+		Player.Score.LadderClan = ClanId;
+		SetPlayerClan(Player, ClanId);
+		log("Attributing Player "^  Player.User.Name ^"to the clan " ^ ClanId);
+	}
+}
+***
+
+***Match_PlayLoop***
+***
+foreach (Event in Race::GetPendingEvents()) {
+	if (Event.Player == Null) continue;
+	switch (Event.Type) {
+		case Events::C_Type_Waypoint: {
+			if (Event.IsEndRace) continue;
+
+			UpdateClanStates(Event.Player.Score.LadderClan);
+
+			if (S_ForceRespawnWhenAhead) {
+				Map_LoginsToRespawn.add(Event.Player.User.Login);
+			}
+		}
+		case Events::C_Type_StartLine: {
+			if (S_TeamsConfig != "") {
+				declare Integer[Text] TeamsConfig ;
+				TeamsConfig.fromjson(S_TeamsConfig);
+
+				declare Integer ClanId = TeamsConfig.get(Event.Player.User.WebServicesUserId, 0);
+				Event.Player.Score.LadderClan = ClanId;
+
+				if (Event.Player.Score.LadderClan != Event.Player.CurrentClan) {
+					log("Player spawned on the wrong team, but should not cause any issue");
+				}
+			}
+			UpdateClanStates(Event.Player.Score.LadderClan);
+		}
+		case Events::C_Type_GiveUp: {
+			UpdateClanStates(Event.Player.Score.LadderClan);
+		}
+		case Events::C_Type_Respawn: {
+			UpdateClanStates(Event.Player.Score.LadderClan);
+			Map_LoginsToRespawn.remove(Event.Player.User.Login);
+		}
+	}
+}
+
+foreach (LoginToRespawn in Map_LoginsToRespawn) {
+	declare CSmPlayer Player <=> GetPlayer(LoginToRespawn) ;
+	if (Player == Null) {
+		Map_LoginsToRespawn.remove(LoginToRespawn);
+	} else {
+		RespawnPlayer(Player);
+	}
+}
+***
+
+Void ApplyModeToPlayer(CSmPlayer _Player, Boolean _Lock) {
+	if (_Player == Null) return;
+	if (_Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) return;
+
+	_Player.TrustClientSimu = !_Lock;
+	SetPlayerVehicle_ControlledByMode(_Player, _Lock);
+
+	declare netwrite Boolean Net_WaitYourMate_IsWaiting for _Player = False;
+	Net_WaitYourMate_IsWaiting = _Lock;
+}
+
+Void LockPlayer(CSmPlayer _Player) {
+	ApplyModeToPlayer(_Player, True);
+}
+
+Void UnlockPlayer(CSmPlayer _Player) {
+	ApplyModeToPlayer(_Player, False);
+}
+
+Void UpdateClanStates(Integer _ClanId) {
+	log("UpdateClanStates _ClanId: " ^ _ClanId);
+	declare CSmPlayer[][Integer] TeammatesPerCheckpoint;
+
+	foreach (Player in Players) {
+		if (Player.Score == Null) continue;
+		if (Player.Score.BestRaceTimes.count > 0) continue;
+		if (Player.Score.LadderClan != _ClanId) continue;
+
+		if (!TeammatesPerCheckpoint.existskey(Player.RaceWaypointTimes.count)) TeammatesPerCheckpoint[Player.RaceWaypointTimes.count] = [];
+		TeammatesPerCheckpoint[Player.RaceWaypointTimes.count].add(Player);
+	}
+
+	if (TeammatesPerCheckpoint.count == 1) {
+		foreach (TeamMates in TeammatesPerCheckpoint) {
+			foreach (Player in TeamMates) {
+				UnlockPlayer(Player);
+			}
+		}
+	} else {
+		TeammatesPerCheckpoint = TeammatesPerCheckpoint.sortkey();
+
+		declare Integer MinCheckpointNumber = -1;
+		foreach (Checkpoint => TeamMates in TeammatesPerCheckpoint) {
+			if (MinCheckpointNumber == -1) MinCheckpointNumber = Checkpoint;
+
+			foreach (Player in TeamMates) {
+				ApplyModeToPlayer(Player, (Checkpoint != MinCheckpointNumber));
+			}
+		}
+	}
+}
+
+Void LoadManialinks() {
+	declare Text MLText = """
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<manialink version="3" name="{{{C_MLID_WaitingMessage}}}">
+	<label id="label-waiting" pos="0 35" halign="center" valign="center" textfont="GameFontBlack" textsize="10" textprefix="$s" text="Waiting your mate" hidden="1"/>
+<script><!--
+#Include "TimeLib" as TiL
+#Include "MathLib" as ML
+
+main() {
+	declare CMlLabel Label_Waiting <=> (Page.GetFirstChild("label-waiting") as CMlLabel);
+
+	wait (InputPlayer != Null);
+	
+	while (True) {
+		yield;
+
+		if (!PageIsVisible) continue;
+
+		if (GUIPlayer == Null) {
+			Label_Waiting.Visible = False;
+		} else {
+			declare netread Boolean Net_WaitYourMate_IsWaiting for GUIPlayer = False;
+			Label_Waiting.Visible = Net_WaitYourMate_IsWaiting;
+		}
+	}
+}
+--></script>
+</manialink>
+""";
+	Layers::Create(C_MLID_WaitingMessage, MLText);
+	Layers::SetType(C_MLID_WaitingMessage, CUILayer::EUILayerType::Normal);
+	Layers::Attach(C_MLID_WaitingMessage);
+}
