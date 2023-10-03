@@ -49,8 +49,6 @@ declare Text[] Map_LoginsToRespawn;
 
 ***Match_StartMap***
 ***
-Users_SetNbFakeUsers(1, 0);
-
 if (S_TeamsConfig != "") {
 	declare Integer[Text] TeamsConfig ;
 	TeamsConfig.fromjson(S_TeamsConfig);
