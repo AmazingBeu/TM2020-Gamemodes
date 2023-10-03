@@ -4,7 +4,7 @@
 #Const C_MLID_WaitingMessage "WaitYourMate_WaitingMessage"
 
 #Setting S_ForceRespawnWhenAhead False as ""
-#Setting S_TeamsConfig "" as "" // {"56f8dd9f-8581-444e-a2ad-1e8e89eed1a4":1,"56f8dd9f-8581-444e-a2ad-1e8e89eed1a2":2}
+#Setting S_TeamsConfig "" as "json of the Team attribution" // {"56f8dd9f-8581-444e-a2ad-1e8e89eed1a4":1,"752c4db6-26f9-44a3-9c80-08264d1665dc":1}
 
 
 ***Match_Yield***
@@ -28,6 +28,8 @@ foreach (Event in PendingEvents) {
 
 ***Match_AfterLoadHud***
 ***
+UIModules::UnloadModules(["UIModule_Race_TimeGap"]);
+
 LoadManialinks();
 ***
 
@@ -41,7 +43,7 @@ Clans::SetClansNb(30);
 foreach (Player in AllPlayers) {
 	declare netwrite Boolean Net_WaitYourMate_IsWaiting for Player = False;
 	Net_WaitYourMate_IsWaiting = False;
-	Player.TrustClientSimu = True;
+	Player.TrustClientSimu = S_TrustClientSimu;
 }
 
 declare Text[] Map_LoginsToRespawn;
@@ -59,6 +61,10 @@ if (S_TeamsConfig != "") {
 		Player.Score.LadderClan = ClanId;
 		SetPlayerClan(Player, ClanId);
 		log("Attributing Player "^  Player.User.Name ^"to the clan " ^ ClanId);
+
+		declare CUIConfig UI <=> UIManager.GetUI(Player);
+		if (UI == Null) continue;
+		UI.SendChat("$ff3You play for the team $fff"^ ClanId);
 	}
 }
 ***
@@ -115,7 +121,11 @@ Void ApplyModeToPlayer(CSmPlayer _Player, Boolean _Lock) {
 	if (_Player == Null) return;
 	if (_Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) return;
 
-	_Player.TrustClientSimu = !_Lock;
+	if (_Lock) {
+		_Player.TrustClientSimu = False;
+	} else {
+		_Player.TrustClientSimu = S_TrustClientSimu;
+	}
 	SetPlayerVehicle_ControlledByMode(_Player, _Lock);
 
 	declare netwrite Boolean Net_WaitYourMate_IsWaiting for _Player = False;
@@ -167,7 +177,7 @@ Void LoadManialinks() {
 	declare Text MLText = """
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
 <manialink version="3" name="{{{C_MLID_WaitingMessage}}}">
-	<label id="label-waiting" pos="0 35" halign="center" valign="center" textfont="GameFontBlack" textsize="10" textprefix="$s" text="Waiting your mate" hidden="1"/>
+	<label id="label-waiting" pos="0 35" halign="center" valign="center" textfont="GameFontBlack" textsize="10" textprefix="$s" text="Waiting for your mate" hidden="1"/>
 <script><!--
 #Include "TimeLib" as TiL
 #Include "MathLib" as ML
