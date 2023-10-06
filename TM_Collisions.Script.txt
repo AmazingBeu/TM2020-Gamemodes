@@ -1,5 +1,7 @@
 #Extends "Modes/TrackMania/TM_TimeAttack_Online.Script.txt"
 
+#Include "Libs/Nadeo/Trackmania/MainMenu/Constants.Script.txt" as MenuConsts
+
 #Setting S_TrustClientSimu False
 #Setting S_UseCrudeExtrapolation False
 
