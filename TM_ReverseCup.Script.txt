@@ -440,6 +440,9 @@ StateMgr::ForcePlayersStates([CupCommon_Const::C_State_Waiting]);
 CarRank::Update(CarRank::C_SortCriteria_CurrentRace);
 UpdateLiveRaceUI();
 
+// Compute round points before the callback
+ComputeLatestRaceScores(Round_NbPlayersInThisRound);
+
 if (Semver::Compare(XmlRpc::GetApiVersion(), ">=", "2.1.1")) {
 	Scores::XmlRpc_SendScores(Scores::C_Section_PreEndRound, "");
 }
@@ -457,8 +460,6 @@ if (Round_ForceEndRound || Round_SkipPauseRound || Round_Skipped) {
 	DisplayCustomPoints();
 	MB_Sleep(3000);
 } else {
-	// Get the last round points
-	ComputeLatestRaceScores(Round_NbPlayersInThisRound);
 	+++Cup_EndRound_BeforeScoresUpdate+++
 	Race::SortScores(Race::C_Sort_TotalPoints);
 	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
