@@ -4,7 +4,7 @@
 #Extends "Modes/Nadeo/Trackmania/Base/TrackmaniaRoundsBase.Script.txt"
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2023-09-25"
+#Const	Version							"2023-10-16"
 #Const	ScriptName					"Modes/TM2020-Gamemodes/LastManStanding.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -519,6 +519,7 @@ if (Round_ForceEndRound || Round_SkipPauseRound) {
 	if (!Round_SkipPauseRound) {
 		ForcedEndRoundSequence();
 	}
+	MB_SetValidRound(False);
 } else {
 	Map_ValidRoundsNb += 1;
 
