@@ -30,8 +30,8 @@
 #Setting S_DisableGiveUp True as _("Disable give up")
 #Setting S_NumberOfFinishers 8
 #Setting S_FinishTimeout -1 as _("Finish timeout")
-#Setting S_WarmUpNb 0 as _("Number of warm up")
-#Setting S_WarmUpDuration 0 as _("Duration of one warm up")
+#Setting S_WarmUpNb 1 as _("Number of warm up")
+#Setting S_WarmUpDuration 30 as _("Duration of one warm up")
 #Setting S_WarmUpTimeout -1 as _("Warm up timeout")
 
 #Setting S_EliminatedPlayersNbRanks "2,0,0,0,0,2,0,0,0,0,2,0,0,0,0,2,0,0,0,0,2,0,0,0,0,2,0,0,0,0,2,0,0,0,0,2,0,0,0,0" as "Number of eliminated by checkpoint sorted from the finish to the start"
