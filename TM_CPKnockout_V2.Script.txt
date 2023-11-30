@@ -34,7 +34,7 @@
 #Setting S_WarmUpDuration 0 as _("Duration of one warm up")
 #Setting S_WarmUpTimeout -1 as _("Warm up timeout")
 
-#Setting S_EliminatedPlayersNbRanks "2,0,0,0,0,2,0,0,0,0,2,0,0,0,0,2,0,0,0,0,2,0,0,0,0,2,0,0,0,0,2,0,0,0,0,2" as _("Nb of players above which one extra elim. /CP. Same setting of Knock")
+#Setting S_EliminatedPlayersNbRanks "2,0,0,0,0,2,0,0,0,0,2,0,0,0,0,2,0,0,0,0,2,0,0,0,0,2,0,0,0,0,2,0,0,0,0,2,0,0,0,0" as _("Nb of players above which one extra elim. /CP. Same setting of Knock")
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Constants
