@@ -34,17 +34,17 @@
 #Setting S_WarmUpDuration 0 as _("Duration of one warm up")
 #Setting S_WarmUpTimeout -1 as _("Warm up timeout")
 
-#Setting S_EliminatedPlayersNbRanks "2,0,0,0,0,2,0,0,0,0,2,0,0,0,0,2,0,0,0,0,2,0,0,0,0,2,0,0,0,0,2,0,0,0,0,2,0,0,0,0" as _("Nb of players above which one extra elim. /CP. Same setting of Knock")
+#Setting S_EliminatedPlayersNbRanks "2,0,0,0,0,2,0,0,0,0,2,0,0,0,0,2,0,0,0,0,2,0,0,0,0,2,0,0,0,0,2,0,0,0,0,2,0,0,0,0" as "Number of eliminated by checkpoint sorted from the finish to the start"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Constants
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 #Const C_ModeName "CP Knockout"
 //L16N [Laps] Description of the mode rules
-#Const Description _("$zIn $<$t$6F9Laps$> mode, the goal is to drive as far as possible by passing $<$t$6F9checkpoints$>.\n\nThe laps mode takes place on multilap (cyclical) maps, and is played in one go for every map.\n\nWhen the time is up, the $<$t$6F9winner$> is the player who passed the most $<$t$6F9checkpoints$>. In case of draws, the winner is the player who passed the last checkpoint first.")
+#Const Description "Knockout per checkpoint game mode"
 
 #Const C_HudModulePath "" //< Path to the hud module
-#Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/Trackmania/Modes/Laps.Script.txt" //< Url of the mania app
+#Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/Trackmania/Modes/TimeAttack.Script.txt" //< Url of the mania app
 
 #Const C_UploadRecord True
 #Const C_DisplayRecordGhost False
