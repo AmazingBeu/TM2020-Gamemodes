@@ -13,14 +13,13 @@ foreach (Event in PendingEvents) {
 	if (Event.Type == CSmModeEvent::EType::OnPlayerAdded) {
 		if (S_TeamsConfig == "") continue;
 		if (Event.Player == Null || Event.Player.User == Null || Event.Player.Score == Null) continue;
-		if (Event.Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned) continue;
 
 		declare Integer[Text] TeamsConfig;
 		TeamsConfig.fromjson(S_TeamsConfig);
 
 		declare Integer ClanId = TeamsConfig.get(Event.Player.User.WebServicesUserId, 0);
 		Event.Player.Score.LadderClan = ClanId;
-		SetPlayerClan(Event.Player, ClanId);
+		if (Event.Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) SetPlayerClan(Event.Player, ClanId);
 		log("Attributing Player "^ Event.Player.User.Name ^"to the clan " ^ ClanId);
 	}
 }
