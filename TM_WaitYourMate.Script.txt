@@ -67,6 +67,8 @@ if (S_TeamsConfig != "") {
 		UI.SendChat("$ff3You play for the team $fff"^ ClanId);
 	}
 }
+
+Race::SetRespawnBehaviour(Race::C_RespawnBehaviour_NeverGiveUp);
 ***
 
 ***Match_PlayLoop***
