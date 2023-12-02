@@ -47,10 +47,12 @@ foreach (Player in AllPlayers) {
 }
 
 declare Text[] Map_LoginsToRespawn;
+declare Text Map_TeamsConfig;
 ***
 
 ***Match_StartMap***
 ***
+Map_TeamsConfig = S_TeamsConfig;
 if (S_TeamsConfig != "") {
 	declare Integer[Text] TeamsConfig ;
 	TeamsConfig.fromjson(S_TeamsConfig);
@@ -115,6 +117,33 @@ foreach (LoginToRespawn in Map_LoginsToRespawn) {
 		Map_LoginsToRespawn.remove(LoginToRespawn);
 	} else {
 		RespawnPlayer(Player);
+	}
+}
+
+if (Map_TeamsConfig != S_TeamsConfig) {
+	Map_TeamsConfig = S_TeamsConfig;
+
+	if (S_TeamsConfig != "") {
+		declare Integer[Text] TeamsConfig ;
+		TeamsConfig.fromjson(S_TeamsConfig);
+		
+		foreach (Player in AllPlayers) {
+			declare Integer ClanId = TeamsConfig.get(Player.User.WebServicesUserId, 0);
+			Player.Score.LadderClan = ClanId;
+
+			if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) {
+				log("Attributing Player "^  Player.User.Name ^" to the clan " ^ ClanId);
+				SetPlayerClan(Player, ClanId);
+			} else {
+				log("Can't apply Player "^  Player.User.Name ^" to the clan " ^ ClanId ^ " because they is playing");
+			}
+
+			UpdateClanStates(Player.Score.LadderClan);
+			
+			declare CUIConfig UI <=> UIManager.GetUI(Player);
+			if (UI == Null) continue;
+			UI.SendChat("$ff3You play for the team $fff"^ ClanId);
+		}
 	}
 }
 ***
