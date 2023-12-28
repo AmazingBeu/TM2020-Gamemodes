@@ -167,6 +167,7 @@ Void SendPickManialink() {
             <quad id="background" class="center" z-index="-1" size="180 80" bgcolor="000" opacity="0.7" />
 
             <frame id="frame-teams">
+								<frameinstance modelid="framemodel-team" pos="-75 40" data-clanid="1"/>
                 <frameinstance modelid="framemodel-team" pos="-45 40" data-clanid="2"/>
                 <frameinstance modelid="framemodel-team" pos="-15 40" data-clanid="3"/>
                 <frameinstance modelid="framemodel-team" pos="15 40" data-clanid="4"/>
