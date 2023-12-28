@@ -40,7 +40,7 @@ if (GetPlayersNb() < S_PlayersPerMatch) {
     }
 
 
-    while (GetPlayersNb() < S_PlayersPerMatch) {
+    while (GetPlayersNb() < S_PlayersPerMatch && MB_MapIsRunning()) {
         MB_Yield();
 
         foreach (Event in UIManager.PendingEvents) {
