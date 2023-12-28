@@ -28,9 +28,6 @@ Teams[5].Name = "Green";
 
 ***Match_InitMap***
 ***
-log(Dbg_DumpDeclareForVariables(This, False));
-
-Users_SetNbFakeUsers(11,0);
 if (GetPlayersNb() < S_PlayersPerMatch) {
     SendPickManialink();
     declare netwrite Integer[Text] Net_Custom_PlayersClan for Teams[0] = [];
