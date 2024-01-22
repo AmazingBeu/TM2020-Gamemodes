@@ -1,0 +1,97 @@
+#Extends "Modes/TrackMania/TM_TimeAttack_Online.Script.txt"
+
+#Setting S_RandomizedFakePlayersTimeMax 120000 as "Max time to connect or disconnect a player (0 = disabled)"
+#Setting S_RandomizedFakePlayersTimeMin 1000 as "Min time to connect or disconnect a player (0 = disabled)"
+#Setting S_RandomizedSpeedMax 100.
+#Setting S_RandomizedSpeedMin 30.
+
+#Const C_CheckSpawnedTime 1000
+
+***Match_InitMap***
+***
+declare Integer Map_CheckSpawnedPlayers;
+declare Integer Map_CheckConnectPlayer;
+***
+
+***Match_StartMap***
+***
+if (ServerAdmin != Null) {
+	MB_Sleep(500); // Wait a bit before if bot already exits
+	log("Spawning "  ^ServerAdmin.ServerInfo.MaxPlayerCount - 5 - Players.count ^ " bots");
+	Users_SetNbFakeUsers(ML::Max(0, ServerAdmin.ServerInfo.MaxPlayerCount - 5 - Players.count) , 0);
+}
+if (RandomizedFakePlayersEnabled()) Map_CheckConnectPlayer = Now + ML::Rand(1000,120000);
+***
+
+***Match_PlayLoop***
+***
+foreach (Event in Race::GetPendingEvents()) {
+	if (Event.Type == Events::C_Type_StartLine) {
+		ApplyRandomSpeed(Event.Player);
+	}
+}
+
+// check if a player joined the server or if spectator became player
+if (Map_CheckSpawnedPlayers < Now) {
+	Map_CheckSpawnedPlayers = Now + C_CheckSpawnedTime;
+
+	foreach (Player in Players) {
+		if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned && Player.TrustClientSimu) {
+			ApplyRandomSpeed(Player);
+		}
+	}
+}
+
+if (RandomizedFakePlayersEnabled() && Map_CheckConnectPlayer < Now && ServerAdmin != Null) {
+	Map_CheckConnectPlayer = Now + ML::Rand(1000,120000);
+	if (Players.count >= ServerAdmin.ServerInfo.MaxPlayerCount) {
+		log("Removing randomly FakePlayer");
+		DisconnectRandomBot();
+	} else if (ML::Rand(0, 1) == 1) {
+		log("Removing randomly FakePlayer");
+		DisconnectRandomBot();
+	} else {
+		log("Adding Fakeplayer");
+		Users_CreateFake("", 0);
+	}
+}
+***
+
+Void ApplyRandomSpeed(CSmPlayer _Player) {
+	if (_Player == Null) return;
+	if (_Player.SpawnStatus != CSmPlayer::ESpawnStatus::Spawned) return;
+
+	declare Integer Race_RaceState for _Player = Race::C_RaceState_Waiting;
+
+	if (Race_RaceState == 3 && _Player.IsFakePlayer) {
+		Race::EndIntro(_Player);
+		return;
+	}
+
+	if (Race_RaceState != Race::C_RaceState_Racing) return;
+
+	_Player.TrustClientSimu = False;
+	SetPlayerVehicle_ControlledByMode(_Player, True);
+	SetPlayerVehicle_TargetSpeedValue(_Player, ML::Rand(S_RandomizedSpeedMin, S_RandomizedSpeedMax));
+}
+
+Void DisconnectRandomBot() {
+	if (Players.count <= 0) return;
+	declare Integer Index = ML::Rand(0, Players.count - 1);
+	declare Integer Iteration = 0;
+	while (Players.count > 0 && Iteration < Players.count) {
+		if (!Players.existskey(Index)) {
+			Index = 0;
+		}
+
+		if (Players[Index].IsFakePlayer) {
+			Users_DestroyFake(Players[Index].User);
+			return;
+		}
+		Iteration += 1;
+	}
+}
+
+Boolean RandomizedFakePlayersEnabled() {
+	return (S_RandomizedFakePlayersTimeMin > 0 && S_RandomizedFakePlayersTimeMax > 0);
+}
