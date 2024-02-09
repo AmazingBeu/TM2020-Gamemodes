@@ -6,14 +6,14 @@
 #Extends "Modes/TrackMania/TM_Rounds_Online.Script.txt"
 
 // #RequireContext CSmMode
-#Include "TimeLib" as TiL
-#Include "MathLib" as ML
-#Include "TextLib" as TL
+#Include "TimeLib" as DebugMode_TiL
+#Include "MathLib" as DebugMode_ML
+#Include "TextLib" as DebugMode_TL
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Constants
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
-#Const C_DebugMode_Version "2023-09-01"
+#Const C_DebugMode_Version "2024-02-09"
 #Const C_DebugMode_MainUI "DebugMode_MainUI"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -29,7 +29,7 @@ log("~~~~~~~~~~~~~ Starting DebugMode v" ^ C_DebugMode_Version ^ " ~~~~~~~~~~~~~
 log("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 log("~~ Launched at: "^ System.CurrentLocalDateText ^" ("^ System.CurrentTimezone ^")");
 log("~~ Server version: "^ System.ExeVersion);
-log("~~ TitlePack version: "^ TL::Split(" ", LoadedTitle.TitleVersion)[0]);
+log("~~ TitlePack version: "^ DebugMode_TL::Split(" ", LoadedTitle.TitleVersion)[0]);
 log("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 ***
 
@@ -45,7 +45,7 @@ if (S_DebugLib_RestrictUIto == "") {
 	Layers::Attach(C_DebugMode_MainUI);
 } else {
 	Layers::Detach(C_DebugMode_MainUI);
-	foreach (Login in TL::Split(",", S_DebugLib_RestrictUIto)) {
+	foreach (Login in DebugMode_TL::Split(",", S_DebugLib_RestrictUIto)) {
 		declare CSmPlayer Player = GetPlayer(Login);
 		if (Player != Null) Layers::Attach(C_DebugMode_MainUI, Player);
 	}
@@ -63,13 +63,13 @@ foreach (Event in UIManager.PendingEvents) {
 		}
 		case "DebugMode.Bots.DelBots": {
 			declare Text Name = Event.CustomEventData[0];
-			declare Integer NumberOfBots = TL::ToInteger(Event.CustomEventData[1]);
+			declare Integer NumberOfBots = DebugMode_TL::ToInteger(Event.CustomEventData[1]);
 			if (NumberOfBots == -1) {
 				Users_DestroyAllFakes();
 			} else {
 				foreach (Player in AllPlayers) {
 					if (Player.IsFakePlayer) {
-						if (Name == "" || TL::ToLowerCase(Player.User.Name) == TL::ToLowerCase(Name)) {
+						if (Name == "" || DebugMode_TL::ToLowerCase(Player.User.Name) == DebugMode_TL::ToLowerCase(Name)) {
 							Net_DebugMode_Logs = Prefix ^ "Bots: Remove bot \"" ^ Player.User.Name ^ "\"\n" ^ Net_DebugMode_Logs;
 							Users_DestroyFake(Player.User);
 							NumberOfBots -= 1;
@@ -83,9 +83,9 @@ foreach (Event in UIManager.PendingEvents) {
 		}
 		case "DebugMode.Bots.AddBots": {
 			declare Text Name = Event.CustomEventData[0];
-			declare Integer TeamId = TL::ToInteger(Event.CustomEventData[1]);
+			declare Integer TeamId = DebugMode_TL::ToInteger(Event.CustomEventData[1]);
 			if (TeamId == -1 && Event.CustomEventData[1] == "") TeamId = 0;
-			declare Integer NumberOfBots = TL::ToInteger(Event.CustomEventData[2]);
+			declare Integer NumberOfBots = DebugMode_TL::ToInteger(Event.CustomEventData[2]);
 			if (TeamId != -1 && Teams.existskey(TeamId)) {
 				for (I, 1, NumberOfBots) {
 					declare CUser User = Users_CreateFake(Name, TeamId);
@@ -114,13 +114,13 @@ foreach (Event in UIManager.PendingEvents) {
 				}
 			}
 			declare Real[] Speed;
-			foreach (SpeedText in TL::Split(",", Event.CustomEventData[0])) {
-				Speed.add(ML::Clamp(TL::ToReal(SpeedText), -999., 999.));
+			foreach (SpeedText in DebugMode_TL::Split(",", Event.CustomEventData[0])) {
+				Speed.add(DebugMode_ML::Clamp(DebugMode_TL::ToReal(SpeedText), -999., 999.));
 			}
 			if (Speed.count > 0) {
 				declare Real[] Steer;
-				foreach (SteerText in TL::Split(",", Event.CustomEventData[1])) {
-					Steer.add(ML::Clamp(TL::ToReal(SteerText), -1., 1.));
+				foreach (SteerText in DebugMode_TL::Split(",", Event.CustomEventData[1])) {
+					Steer.add(DebugMode_ML::Clamp(DebugMode_TL::ToReal(SteerText), -1., 1.));
 				}
 				
 				foreach (Target in Targets) {
@@ -131,7 +131,7 @@ foreach (Event in UIManager.PendingEvents) {
 					
 					declare Real SteerValue;
 					if (Steer.count == 2) {
-						SteerValue = ML::Rand(Steer[0] , Steer[1]);
+						SteerValue = DebugMode_ML::Rand(Steer[0] , Steer[1]);
 					} else if (Steer.count == 1) {
 						SteerValue = Steer[0];
 					} else {
@@ -143,7 +143,7 @@ foreach (Event in UIManager.PendingEvents) {
 					if (Speed.count == 1) {
 						SpeedValue = Speed[0];
 					} else {
-						SpeedValue = ML::Rand(Speed[0], Speed[1]);
+						SpeedValue = DebugMode_ML::Rand(Speed[0], Speed[1]);
 					}
 					SetPlayerVehicle_TargetSpeedValue(Target, SpeedValue);
 					
@@ -219,13 +219,13 @@ foreach (Event in UIManager.PendingEvents) {
 
 ***DebugMode_FindPlayer***
 ***
-if (TL::Length(Event.CustomEventData[0]) == 36) {
+if (DebugMode_TL::Length(Event.CustomEventData[0]) == 36) {
 	Player <=> ModeUtils::GetPlayerFromAccountId(Event.CustomEventData[0]);
-} else if (TL::Length(Event.CustomEventData[0]) == 22) {
+} else if (DebugMode_TL::Length(Event.CustomEventData[0]) == 22) {
 	Player <=> GetPlayer(Event.CustomEventData[0]);
 } else {
 	foreach (TmpPlayer in AllPlayers) {
-		if (TL::ToLowerCase(Event.CustomEventData[0]) == TL::ToLowerCase(TmpPlayer.User.Name)) {
+		if (DebugMode_TL::ToLowerCase(Event.CustomEventData[0]) == DebugMode_TL::ToLowerCase(TmpPlayer.User.Name)) {
 			Player <=> TmpPlayer;
 			break;
 		}
@@ -254,7 +254,7 @@ foreach (Event in RacePendingEvents) {
 +++DebugMode_LogFormat+++
 Net_DebugMode_Logs = Prefix ^ "CSmMode PendingEvent: " ^ Event.Type ^"\n" ^ Net_DebugMode_Logs;
 if (Event.Type == CSmModeEvent::EType::OnPlayerAdded) {
-	if (Event.Player != Null && TL::Split(",", S_DebugLib_RestrictUIto).exists(Event.Player.User.Login)) {
+	if (Event.Player != Null && DebugMode_TL::Split(",", S_DebugLib_RestrictUIto).exists(Event.Player.User.Login)) {
 		Layers::Attach(C_DebugMode_MainUI, Event.Player);
 	}
 }
@@ -287,7 +287,7 @@ Net_DebugMode_Logs = Prefix ^ "Race Pending Event: " ^ Type ^"\n" ^ Net_DebugMod
 
 ***DebugMode_LogFormat***
 ***
-declare Integer CurrentTimeStamp = TL::ToInteger(TiL::GetCurrent());
+declare Integer CurrentTimeStamp = DebugMode_TL::ToInteger(DebugMode_TiL::GetCurrent());
 
 declare Integer Hours = (CurrentTimeStamp / 3600) % 24;
 declare Integer Minutes = (CurrentTimeStamp / 60) % 60;
@@ -303,8 +303,8 @@ else Prefix ^= Seconds;
 Prefix ^= "] ";
 
 declare netwrite Text Net_DebugMode_Logs for Teams[0];
-if (TL::Length(Net_DebugMode_Logs) > 1000000) {
-	Net_DebugMode_Logs = TL::SubString(Net_DebugMode_Logs, 0, 1000000);
+if (DebugMode_TL::Length(Net_DebugMode_Logs) > 1000000) {
+	Net_DebugMode_Logs = DebugMode_TL::SubString(Net_DebugMode_Logs, 0, 1000000);
 }
 
 declare netwrite Integer Net_DebugMode_Logs_Serial for Teams[0];
