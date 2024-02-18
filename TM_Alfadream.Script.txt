@@ -61,17 +61,18 @@ declare Int2[] Custom_RoundsVersus for This = [];
 Custom_RoundsVersus = GenerateRoundVersus();
 ***
 
-
 ***Match_InitRound***
 ***
 declare Integer Custom_NbOfValidRounds for This = 0;
 Custom_NbOfValidRounds = G_NbOfValidRounds;
-declare Int2[] Custom_RoundsVersus for This = [];
-if (Custom_NbOfValidRounds >= 3) {
+
+declare Integer[] ClansThatCanSpawn = GetClansThatCanSpawn();
+
+if (ClansThatCanSpawn.count == 6) {
     UIModules_BigMessage::SetMessage("All teams play");
 } else {
-    declare CTeam Team1 <=> Teams[Custom_RoundsVersus[Custom_NbOfValidRounds].X - 1];
-    declare CTeam Team2 <=> Teams[Custom_RoundsVersus[Custom_NbOfValidRounds].Y - 1];
+    declare CTeam Team1 <=> Teams[ClansThatCanSpawn[0] - 1];
+    declare CTeam Team2 <=> Teams[ClansThatCanSpawn[1] - 1];
 
     UIModules_BigMessage::SetMessage(Team1.Name ^ " vs " ^ Team2.Name);
 }
@@ -101,21 +102,29 @@ Race::Start(Player, StartTime);
 
 ***Rounds_CheckCanSpawn***
 ***
-
 declare netwrite Integer[Text] Net_Custom_PlayersClan for Teams[0] = [];
 if (!Net_Custom_PlayersClan.existskey(_Player.Score.User.WebServicesUserId)) return False;
-// TODO Team can spawn
-declare Integer Custom_NbOfValidRounds for This = 0;
-if (Custom_NbOfValidRounds <= 2) {
-    declare Int2[] Custom_RoundsVersus for This = [];
-    if (Custom_RoundsVersus.existskey(Custom_NbOfValidRounds)) {
-        if (Custom_RoundsVersus[Custom_NbOfValidRounds].X != Net_Custom_PlayersClan[_Player.Score.User.WebServicesUserId] 
-             && Custom_RoundsVersus[Custom_NbOfValidRounds].Y != Net_Custom_PlayersClan[_Player.Score.User.WebServicesUserId]) {
-            return False;
-        }
-    }
+
+
+// Copy of GetClansThatCanSpawn() checks
+declare Boolean OnePlayerIsFinalist = False;
+foreach (Score in Scores) {
+	if (Scores::GetPlayerMatchPoints(Score) >= S_PointsLimit) {
+		OnePlayerIsFinalist = True;
+		break;
+	}
 }
-log(_Player.Score.User.Name ^" " ^_Player.Score.LadderClan);
+if (!OnePlayerIsFinalist) {
+	declare Int2[] Custom_RoundsVersus for This = [];
+	declare Integer Custom_NbOfValidRounds for This = 0;
+
+	if (Custom_RoundsVersus.existskey(Custom_NbOfValidRounds)) {
+			if (Custom_RoundsVersus[Custom_NbOfValidRounds].X != Net_Custom_PlayersClan[_Player.Score.User.WebServicesUserId] 
+					 && Custom_RoundsVersus[Custom_NbOfValidRounds].Y != Net_Custom_PlayersClan[_Player.Score.User.WebServicesUserId]) {
+					return False;
+			}		
+	}
+}
 ***
 
 Integer GetPlayersNb() {
@@ -142,6 +151,27 @@ Int2[] GenerateRoundVersus() {
         RoundOrder.add(<SortedTeam[I * 2], SortedTeam[I * 2 + 1]>);
     }
     return RoundOrder;
+}
+
+Integer[] GetClansThatCanSpawn() {
+	declare Boolean OnePlayerIsFinalist = False;
+	foreach (Score in Scores) {
+		if (Scores::GetPlayerMatchPoints(Score) >= S_PointsLimit) {
+			OnePlayerIsFinalist = True;
+			break;
+		}
+	}
+
+	if (!OnePlayerIsFinalist) {
+		declare Int2[] Custom_RoundsVersus for This = [];
+		declare Integer Custom_NbOfValidRounds for This = 0;
+	
+		if (Custom_RoundsVersus.existskey(Custom_NbOfValidRounds)) {
+			return [Custom_RoundsVersus[Custom_NbOfValidRounds].X, Custom_RoundsVersus[Custom_NbOfValidRounds].Y];
+		}
+	}
+
+	return [1, 2, 3, 4, 5, 6];
 }
 
 Void SendPickManialink() {
@@ -242,5 +272,5 @@ Void SendPickManialink() {
 
 	Layers::Create(C_ML_TeamPicker, Manialink);
 	Layers::SetType(C_ML_TeamPicker, CUILayer::EUILayerType::Normal);
-    Layers::Attach(C_ML_TeamPicker);
+  Layers::Attach(C_ML_TeamPicker);
 }
