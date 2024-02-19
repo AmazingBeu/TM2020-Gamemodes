@@ -1,0 +1,145 @@
+/**
+	This gamemode is just an UI with all animations easings displayed.
+*/
+
+#Extends "Modes/TrackMania/TM_TimeAttack_Online.Script.txt"
+
+#Const C_Anims [
+	"Linear", 
+	"QuadIn", "QuadOut", "QuadInOut",
+	"CubicIn", "CubicOut", "CubicInOut",
+	"QuartIn", "QuartOut", "QuartInOut",
+	"QuintIn", "QuintOut", "QuintInOut",
+	"SineIn", "SineOut", "SineInOut",
+	"ExpIn", "ExpOut", "ExpInOut",
+	"CircIn", "CircOut", "CircInOut",
+	"BackIn", "BackOut", "BackInOut",
+	"ElasticIn", "ElasticOut", "ElasticInOut",
+	"ElasticIn2", "ElasticOut2", "ElasticInOut2",
+	"BounceIn", "BounceOut", "BounceInOut"
+]
+
+***Match_AfterLoadHud***
+***
+SetMl();
+***
+
+Void SetMl() {
+	declare Integer IndexX = 0;
+	declare Integer IndexY = 0;
+
+	declare Text FrameInstances;
+
+	for (I, 0, C_Anims.count - 1) {
+		FrameInstances ^= """<frameinstance modelid="framemodel" pos="{{{IndexX * 15.}}} {{{IndexY * -20.}}}"/>""";
+
+		if (IndexX == 4) {
+			IndexX = 0;
+			IndexY += 1;
+		} else {
+			IndexX += 1;
+		}
+	}
+
+	declare Text MLText = """
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<manialink version="3" name="AnimationEasingsExamples">
+<framemodel id="framemodel">
+	<quad id="quad-background" size="15 18" halign="center" bgcolor="fff" opacity="0" scriptevents="1"/>
+	<frame pos="0 -0.5">
+		<quad id="quad-graph-brackground" size="14 14" halign="center" bgcolor="000"/>
+		<graph id="graph" pos="0.5 -0.5" size="13 13" halign="center" min="0 -0.3" max="105. 1.3"/>
+	</frame>
+	<label id="label-name" size="14 10" pos="0 -15" textsize="1" halign="center" textcolor="ffffff" textfont="GameFontRegular"/>
+</framemodel>
+<frame z-index=20>
+	<quad z-index="-2" halign="center" valign="center" size="250 150" bgcolor="222" />
+	<frame id="frame-anims" pos="-115 68">
+		{{{FrameInstances}}}
+	</frame>
+	<frame pos="-40 50">
+		<quad size="150 0.2" bgcolor="aaa"/>
+		<quad id="quad-point1" size="5 5" bgcolor="fff"/>
+		<quad pos="0 -80" size="150 0.2" bgcolor="aaa"/>
+	</frame>
+	<frame pos="-30 -50">
+		<quad pos="0 2.5" size="0.2 10" bgcolor="aaa"/>
+		<quad id="quad-point2" size="5 5" bgcolor="fff"/>
+		<quad pos="130 2.5" size="0.2 10" bgcolor="aaa"/>
+	</frame>
+	<label id="label-currentanimname" pos="40 -65" textsize="3" halign="center" textcolor="ffffff" textfont="GameFontSemiBold" text="Linear"/>
+</frame>
+<script><!--
+#Include "AnimLib" as AL
+#Include "TimeLib" as TiL
+#Include "MathLib" as ML
+
+#Const ScriptName "AnimationEasingsExamples"
+#Const Version "2024-02-19"
+
+#Const C_Anims {{{dump(C_Anims)}}}
+
+#Const C_AnimationDuration 1500
+
+Void InitFrameInstances() {
+	declare CMlFrame Frame_Anims <=> Page.GetFirstChild("frame-anims") as CMlFrame;
+
+	declare Integer Index = 0;
+
+	foreach (AnimName in C_Anims) {
+		declare CMlFrame Frame <=> Frame_Anims.Controls[Index] as CMlFrame;
+
+		declare Text AnimationName for Frame;
+		AnimationName = AnimName;
+
+		declare CMlLabel Label_Name <=> Frame.GetFirstChild("label-name") as CMlLabel;
+		Label_Name.Value = AnimName;
+
+		declare CMlGraph Graph = Frame.GetFirstChild("graph") as CMlGraph;
+		declare CMlGraphCurve Curve = Graph.AddCurve();
+		Curve.Width = 0.3;
+		for (I, 0, 100) {
+			Curve.Points.add(<I * 1., AL::Ease(AnimName, I * 1., 0., 1., 100.)>);
+		}
+
+		Index += 1;
+	}
+}
+
+main() {
+	InitFrameInstances();
+	declare CMlLabel Label_CurrentAnimName <=> Page.GetFirstChild("label-currentanimname") as CMlLabel;
+	declare CMlQuad Quad_Point1 <=> Page.GetFirstChild("quad-point1") as CMlQuad;
+	declare CMlQuad Quad_Point2 <=> Page.GetFirstChild("quad-point2") as CMlQuad;
+
+	declare Integer Last_PlayAnimationTime;
+
+	while (True) {
+		yield;
+
+		foreach (Event in PendingEvents) {
+			if (Event.Type == CMlScriptEvent::Type::MouseOver) {
+				(Event.Control as CMlQuad).Opacity = 0.2;
+			} else if (Event.Type == CMlScriptEvent::Type::MouseOut) {
+				(Event.Control as CMlQuad).Opacity = 0.;
+			} else if (Event.Type == CMlScriptEvent::Type::MouseClick) {
+				declare Text AnimationName for Event.Control.Parent;
+
+				Label_CurrentAnimName.Value = AnimationName;
+				Last_PlayAnimationTime = Now;
+			}
+		}
+
+		Quad_Point1.RelativePosition_V3.X = AL::Ease("Linear", Now - Last_PlayAnimationTime * 1., 0., 145., C_AnimationDuration * 1.);
+		Quad_Point1.RelativePosition_V3.Y = AL::Ease(Label_CurrentAnimName.Value, Now - Last_PlayAnimationTime * 1., 0., -75., C_AnimationDuration * 1.);
+
+		Quad_Point2.RelativePosition_V3.X = AL::Ease(Label_CurrentAnimName.Value, Now - Last_PlayAnimationTime * 1., 0., 125., C_AnimationDuration * 1.);
+	}
+}
+--></script>
+</manialink>
+""";
+	Layers::Create("AnimationEasingsExamples", MLText);
+	Layers::SetType("AnimationEasingsExamples", CUILayer::EUILayerType::Normal);
+	Layers::Attach("AnimationEasingsExamples");
+}
