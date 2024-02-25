@@ -99,8 +99,8 @@ Void AddMalusUI() {
                 declare CMlFrame Frame_Global <=> (Page.GetFirstChild("frame-global") as CMlFrame);
                 declare CMlLabel Label_Message <=> (Frame_Global.GetFirstChild("label-message") as CMlLabel);
 
-                G_Sound_CountDown = Audio.CreateSound("https://cdn.discordapp.com/attachments/767738540687228948/1155897620242366506/MenuDialogHidden-06471.wav", 1.0, False, False, False);
-                G_Sound_Malus = Audio.CreateSound("https://cdn.discordapp.com/attachments/767738540687228948/1155897620573737121/MenuDialogDisplayed-21252.wav", 1.0, False, False, False);
+                G_Sound_CountDown = Audio.CreateSound("https://files.virtit.fr/TrackMania/UI/MenuDialogHidden-06471.wav", 1.0, False, False, False);
+                G_Sound_Malus = Audio.CreateSound("https://files.virtit.fr/TrackMania/UI/MenuDialogDisplayed-21252.wav", 1.0, False, False, False);
 
                 // Wait C++ initialize the player
                 wait (InputPlayer != Null);

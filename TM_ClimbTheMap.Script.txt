@@ -6,7 +6,7 @@
 //#RequireContext CSmMode
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2023-09-25"
+#Const	Version							"2024-02-25"
 #Const	ScriptName					"Modes/TM2020-Gamemodes/TM_ClimbTheMap.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -461,7 +461,7 @@ Void SetMl() {
 		<label id="label-dotaltitude" class="background" pos="2 0" valign="center" textsize="1" textfont="GameFontExtraBold"/>
 	</framemodel>
 	<framemodel id="framemodel-marker">
-		<quad class="background" size="2 3.5" valign="center" image="https://cdn.discordapp.com/attachments/767738540687228948/1148961256334688387/triangle.png"/>
+		<quad class="background" size="2 3.5" valign="center" image="https://files.virtit.fr/TrackMania/UI/triangle.png"/>
 		<quad id="quad-background" class="background" pos="2 0" size="0 3.5" valign="center"/>
 		<label id="label-playername"  pos="3 -0.2" valign="center2" textsize="1" textcolor="888" textfont="GameFontSemiBold"/>
 	</framemodel>
