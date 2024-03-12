@@ -6,14 +6,14 @@
 #Extends "Modes/TrackMania/TM_Rounds_Online.Script.txt"
 
 // #RequireContext CSmMode
-#Include "TimeLib" as DebugMode_TiL
-#Include "MathLib" as DebugMode_ML
-#Include "TextLib" as DebugMode_TL
+#Include "TimeLib" as DebugMode_TiL // @mslint-disable-line include-use-common-namespace
+#Include "MathLib" as DebugMode_ML // @mslint-disable-line include-use-common-namespace
+#Include "TextLib" as DebugMode_TL // @mslint-disable-line include-use-common-namespace
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Constants
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
-#Const C_DebugMode_Version "2024-02-09"
+#Const C_DebugMode_Version "2024-03-12"
 #Const C_DebugMode_MainUI "DebugMode_MainUI"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
