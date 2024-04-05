@@ -674,7 +674,7 @@ Integer GetFinishTimeout(Integer _FinishTimeout) {
 				Points = PointsRepartition[PointsRepartition.count - 1];
 			}
 			declare Integer CurrentSegment for Player.Score;
-			if (CurrentSegment == S_SegmentsPerRound) {
+			if (CurrentSegment == S_SegmentsPerRound && Scores::GetPlayerPrevRaceTime(Player.Score) > 0) {
 				Points += BonusForFinishers;
 			}
 			Scores::SetPlayerRoundPoints(Player.Score, Points);
