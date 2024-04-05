@@ -4,7 +4,7 @@
 #Extends "Modes/Nadeo/Trackmania/Base/TrackmaniaRoundsBase.Script.txt"
 
 #Const CompatibleMapTypes			"TrackMania\\TM_Royal,TM_Royal"
-#Const Version						"2023-10-16"
+#Const Version						"2024-04-05"
 #Const ScriptName					"Modes/TrackMania/TM_RoyalRounds_Online.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -383,7 +383,7 @@ foreach (Event in Race::GetPendingEvents()) {
 					declare netwrite Integer Net_RoyalRounds_CheckpointUI_CurrentNbSegments for Event.Player;
 					Net_RoyalRounds_CheckpointUI_CurrentNbSegments = CurrentSegment;
 
-					if (CurrentSegment  < S_SegmentsPerRound) { // TODO Try to keep CP diff a the bottom of the screen
+					if (CurrentSegment < S_SegmentsPerRound) { // TODO Try to keep CP diff a the bottom of the screen
 						declare Boolean ModeRounds_CanSpawn for Event.Player.Score = Rounds_Settings_CanSpawnDefault;
 						ModeRounds_CanSpawn = True;
 						CurrentSegment = CurrentSegment + 1;
@@ -506,7 +506,8 @@ if (Round_ForceEndRound || Round_SkipPauseRound) {
 ***
 Race::StopSkipOutroAll();
 EndTime = -1;
-StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
+// Keep Playing State to keep SmallScoresTable visible
+StateMgr::ForcePlayersStates([StateMgr::C_State_Playing]);
 
 if (Semver::Compare(XmlRpc::GetApiVersion(), ">=", "2.1.1")) {
 	Scores::XmlRpc_SendScores(Scores::C_Section_PreEndRound, "");
@@ -527,8 +528,10 @@ if (Round_ForceEndRound || Round_SkipPauseRound || Round_Skipped) {
 	// Get the last round points
 	UpdateCustomRanking(Null);
 	Race::SortScores(Race::C_Sort_TotalPoints);
-	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
+	MB_Sleep(3000);
+	Race::SortScores(Race::C_Sort_TotalPoints);
+	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
 	MB_Sleep(3000);
 	// Add them to the total scores
 	ComputeScores();
@@ -542,6 +545,7 @@ if (Round_ForceEndRound || Round_SkipPauseRound || Round_Skipped) {
 		MB_StopMap();
 	}
 }
+StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
 CustomTimes.clear();
 CurrentRanking.clear();
 UIModules_SmallScoresTable::ResetCustomTimes();
