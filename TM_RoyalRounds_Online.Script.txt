@@ -323,7 +323,7 @@ UIModules_Chrono::SetTimeOffset(Player, SpecificOffset);
 declare netwrite Integer Net_RoyalRounds_CheckpointUI_TotalNbSegments for Teams[0];
 declare Integer[Text] CustomTimes for This = [];
 declare Integer[Text][Integer] CurrentRanking for This = [];  // CurrentRanking[Segment][AccountId][Time]
-CurrentRanking[0] = Integer[Text]; // Init white section
+CurrentRanking[0] = []; // Init white section
 declare Boolean IsStartRound = True;
 
 // Reset players for the race
@@ -349,8 +349,7 @@ IsStartRound = False;
 ***Match_PlayLoop***
 ***
 // Manage race events
-declare RacePendingEvents = Race::GetPendingEvents();
-foreach (Event in RacePendingEvents) {
+foreach (Event in Race::GetPendingEvents()) {
 	if (Event.Type == Events::C_Type_SkipOutro && C_DisableSkipOutro) {
 		Race::InvalidEvent(Event);
 	} else {
@@ -363,7 +362,7 @@ foreach (Event in RacePendingEvents) {
 					declare Integer CurrentSegment for Event.Player.Score = -1;
 					Log::Log("""[RacePendingEvents] Player {{{Event.Player.User.Name }}} end the segment {{{CurrentSegment}}} at {{{Event.Player.StartTime - StartTime + Event.RaceTime}}}""");
 					if (CurrentRanking.existskey(CurrentSegment-1)) CurrentRanking[CurrentSegment-1].removekey(Event.Player.User.WebServicesUserId)	;
-					if (!CurrentRanking.existskey(CurrentSegment)) CurrentRanking[CurrentSegment] = Integer[Text];
+					if (!CurrentRanking.existskey(CurrentSegment)) CurrentRanking[CurrentSegment] = [];
 					CurrentRanking[CurrentSegment][Event.Player.User.WebServicesUserId] = Event.Player.StartTime - StartTime + Event.RaceTime;
 
 					// Update Ranking of the current players
@@ -385,7 +384,7 @@ foreach (Event in RacePendingEvents) {
 					Net_RoyalRounds_CheckpointUI_CurrentNbSegments = CurrentSegment;
 
 					if (CurrentSegment  < S_SegmentsPerRound) { // TODO Try to keep CP diff a the bottom of the screen
-						declare ModeRounds_CanSpawn for Event.Player.Score = Rounds_Settings_CanSpawnDefault;
+						declare Boolean ModeRounds_CanSpawn for Event.Player.Score = Rounds_Settings_CanSpawnDefault;
 						ModeRounds_CanSpawn = True;
 						CurrentSegment = CurrentSegment + 1;
 						Race::StopSkipScoresTable(Event.Player);
@@ -413,7 +412,6 @@ foreach (Event in RacePendingEvents) {
 					CurrentSegment = CurrentSegment - 1;
 				}
 				if (UpdateRankingTimer == 0) UpdateRankingTimer = Now + 1000;
-				declare Boolean ModeRounds_CanSpawn for Event.Player.Score = Rounds_Settings_CanSpawnDefault;
 			}
 		}
 	}
@@ -638,20 +636,18 @@ Integer GetFinishTimeout(Integer _FinishTimeout) {
 	if (_Player != Null) {
 		declare Integer CurrentSegment for _Player.Score;
 		CustomTimes[_Player.User.WebServicesUserId] = CurrentRanking[CurrentSegment][_Player.User.WebServicesUserId];
-	} else {
-		if (!S_StrictPointDistribution) {
-			CustomTimes.clear();
-			CurrentRanking = CurrentRanking.sortkeyreverse();
-			declare Integer LastTimeFromThePreviousSegment = 0;
-			declare Integer LastTime = 0;
-			foreach (Segment => DummyVar in CurrentRanking) {
-				if (Segment == 0) break;
-				if (CustomTimes.count > 0) LastTimeFromThePreviousSegment = LastTime;
-				foreach (ID => Time in CurrentRanking[Segment]) {
-					CustomTimes[ID] = Time + LastTimeFromThePreviousSegment;
-					LastTime = Time + LastTimeFromThePreviousSegment;
-					if (LastTimeFromThePreviousSegment > 0) CustomResult[ID] = """({{{Segment - S_SegmentsPerRound}}}) {{{TL::TimeToText(Time, True, True)}}}""";
-				}
+	} else if (!S_StrictPointDistribution) {
+		CustomTimes.clear();
+		CurrentRanking = CurrentRanking.sortkeyreverse();
+		declare Integer LastTimeFromThePreviousSegment = 0;
+		declare Integer LastTime = 0;
+		foreach (Segment => DummyVar in CurrentRanking) {
+			if (Segment == 0) break;
+			if (CustomTimes.count > 0) LastTimeFromThePreviousSegment = LastTime;
+			foreach (ID => Time in CurrentRanking[Segment]) {
+				CustomTimes[ID] = Time + LastTimeFromThePreviousSegment;
+				LastTime = Time + LastTimeFromThePreviousSegment;
+				if (LastTimeFromThePreviousSegment > 0) CustomResult[ID] = """({{{Segment - S_SegmentsPerRound}}}) {{{TL::TimeToText(Time, True, True)}}}""";
 			}
 		}
 	}
