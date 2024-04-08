@@ -4,7 +4,7 @@
 #Extends "Modes/Nadeo/Trackmania/Base/TrackmaniaRoundsBase.Script.txt"
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2023-10-16"
+#Const	Version							"2024-04-08"
 #Const	ScriptName					"Modes/TM2020-Gamemodes/LastManStanding.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -50,6 +50,8 @@
 #Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/Trackmania/Modes/Rounds.Script.txt" //< Url of the mania app
 #Const C_FakeUsersNb 0
 
+#Const C_Callback_CustomChat_ChatMessage "CustomChat.GamemodeChatMessage"
+
 #Const C_Malus_Reset 0
 #Const C_Malus_ForceEngine 1
 #Const C_Malus_BackwardOnly 2
@@ -92,11 +94,25 @@ Log::RegisterScript(StateMgr::ScriptName, StateMgr::Version);
 ***Match_LoadLibraries***
 ***
 StateMgr::Load();
+
+XmlRpc::RegisterCallback(C_Callback_CustomChat_ChatMessage, """
+    * Name: {{{C_Callback_CustomChat_ChatMessage}}}
+    * Type: CallbackArray
+    * Description: Gamemode Chat Message for the Custom Chat plugin
+    * Data:
+        - Version >=2.0.0:
+        ```
+        [
+            "This is a gamemode chat message"
+        ]
+        ```
+""");
 ***
 
 ***Match_UnloadLibraries***
 ***
 StateMgr::Unload();
+XmlRpc::UnregisterCallback(C_Callback_CustomChat_ChatMessage);
 ***
 
 ***Match_Settings***
@@ -154,6 +170,7 @@ foreach (Event in UIManager.PendingEvents) {
 	if (Event.CustomEventType == "LMS_NotifyAFK") {
 		if (Event.CustomEventData.count > 0) {
 			UIManager.UIAll.SendChat("$ff9" ^ Event.CustomEventData[0]  ^ " has been kicked for being AFK");
+			XmlRpc::SendCallback(C_Callback_CustomChat_ChatMessage, ["$ff9" ^ Event.CustomEventData[0]  ^ " has been kicked for being AFK"]);
 		}
 	}
 }
@@ -332,6 +349,7 @@ UIModules_ScoresTable::DisplayOnly(AccountIdsOfPlayers);
 StateMgr::ForcePlayersStates([StateMgr::C_State_Playing]);
 Race::EnableIntroDuringMatch(False);
 UIManager.UIAll.SendChat("$<$ff3$> Stay the most time on the structure. $<$ff9GL HF!$>");
+XmlRpc::SendCallback(C_Callback_CustomChat_ChatMessage, ["$<$ff3$> Stay the most time on the structure. $<$ff9GL HF!$>"]);
 ***
 
 
@@ -656,6 +674,7 @@ Boolean AllPlayersAreInTurtle() {
 		UIModules_ScoresTable::SetCustomTimes(CustomTimes);
 	}
 	UIManager.UIAll.SendChat("""$<$ff3$> Player $<$ff9{{{_User.Name}}}$> is eliminated""");
+	XmlRpc::SendCallback(C_Callback_CustomChat_ChatMessage, ["""$<$ff3$> Player $<$ff9{{{_User.Name}}}$> is eliminated"""]);
 }
 
 /** Update the scores table footer text
