@@ -265,14 +265,16 @@ if (Round_ForceEndRound || Round_SkipPauseRound || Round_Skipped) {
 	// Get the last round points
 	ComputeLatestRaceScores(True);
 	Race::SortScores(Race::C_Sort_TotalPoints);
-	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
-	MB_Sleep(3000);
+	MB_Sleep(S_ChatTime * 1000 / 3);
+	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
+	MB_Sleep(S_ChatTime * 1000 / 3);
 	// Add them to the total scores
 	ComputeScores();
 	UIModules_ScoresTable::SetCustomPoints([]);
 	Race::SortScores(Race::C_Sort_TotalPoints);
-	MB_Sleep(3000);
+	MB_Sleep(S_ChatTime * 1000 / 3);
+	UIModules_BigMessage::SetMessage("");
 	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
 	
@@ -450,6 +452,8 @@ Void ComputeLatestRaceScores(Boolean _DisplayMessages) {
 				Points += S_BonusForPerfect;
 				if (_DisplayMessages) {
 					UIManager.UIAll.SendChat("$ff3" ^ FormatPlayerName(Score.User.Name) ^ " did the perfect time");
+					UIModules_BigMessage::SetMessage(FormatPlayerName(Score.User.Name) ^ " did the perfect time");
+					ModeUtils::PlaySound(CUIConfig::EUISound::TieBreakPoint, 0);
 				} 
 			}
 			Scores::SetPlayerRoundPoints(Score, Points);
