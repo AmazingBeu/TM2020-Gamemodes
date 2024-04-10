@@ -204,7 +204,7 @@ foreach (Event in RacePendingEvents) {
 				Scores::UpdatePlayerBestRaceIfBetter(Event.Player);
 				Scores::UpdatePlayerBestLapIfBetter(Event.Player);
 				Scores::UpdatePlayerPrevRace(Event.Player);
-				ComputeLatestRaceScores();
+				ComputeLatestRaceScores(False);
 				Race::SortScores(Race::C_Sort_TotalPoints);
 				
 				// Start the countdown if it's the first player to finish
@@ -263,7 +263,7 @@ if (Round_ForceEndRound || Round_SkipPauseRound || Round_Skipped) {
 } else {
 	Map_ValidRoundsNb += 1;
 	// Get the last round points
-	ComputeLatestRaceScores();
+	ComputeLatestRaceScores(True);
 	Race::SortScores(Race::C_Sort_TotalPoints);
 	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
@@ -392,7 +392,7 @@ Text FormatPlayerName(Text _Name) {
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 /// Compute the latest race scores
-Void ComputeLatestRaceScores() {
+Void ComputeLatestRaceScores(Boolean _DisplayMessages) {
 	Race::SortScores(Race::C_Sort_PrevRaceTime);
 	
 	// Points distributed between all players
@@ -423,7 +423,7 @@ Void ComputeLatestRaceScores() {
 
 	foreach (Delta => CustomScores in ScoresPerAbsoluteDelta) {
 		// Attribute less points if they have the same time
-		if (CustomScores.count > 1) {
+		if (_DisplayMessages && CustomScores.count > 1) {
 			I += CustomScores.count - 1;
 			declare Text Names;
 			foreach (Key => Score in CustomScores) {
@@ -448,7 +448,9 @@ Void ComputeLatestRaceScores() {
 
 			if (Delta == 0 && CustomScores.count == 1) {
 				Points += S_BonusForPerfect;
-				UIManager.UIAll.SendChat("$ff3" ^ FormatPlayerName(Score.User.Name) ^ " did the perfect time");
+				if (_DisplayMessages) {
+					UIManager.UIAll.SendChat("$ff3" ^ FormatPlayerName(Score.User.Name) ^ " did the perfect time");
+				} 
 			}
 			Scores::SetPlayerRoundPoints(Score, Points);
 		}
