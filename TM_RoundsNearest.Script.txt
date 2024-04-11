@@ -24,17 +24,18 @@
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Settings
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
-#Setting S_PointsLimit 20 as _("Points limit")
-#Setting S_FinishTimeout -1 as _("Finish timeout")
-#Setting S_RoundsPerMap -1 as _("Number of rounds per track") ///< Number of round to play on one map before going to the next one
-#Setting S_MapsPerMatch -1 as _("Number of tracks per match") ///< Number of maps to play before finishing the match
-#Setting S_UseTieBreak True as _("Use tie-break")	///< Continue to play the map until the tie is broken
-#Setting S_WarmUpNb 0	as _("Number of warm up")
-#Setting S_WarmUpDuration 0 as _("Duration of one warm up")
-#Setting S_WarmUpTimeout -1 as _("Warm up timeout")
-#Setting S_PointsRepartition "1,0"
-#Setting S_BonusForPerfect 4
+#Setting S_BonusForPerfect 50
+#Setting S_FinishTimeout 10 as _("Finish timeout")
+#Setting S_MapsPerMatch 0 as _("Number of tracks per match") ///< Number of maps to play before finishing the match
+#Setting S_NbOfWinners 4 as _("Number of winners")
+#Setting S_PointsLimit 500 as _("Points limit")
+#Setting S_PointsRepartition "5,4,3,2,1,0"
+#Setting S_RoundsPerMap 8 as _("Number of rounds per track") ///< Number of round to play on one map before going to the next one
 #Setting S_TargetTime 20000
+
+#Setting S_WarmUpDuration 30 as _("Duration of one warm up")
+#Setting S_WarmUpNb 1	as _("Number of warm up")
+#Setting S_WarmUpTimeout -1 as _("Warm up timeout")
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Constants
