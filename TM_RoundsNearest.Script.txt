@@ -29,7 +29,7 @@
 #Setting S_FinishTimeout 10 as _("Finish timeout")
 #Setting S_MapsPerMatch 0 as _("Number of tracks per match") ///< Number of maps to play before finishing the match
 #Setting S_NbOfWinners 4 as _("Number of winners")
-#Setting S_PointsLimit 500 as _("Points limit")
+#Setting S_PointsLimit 50 as _("Points limit")
 #Setting S_PointsRepartition "5,4,3,2,1,0"
 #Setting S_RoundsPerMap 8 as _("Number of rounds per track") ///< Number of round to play on one map before going to the next one
 #Setting S_TargetTime 20000
