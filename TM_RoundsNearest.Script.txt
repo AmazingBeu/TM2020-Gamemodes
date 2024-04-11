@@ -158,6 +158,11 @@ Server_RoundsPerMap = S_RoundsPerMap - 1;
 Server_MapsPerMatch = S_MapsPerMatch - 1;
 ***
 
+***Match_StartMatch***
+***
+UIModules_ScoresTable::SetCustomPoints([]);
+***
+
 ***Match_InitMap***
 ***
 declare Integer Map_ValidRoundsNb;
@@ -170,18 +175,30 @@ UpdateScoresTableFooter(S_PointsLimit, S_RoundsPerMap, S_MapsPerMatch, Map_Valid
 ***
 Map_Skipped = True;
 CarRank::Reset();
-UIModules_ScoresTable::SetCustomPoints([]);
+UIModules_ScoresTable::SetCustomPoints(GetWinnersCustomPoints());
 
 // Warm up
+foreach (Score in Scores) {
+	WarmUp::CanPlay(Score, CanSpawn(Score));
+}
+
 UIModules_ScoresTable::SetFooterInfo(_("Warm up"));
 MB_WarmUp(S_WarmUpNb, S_WarmUpDuration * 1000, S_WarmUpTimeout * 1000);
+***
+
+***Rounds_CanSpawn***
+***
+foreach (Score in Scores) {
+	declare Boolean ModeRounds_CanSpawn for Score = True;
+	ModeRounds_CanSpawn = CanSpawn(Score);
+}
 ***
 
 ***Match_StartRound***
 ***
 UpdateScoresTableFooter(S_PointsLimit, S_RoundsPerMap, S_MapsPerMatch, Map_ValidRoundsNb);
 StateMgr::ForcePlayersStates([StateMgr::C_State_Playing]);
-UIModules_ScoresTable::SetCustomPoints([]);
+UIModules_ScoresTable::SetCustomPoints(GetWinnersCustomPoints());
 ***
 
 ***Rounds_PlayerSpawned***
@@ -271,15 +288,19 @@ if (Round_ForceEndRound || Round_SkipPauseRound || Round_Skipped) {
 	MB_Sleep(S_ChatTime * 1000 / 3);
 	// Add them to the total scores
 	ComputeScores();
-	UIModules_ScoresTable::SetCustomPoints([]);
+	UIModules_ScoresTable::SetCustomPoints(GetWinnersCustomPoints());
 	Race::SortScores(Race::C_Sort_TotalPoints);
 	MB_Sleep(S_ChatTime * 1000 / 3);
 	UIModules_BigMessage::SetMessage("");
 	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
-	
-	if (MapIsOver(S_UseTieBreak, S_PointsLimit, Map_ValidRoundsNb, S_RoundsPerMap)) {
-		Map_Skipped = False;
+
+	// Match is over, we have all the winners
+	if (MatchIsOver(MB_GetMapCount(), Map_Skipped)) {
+		MB_StopMatch();
+	}
+	// Map is over, we played all the rounds
+	else if (MapIsOver(Map_ValidRoundsNb)) {
 		MB_StopMap();
 	}
 }
@@ -287,8 +308,6 @@ if (Round_ForceEndRound || Round_SkipPauseRound || Round_Skipped) {
 
 ***Match_EndMap***
 ***
-if (MatchIsOver(S_UseTieBreak, S_PointsLimit, MB_GetMapCount(), S_MapsPerMatch, S_RoundsPerMap, Map_Skipped)) MB_StopMatch();
-
 if (!MB_MapIsRunning() && MB_MatchIsRunning()) MB_SkipPodiumSequence();
 
 Race::SortScores(Race::C_Sort_TotalPoints);
@@ -351,6 +370,24 @@ Void UpdateScoresTableFooter(Integer _PointsLimit, Integer _RoundsPerMap, Intege
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/** Check if a player can spawn
+ *
+ *	@param	_Score										The player's score
+ *
+ *	@return														True if the player can spawn,
+ *																		False otherwise
+ */
+Boolean CanSpawn(CSmScore _Score) {
+	if (_Score == Null) return False;
+
+	if (Scores::GetPlayerMatchPoints(_Score) >= S_PointsLimit) {
+		return False;
+	}
+
+	return True;
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 /** Get the time left to the players to finish the round after the first player
  *
  *	@return 		The time left in ms
@@ -392,6 +429,21 @@ Text FormatPlayerName(Text _Name) {
 }
 
 
+Text[][Text] GetWinnersCustomPoints() {
+	if (S_PointsLimit <= 0) return [];
+
+	declare Text[][Text] CustomPoints = [];
+
+	foreach (Score in Scores) {
+		if (Score.User == Null) continue;
+		if (Scores::GetPlayerMatchPoints(Score) < S_PointsLimit) continue;
+
+		declare Integer Rank = S_PointsLimit + 1 + S_NbOfWinners + 1 - Scores::GetPlayerMatchPoints(Score);
+		CustomPoints[Score.User.WebServicesUserId] = [TL::FormatRank(Rank, True)];
+	}
+	return CustomPoints;
+}
+
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 /// Compute the latest race scores
 Void ComputeLatestRaceScores(Boolean _DisplayMessages) {
@@ -399,7 +451,7 @@ Void ComputeLatestRaceScores(Boolean _DisplayMessages) {
 	
 	// Points distributed between all players
 
-	declare Text[][Text] CustomPoints = [];
+	declare Text[][Text] CustomPoints = GetWinnersCustomPoints();
 	declare CSmScore[][Integer] ScoresPerAbsoluteDelta;
 	foreach (Score in Scores) {
 		if (Score.User == Null) continue;
@@ -414,7 +466,9 @@ Void ComputeLatestRaceScores(Boolean _DisplayMessages) {
 		else TextDelta = "-";
 		
 		TextDelta ^= DeltaTimeToText(AbsoluteDelta);
-		CustomPoints[Score.User.WebServicesUserId] = [Scores::GetPlayerMatchPoints(Score) ^ " (" ^ TextDelta ^ ")"];
+		if (S_PointsLimit < 0 || Scores::GetPlayerMatchPoints(Score) < S_PointsLimit) {
+			CustomPoints[Score.User.WebServicesUserId] = [Scores::GetPlayerMatchPoints(Score) ^ " (" ^ TextDelta ^ ")"];
+		}
 	}
 	UIModules_ScoresTable::SetCustomPoints(CustomPoints);
 
@@ -466,96 +520,84 @@ Void ComputeLatestRaceScores(Boolean _DisplayMessages) {
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 /// Compute the map scores
 Void ComputeScores() {
-	Scores::EndRound();
-}
-
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
-/** Check if the points limit was reached
- *
- *	@param	_UseTieBreak							Prevent ties or not
- *	@param	_PointsLimit							Number of points to get to win the match
- *
- *	@return														C_PointsLimit_Reached if the points limit is reached
- *																		C_PointsLimit_Tie if there is a tie
- *																		C_PointsLimit_NotReached if the points limit is not reached
- */
-Integer PointsLimitReached(Boolean _UseTieBreak, Integer _PointsLimit) {
-	declare Integer MaxScore = -1;
-	declare Boolean Tie = False;
-	foreach (Score in Scores) {
-		declare Integer Points = Scores::GetPlayerMatchPoints(Score);
-		if (Points > MaxScore) {
-			MaxScore = Points;
-			Tie = False;
-		} else if (Points == MaxScore) {
-			Tie = True;
-		}
+	if (S_PointsLimit <= 0) {
+		Scores::EndRound();
+		return;
 	}
-	
-	if (_UseTieBreak && Tie) return C_PointsLimit_Tie; //< There is a tie and it is not allowed
-	if (_PointsLimit > 0 && MaxScore >= _PointsLimit) return C_PointsLimit_Reached; //< There is a points limit and it is reached
-	return C_PointsLimit_NotReached; //< There is no points limit or the points limit is not reached
+
+	declare Integer NbOfWinners = 0;
+	Race::SortScores(Race::C_Sort_TotalPoints);
+
+	foreach (Score in Scores) {
+		// Already won
+		if (Scores::GetPlayerMatchPoints(Score) >= S_PointsLimit) {
+			Scores::SetPlayerMatchPoints(Score, S_PointsLimit + 1 + S_NbOfWinners - NbOfWinners);
+			NbOfWinners += 1;
+		}
+		// New winner
+		else if (Scores::GetPlayerMatchPoints(Score) + Scores::GetPlayerRoundPoints(Score) >= S_PointsLimit) {
+			Scores::SetPlayerMatchPoints(Score, S_PointsLimit + 1 + S_NbOfWinners - NbOfWinners);
+			NbOfWinners += 1;
+		}
+		// Standard round finish
+		else {
+			Scores::AddPlayerMatchPoints(Score, Scores::GetPlayerRoundPoints(Score));
+		}
+
+		Scores::AddPlayerMapPoints(Score, Scores::GetPlayerRoundPoints(Score));
+		Scores::SetPlayerRoundPoints(Score, 0);
+	}
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 /** Check if we should go to the next map
  *
- *	@param	_UseTieBreak							Prevent ties or not
- *	@param	_PointsLimit							Number of points to get to win the match
- *	@param	_ValidRoundsNb						Number of valid rounds played
- *	@param	_RoundsPerMap							Number of rounds to play to complete the map
- *
  *	@return		True if it is the case, false otherwise
  */
-Boolean MapIsOver(Boolean _UseTieBreak, Integer _PointsLimit, Integer _ValidRoundsNb, Integer _RoundsPerMap) {
-	declare Integer PointsLimitReached = PointsLimitReached(_UseTieBreak, _PointsLimit);
-	
-	Log::Log("""[Rounds] MapIsOver() > _UseTieBreak: {{{_UseTieBreak}}} | _PointsLimit: {{{_PointsLimit}}} | _ValidRoundsNb: {{{_ValidRoundsNb}}} | _RoundsPerMap: {{{_RoundsPerMap}}} | PointsLimitReached: {{{PointsLimitReached}}}""");
-	
-	if (PointsLimitReached == C_PointsLimit_Reached) return True; //< There is a points limit and it is reached
-	if (_RoundsPerMap > 0 && _ValidRoundsNb >= _RoundsPerMap) return True; //< There is a rounds limit and it is reached
-	
+Boolean MapIsOver(Integer _ValidRoundsNb) {
+	if (_ValidRoundsNb >= S_RoundsPerMap) return True;
 	return False;
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 /** Check if we should go to the next match
  *
- *	@param	_UseTieBreak							Prevent ties or not
- *	@param	_PointsLimit							Number of points to get to win the match
  *	@param	_MapsPerMatch							Number of maps to play to complete a match
- *	@param	_RoundsPerMap							Number of rounds to play to complete the map
+ *	@param	_MapSkipped								if map was skipped
  *
  *	@return		True if it is the case, false otherwise
  */
-Boolean MatchIsOver(Boolean _UseTieBreak, Integer _PointsLimit, Integer _MapCount, Integer _MapsPerMatch, Integer _RoundsPerMap, Boolean _MapSkipped) {
-	declare Integer PointsLimitReached = PointsLimitReached(_UseTieBreak, _PointsLimit);
-	
-	Log::Log("""[Rounds] MatchIsOver() > _UseTieBreak: {{{_UseTieBreak}}} | _PointsLimit: {{{_PointsLimit}}} | _MapCount: {{{_MapCount}}} | _MapsPerMatch: {{{_MapsPerMatch}}} | _RoundsPerMap: {{{_RoundsPerMap}}} | PointsLimitReached: {{{PointsLimitReached}}} | _MapSkipped : {{{_MapSkipped}}}""");
-	
-	// If there is a point limit and it is reached, stop the match
-	if (PointsLimitReached == C_PointsLimit_Reached) {
-		return True;
+Boolean MatchIsOver(Integer _MapCount, Boolean _MapSkipped) {
+	Log::Log("[Cup] MatchIsOver() check | S_PointsLimit : "^S_PointsLimit);
+	if (S_PointsLimit > 0) {
+		declare Integer NbOfScoreWinners = 0;
+		foreach (Score in Scores) {
+			if (Scores::GetPlayerMatchPoints(Score) > S_PointsLimit) NbOfScoreWinners += 1;
+		}
+		declare Integer NbOfPlayerWinners = 0;
+		foreach (Player in Players) {
+			if (Scores::GetPlayerMatchPoints(Player.Score) > S_PointsLimit) NbOfPlayerWinners += 1;
+		}
+
+		// If there's only one player they need to reach the points limit to win
+		// If there's more than one player then all players except one must reach the points limit
+		declare Integer PlayerWinnersLimit = ML::Max(Players.count - 1, 1);
+		Log::Log("""[Cup] Match is over ? {{{(NbOfScoreWinners >= S_NbOfWinners || NbOfPlayerWinners >= PlayerWinnersLimit)}}} | ({{{NbOfScoreWinners}}} >= {{{S_NbOfWinners}}} || {{{NbOfPlayerWinners}}} >= {{{PlayerWinnersLimit}}})""");
+		if (NbOfScoreWinners >= S_NbOfWinners || NbOfPlayerWinners >= PlayerWinnersLimit) return True;
 	}
-	// If there is an explicit maps limit ...
-	else if (_MapsPerMatch >= 1) {
+
+	if (S_MapsPerMatch >= 1) {
 		if (
-			(_MapCount >= _MapsPerMatch && PointsLimitReached != C_PointsLimit_Tie) || //< ... stop the match if the maps limit is reached and the match is not a tie
-			(_MapSkipped && _MapsPerMatch == 1 && _MapCount >= _MapsPerMatch) //< ... stop the match if the map was skipped and the match is played on only one map
+			_MapCount >= S_MapsPerMatch || //< ... stop the match if the maps limit is reached and the match is not a tie
+			(_MapSkipped && S_MapsPerMatch == 1 && _MapCount >= S_MapsPerMatch) //< ... stop the match if the map was skipped and the match is played on only one map
 		) {
 			return True;
 		}
 	}
 	// If there is a rounds limit but no maps limit, continue to play until another limit is reached
-	else if (_RoundsPerMap >= 1) {
+	else if (S_RoundsPerMap >= 1) {
 		return False;
 	}
-	// If there is neither a points limit nor a rounds limit, always stop the match at the end of the first map, even if there is a tie
-	else {
-		return True;
-	}
-	
-	// In all other cases continue to play
+
 	return False;
 }
-
