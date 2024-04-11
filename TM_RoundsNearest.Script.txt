@@ -1,10 +1,11 @@
 /**
- *	Rounds mode
+ *	Rounds Nearest.
+ *  Nearest you are of the S_TargetTime, more points you win
  */
 #Extends "Modes/Nadeo/Trackmania/Base/TrackmaniaRoundsBase.Script.txt"
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2023-10-16"
+#Const	Version							"2024-04-11"
 #Const	ScriptName					"Modes/TM2020-Gamemodes/TM_RoundsNearest.Script.txt"
 
 // #RequireContext CSmMode
