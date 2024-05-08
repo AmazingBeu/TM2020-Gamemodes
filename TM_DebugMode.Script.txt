@@ -13,7 +13,7 @@
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Constants
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
-#Const C_DebugMode_Version "2024-03-12"
+#Const C_DebugMode_Version "2024-05-08"
 #Const C_DebugMode_MainUI "DebugMode_MainUI"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -547,6 +547,10 @@ Text GetManialink() {
 #Include "TextLib" as TL
 #Include "MathLib" as ML
 // #RequireContext CSmMlScriptIngame
+
+#Const ScriptName {{{dump(C_DebugMode_MainUI)}}}
+#Const Version {{{dump(C_DebugMode_Version)}}}
+
 
 Real ComputeBackgroundSize(CMlLabel _Label, Text _Value, Real _MaxLineWidth) {
 	declare Real SpaceSize = _Label.ComputeWidth(" ");
