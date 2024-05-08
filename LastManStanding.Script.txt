@@ -193,33 +193,6 @@ ResetNetworkVariables();
 
 ***Match_InitMap***
 ***
-declare Integer Map_TimeBeforeMalus;
-declare Integer Map_TimeBeforeNightmare;
-declare Integer Map_MalusEveryNSecs;
-declare Integer Map_NextMalusPreparationTime;
-declare Integer Map_MalusDuration;
-declare Integer Map_RoundsPerMap;
-
-declare Text[] Map_AccountIdsOfEliminated;
-
-declare Text[] AccountIdsOfPlayers for This = [];
-declare Integer LandmarkIndex for This = 0;
-declare K_Malus[Text] MalusQueue;
-
-declare Boolean ActiveMalus = False;
-declare Boolean PendingMalus = False;
-declare Integer NextStepMalusTime = 0;
-declare Integer MalusIndex;
-declare Integer MalusTime;
-
-declare netwrite Boolean Net_DisplayUI for Teams[0] = False;
-declare netwrite Integer Net_NBPlayers for Teams[0] = 0;
-declare netwrite Integer Net_PlayersNbAlive for Teams[0] = 0;
-declare netwrite Integer Net_NextMalus for Teams[0] = -1;
-declare netwrite Integer Net_TimeBeforeMalus for Teams[0] = -1;
-declare netwrite Integer Net_RoundsPerMap for Teams[0] = 0;
-declare netwrite Integer Net_CurrentRoundNb for Teams[0] = 0;
-
 ResetNetworkVariables();
 ResetCustomPoints();
 
@@ -269,12 +242,37 @@ CarRank::Reset();
 
 ***Match_InitRound***
 ***
-declare Boolean ThrottleUpdate;
+declare Integer Round_TimeBeforeMalus;
+declare Integer Round_TimeBeforeNightmare;
+declare Integer Round_MalusEveryNSecs;
+declare Integer Round_NextMalusPreparationTime;
+declare Integer Round_MalusDuration;
+declare Integer Round_RoundsPerMap;
+
+declare Text[] Round_AccountIdsOfEliminated;
+
+declare Text[] LMS_AccountIdsOfPlayers for This = [];
+declare Integer LMS_LandmarkIndex for This = 0;
+
+declare netwrite Boolean Net_DisplayUI for Teams[0] = False;
+declare netwrite Integer Net_NBPlayers for Teams[0] = 0;
+declare netwrite Integer Net_PlayersNbAlive for Teams[0] = 0;
+declare netwrite Integer Net_NextMalus for Teams[0] = -1;
+declare netwrite Integer Net_TimeBeforeMalus for Teams[0] = -1;
+declare netwrite Integer Net_RoundsPerMap for Teams[0] = 0;
+declare netwrite Integer Net_CurrentRoundNb for Teams[0] = 0;
+
+declare Boolean Round_ThrottleUpdate = False;
+declare Boolean Round_ActiveMalus = False;
+declare Boolean Round_PendingMalus = False;
+declare Integer Round_NextStepMalusTime = 0;
+declare Integer Round_MalusIndex = 0;
+declare Integer Round_MalusTime = 0;
+declare K_Malus[Text] Round_MalusQueue;
 ***
 
 ***Match_StartRound***
 ***
-ResetCustomPoints();
 UIModules_ScoresTable::SetScoreMode(UIModules_ScoresTable::C_Mode_Points);
 Race::SortScores(Race::C_Sort_RoundPoints);
 
@@ -289,29 +287,29 @@ while (Players.count < 2 && Now < (StartMapTime + 3000)) {
 
 // Initialize race
 StartTime = Now + Race::C_SpawnDuration;
-Map_TimeBeforeMalus = S_TimeBeforeMalus;
-Map_TimeBeforeNightmare = S_TimeBeforeNightmare;
-Map_MalusEveryNSecs = S_MalusEveryNSecs;
-Map_NextMalusPreparationTime = S_NextMalusPreparationTime;
-Map_MalusDuration = S_MalusDuration;
-Map_RoundsPerMap = S_RoundsPerMap;
+Round_TimeBeforeMalus = S_TimeBeforeMalus;
+Round_TimeBeforeNightmare = S_TimeBeforeNightmare;
+Round_MalusEveryNSecs = S_MalusEveryNSecs;
+Round_NextMalusPreparationTime = S_NextMalusPreparationTime;
+Round_MalusDuration = S_MalusDuration;
+Round_RoundsPerMap = S_RoundsPerMap;
 UpdateScoresTableFooter();
-MalusTime = GetTimeBeforeMalus(StartTime, S_TimeBeforeMalus, S_TimeBeforeNightmare);
+Round_MalusTime = GetTimeBeforeMalus(StartTime, S_TimeBeforeMalus, S_TimeBeforeNightmare);
 Net_DisplayUI = True;
-Net_TimeBeforeMalus = MalusTime;
+Net_TimeBeforeMalus = Round_MalusTime;
 Net_NextMalus = -1;
-Net_RoundsPerMap = Map_RoundsPerMap;
+Net_RoundsPerMap = Round_RoundsPerMap;
 Net_CurrentRoundNb = MB_GetValidRoundCount();
-MalusQueue = [];
+ResetCustomPoints();
 
 // Spawn players for the race
 ---Rounds_CanSpawn---
 
-declare Text[] AccountIdsOfPlayers for This = [];
+declare Text[] LMS_AccountIdsOfPlayers for This = [];
 
 declare CMapLandmark PlayerLM;
-declare Integer LandmarkIndex for This = 0;
-AccountIdsOfPlayers = [];
+declare Integer LMS_LandmarkIndex for This = 0;
+LMS_AccountIdsOfPlayers = [];
 
 // Suffle Players list to randomise spawn
 declare CSmPlayer[Integer] ShuffledPlayers;
@@ -333,21 +331,21 @@ foreach (Player in ShuffledPlayers) {
 	if (Player == Null) continue;
 	PlayerLM = Null;
 	while (PlayerLM == Null) {
-		if (LandmarkIndex > Landmarks.count - 1 ) {
-			LandmarkIndex = 0;
+		if (LMS_LandmarkIndex > Landmarks.count - 1 ) {
+			LMS_LandmarkIndex = 0;
 		}
-		if (Map::IsMultilap(Landmarks[LandmarkIndex])) {
-			PlayerLM = Landmarks[LandmarkIndex];
+		if (Map::IsMultilap(Landmarks[LMS_LandmarkIndex])) {
+			PlayerLM = Landmarks[LMS_LandmarkIndex];
 		}
-		LandmarkIndex = LandmarkIndex + 1 ;
+		LMS_LandmarkIndex = LMS_LandmarkIndex + 1 ;
 	}
 	Race::Start(Player, PlayerLM , StartTime);
 	CarRank::SetRank(Player, Net_NBPlayers);
-	AccountIdsOfPlayers.add(Player.User.WebServicesUserId);
-	MalusQueue[Player.User.Login] = GetNewMalus(C_Malus_Reset, 1500);
+	LMS_AccountIdsOfPlayers.add(Player.User.WebServicesUserId);
+	Round_MalusQueue[Player.User.Login] = GetNewMalus(C_Malus_Reset, 1500);
 }
 
-UIModules_ScoresTable::DisplayOnly(AccountIdsOfPlayers);
+UIModules_ScoresTable::DisplayOnly(LMS_AccountIdsOfPlayers);
 
 StateMgr::ForcePlayersStates([StateMgr::C_State_Playing]);
 Race::EnableIntroDuringMatch(False);
@@ -367,23 +365,23 @@ foreach (Event in RacePendingEvents) {
 
 	switch (Event.Type) {
 		case Events::C_Type_Waypoint: {
-			ThrottleUpdate = True;
+			Round_ThrottleUpdate = True;
 
 			Scores::UpdatePlayerBestRaceIfBetter(Event.Player);
 			Race::StopSkipOutro(Event.Player);
 			UpdateCustomRanking(Event.Player.User, Event.Player, False);
-			if (Event.Player.User != Null) Map_AccountIdsOfEliminated.add(Event.Player.User.WebServicesUserId);
+			if (Event.Player.User != Null) Round_AccountIdsOfEliminated.add(Event.Player.User.WebServicesUserId);
 		}
 		case Events::C_Type_GiveUp: {
-			ThrottleUpdate = True;
+			Round_ThrottleUpdate = True;
 			UpdateCustomRanking(Event.Player.User, Event.Player, True);
-			if (Event.Player.User != Null) Map_AccountIdsOfEliminated.add(Event.Player.User.WebServicesUserId);
+			if (Event.Player.User != Null) Round_AccountIdsOfEliminated.add(Event.Player.User.WebServicesUserId);
 		}
 		case Events::C_Type_Eliminated: {
-			ThrottleUpdate = True;
+			Round_ThrottleUpdate = True;
 			Race::StopSkipOutro(Event.Player);
 			UpdateCustomRanking(Event.Player.User, Event.Player, True);
-			if (Event.Player.User != Null) Map_AccountIdsOfEliminated.add(Event.Player.User.WebServicesUserId);
+			if (Event.Player.User != Null) Round_AccountIdsOfEliminated.add(Event.Player.User.WebServicesUserId);
 		}
 	}
 }
@@ -395,30 +393,30 @@ foreach (Event in PendingEvents) {
 
 	if (Event.Type == CSmModeEvent::EType::OnPlayerRemoved) {
 		if (Event.User == Null ) continue;
-		if (!AccountIdsOfPlayers.exists(Event.User.WebServicesUserId)) continue;
-		if (Map_AccountIdsOfEliminated.exists(Event.User.WebServicesUserId)) continue;
-		ThrottleUpdate = True;
+		if (!LMS_AccountIdsOfPlayers.exists(Event.User.WebServicesUserId)) continue;
+		if (Round_AccountIdsOfEliminated.exists(Event.User.WebServicesUserId)) continue;
+		Round_ThrottleUpdate = True;
 		UpdateCustomRanking(Event.User, Null, True);
-		Map_AccountIdsOfEliminated.add(Event.User.WebServicesUserId);
+		Round_AccountIdsOfEliminated.add(Event.User.WebServicesUserId);
 	}
 }
 
 // Detect when a players count changed without having triggered any of Event (when becoming spectator for example)
-if (!ThrottleUpdate && Net_PlayersNbAlive != PlayersNbAlive) {
+if (!Round_ThrottleUpdate && Net_PlayersNbAlive != PlayersNbAlive) {
 	log("Trying to detect why the player count changed");
 	foreach (Player in AllPlayers) {
 		if (Player.User == Null || Player.Score == Null) continue;
-		if (!AccountIdsOfPlayers.exists(Player.User.WebServicesUserId)) continue;
+		if (!LMS_AccountIdsOfPlayers.exists(Player.User.WebServicesUserId)) continue;
 		if (Player.SpawnStatus != CSmPlayer::ESpawnStatus::NotSpawned) continue;
-		if (Map_AccountIdsOfEliminated.exists(Player.User.WebServicesUserId)) continue;
+		if (Round_AccountIdsOfEliminated.exists(Player.User.WebServicesUserId)) continue;
 		UpdateCustomRanking(Player.User, Player, True);
-		Map_AccountIdsOfEliminated.add(Player.User.WebServicesUserId);
-		ThrottleUpdate = True;
+		Round_AccountIdsOfEliminated.add(Player.User.WebServicesUserId);
+		Round_ThrottleUpdate = True;
 	}
 }
 
-if (ThrottleUpdate) {
-	ThrottleUpdate = False;
+if (Round_ThrottleUpdate) {
+	Round_ThrottleUpdate = False;
 	Net_PlayersNbAlive = PlayersNbAlive;
 	declare Integer Points = Net_NBPlayers - Net_PlayersNbAlive;
 	foreach (Player in Players) { 
@@ -429,97 +427,97 @@ if (ThrottleUpdate) {
 	}
 }
 
-if (PlayersNbAlive <= 1 && AccountIdsOfPlayers.count >= 2) { //TODO just respawn in case of 1 player
+if (PlayersNbAlive <= 1 && LMS_AccountIdsOfPlayers.count >= 2) { //TODO just respawn in case of 1 player
 	Net_TimeBeforeMalus = -1;
 	MB_StopRound();
 }
 
 
 // Update the map duration setting
-if (Map_TimeBeforeMalus != S_TimeBeforeMalus || Map_TimeBeforeMalus != S_TimeBeforeNightmare || Map_MalusEveryNSecs != S_MalusEveryNSecs || Map_NextMalusPreparationTime != S_NextMalusPreparationTime || Map_MalusDuration != S_MalusDuration || Map_RoundsPerMap != S_RoundsPerMap) {
-	Map_TimeBeforeMalus = S_TimeBeforeMalus;
-	Map_TimeBeforeNightmare = S_TimeBeforeNightmare;
-	Map_MalusEveryNSecs = S_MalusEveryNSecs;
-	Map_NextMalusPreparationTime = S_NextMalusPreparationTime;
-	Map_MalusDuration = S_MalusDuration;
-	Map_RoundsPerMap = S_RoundsPerMap;
-	Net_RoundsPerMap = Map_RoundsPerMap;
+if (Round_TimeBeforeMalus != S_TimeBeforeMalus || Round_TimeBeforeMalus != S_TimeBeforeNightmare || Round_MalusEveryNSecs != S_MalusEveryNSecs || Round_NextMalusPreparationTime != S_NextMalusPreparationTime || Round_MalusDuration != S_MalusDuration || Round_RoundsPerMap != S_RoundsPerMap) {
+	Round_TimeBeforeMalus = S_TimeBeforeMalus;
+	Round_TimeBeforeNightmare = S_TimeBeforeNightmare;
+	Round_MalusEveryNSecs = S_MalusEveryNSecs;
+	Round_NextMalusPreparationTime = S_NextMalusPreparationTime;
+	Round_MalusDuration = S_MalusDuration;
+	Round_RoundsPerMap = S_RoundsPerMap;
+	Net_RoundsPerMap = Round_RoundsPerMap;
 	UpdateScoresTableFooter();
-	MalusTime = GetTimeBeforeMalus(StartTime, S_TimeBeforeMalus, S_TimeBeforeNightmare);
-	if (NextStepMalusTime == 0) {
-		Net_TimeBeforeMalus = MalusTime;
+	Round_MalusTime = GetTimeBeforeMalus(StartTime, S_TimeBeforeMalus, S_TimeBeforeNightmare);
+	if (Round_NextStepMalusTime == 0) {
+		Net_TimeBeforeMalus = Round_MalusTime;
 	}
-	if (Map_MalusDuration <= 0 || (Map_TimeBeforeMalus < 0 && Map_TimeBeforeNightmare < 0)) {
+	if (Round_MalusDuration <= 0 || (Round_TimeBeforeMalus < 0 && Round_TimeBeforeNightmare < 0)) {
 		Net_TimeBeforeMalus = -1;
 		Net_NextMalus = -1;
 	}
 }
 
 // Run Malus
-if (Players.count > 0 && S_MalusDuration > 0 && MalusTime != -1 && Now > MalusTime) {
-	if (Now > NextStepMalusTime) {
-		if (!ActiveMalus && !PendingMalus) {
+if (Players.count > 0 && S_MalusDuration > 0 && Round_MalusTime != -1 && Now > Round_MalusTime) {
+	if (Now > Round_NextStepMalusTime) {
+		if (!Round_ActiveMalus && !Round_PendingMalus) {
 			if (S_TimeBeforeNightmare >= 0 &&  Now > (StartTime + (S_TimeBeforeNightmare * 1000))) {
-				MalusIndex = C_Malus_Nightmare;
+				Round_MalusIndex = C_Malus_Nightmare;
 			} else if (AllPlayersAreInTurtle()) {	
 				log("All players are in turtle");
-				MalusIndex = ML::Rand(7, 10); // Boost if all players in Turtle
+				Round_MalusIndex = ML::Rand(7, 10); // Boost if all players in Turtle
 			} else {
-				MalusIndex = ML::Rand(1, 15);
+				Round_MalusIndex = ML::Rand(1, 15);
 			}
-			PendingMalus = True;
-			ActiveMalus = False;
-			NextStepMalusTime = Now + (S_NextMalusPreparationTime*1000);
+			Round_PendingMalus = True;
+			Round_ActiveMalus = False;
+			Round_NextStepMalusTime = Now + (S_NextMalusPreparationTime*1000);
 
 			// Players UI update
-			Net_NextMalus = MalusIndex;
-			Net_TimeBeforeMalus = NextStepMalusTime;
-		} else if (PendingMalus && !ActiveMalus) {
+			Net_NextMalus = Round_MalusIndex;
+			Net_TimeBeforeMalus = Round_NextStepMalusTime;
+		} else if (Round_PendingMalus && !Round_ActiveMalus) {
 			foreach (Player in Players) {
-				MalusQueue[Player.User.Login] = GetNewMalus(MalusIndex);
+				Round_MalusQueue[Player.User.Login] = GetNewMalus(Round_MalusIndex);
 			}
-			PendingMalus = False;
-			ActiveMalus = True;
-			NextStepMalusTime = Now + (S_MalusDuration*1000);
+			Round_PendingMalus = False;
+			Round_ActiveMalus = True;
+			Round_NextStepMalusTime = Now + (S_MalusDuration*1000);
 			
-			UIModules_BigMessage::SetMessage("Current Effect: "^C_Malus_Name[MalusIndex]);
+			UIModules_BigMessage::SetMessage("Current Effect: "^C_Malus_Name[Round_MalusIndex]);
 
 			// Players UI update
 			Net_NextMalus = 0;
-			Net_TimeBeforeMalus = NextStepMalusTime;
-		} else if (!PendingMalus && ActiveMalus) {
-			if (MalusIndex == 99) {
+			Net_TimeBeforeMalus = Round_NextStepMalusTime;
+		} else if (!Round_PendingMalus && Round_ActiveMalus) {
+			if (Round_MalusIndex == 99) {
 				foreach (Player in Players) {
-					MalusQueue[Player.User.Login] = GetNewMalus(C_Malus_Nightmare);
+					Round_MalusQueue[Player.User.Login] = GetNewMalus(C_Malus_Nightmare);
 				}
-				NextStepMalusTime = Now + (S_MalusDuration*1000);
+				Round_NextStepMalusTime = Now + (S_MalusDuration*1000);
 			} else {
 				foreach (Player in Players) {
-					MalusQueue[Player.User.Login] = GetNewMalus(C_Malus_Reset);
+					Round_MalusQueue[Player.User.Login] = GetNewMalus(C_Malus_Reset);
 				}
-				PendingMalus = False;
-				ActiveMalus = False;
+				Round_PendingMalus = False;
+				Round_ActiveMalus = False;
 
-				NextStepMalusTime = Now + (S_MalusEveryNSecs*1000);
+				Round_NextStepMalusTime = Now + (S_MalusEveryNSecs*1000);
 
 				UIModules_BigMessage::SetMessage("");
 	
 				// Players UI update
 				Net_NextMalus = -1;
-				Net_TimeBeforeMalus = NextStepMalusTime;
+				Net_TimeBeforeMalus = Round_NextStepMalusTime;
 			}
 		}
 	}
 }
 
-foreach (Login => Malus in MalusQueue) {
+foreach (Login => Malus in Round_MalusQueue) {
 	declare CSmPlayer Player = GetPlayer(Login);
 	if (Malus.Time + 1000 < Now) { // Clear old entry
-		MalusQueue.removekey(Login);
+		Round_MalusQueue.removekey(Login);
 	} else if (Player != Null && Malus.Time <= Now && (Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned || Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning)) {
 		Log::Log("[ApplyPhysics] Trying to set Event " ^ C_Malus_Name[Malus.MalusIndex] ^ " for " ^ Player.User.Name);
 		if (SetMalus(Player, Malus.MalusIndex)) {
-			MalusQueue.removekey(Login);
+			Round_MalusQueue.removekey(Login);
 		}
 	}
 }
@@ -528,8 +526,6 @@ foreach (Login => Malus in MalusQueue) {
 ***Match_EndRound***
 ***
 UIModules_BigMessage::SetMessage("");
-PendingMalus = False;
-ActiveMalus = False;
 Net_DisplayUI = False;
 Net_TimeBeforeMalus = -1;
 Net_NextMalus = -1;
@@ -564,7 +560,7 @@ if (Round_ForceEndRound || Round_SkipPauseRound) {
 		declare CSmScore WinnerScore <=> Scores::GetBestPlayer(Scores::C_Sort_RoundPoints);
 		if (WinnerScore == Null) {
 			foreach (Score in Scores) {
-				if (Score.BestRaceTimes.count <= 0 && Score.User != Null && AccountIdsOfPlayers.exists(Score.User.WebServicesUserId)) {
+				if (Score.BestRaceTimes.count <= 0 && Score.User != Null && LMS_AccountIdsOfPlayers.exists(Score.User.WebServicesUserId)) {
 					declare CSmPlayer Player = GetPlayer(Score.User.Login);
 					if (Player != Null && !Player.RequestsSpectate) {
 						WinnerScore <=> Score;
