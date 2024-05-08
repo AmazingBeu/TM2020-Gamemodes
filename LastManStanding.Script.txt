@@ -4,7 +4,7 @@
 #Extends "Modes/Nadeo/Trackmania/Base/TrackmaniaRoundsBase.Script.txt"
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2024-04-08"
+#Const	Version							"2024-05-08"
 #Const	ScriptName					"Modes/TM2020-Gamemodes/LastManStanding.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -26,7 +26,7 @@
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 #Setting S_ForceLapsNb 1
 #Setting S_RoundsPerMap 1 as _("Number of rounds per map") ///< Number of round to play on one map before going to the next one
-
+#Setting S_MapsPerMatch 4 as "Only used if S_KeepScoresBetweenRounds = True"
 
 #Setting S_AFKIdleTime 120000 as "Time before being an AFK player will be kicked"
 
@@ -36,6 +36,7 @@
 #Setting S_MalusEveryNSecs 10 as "Roll a new Malus every N Sec"
 #Setting S_NextMalusPreparationTime 10 as "Time given to players to prepare them before a Malus"
 #Setting S_MalusDuration 5 as "Malus Duration"
+#Setting S_KeepScoresBetweenRounds False
 
 #Setting S_TrustClientSimu False
 #Setting S_UseCrudeExtrapolation False
@@ -119,7 +120,6 @@ XmlRpc::UnregisterCallback(C_Callback_CustomChat_ChatMessage);
 ***
 MB_Settings_UseDefaultTimer = False;
 MB_Settings_UseDefaultHud = (C_HudModulePath == "");
-MB_Settings_UseDefaultPodiumSequence = False;
 Rounds_Settings_UseDefaultSpawnManagement = False;
 MB_Settings_UseDefaultIntroSequence = False;
 ***
@@ -184,6 +184,7 @@ StateMgr::Yield();
 Clans::SetClansNb(0);
 UsePvPCollisions = True;
 UsePvECollisions = True;
+Scores::SaveInScore(Scores::C_Points_Match);
 StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
 WarmUp::SetAvailability(True);
 CarRank::Reset();
@@ -192,14 +193,14 @@ ResetNetworkVariables();
 
 ***Match_InitMap***
 ***
-declare Integer Map_ValidRoundsNb;
-
 declare Integer Map_TimeBeforeMalus;
 declare Integer Map_TimeBeforeNightmare;
 declare Integer Map_MalusEveryNSecs;
 declare Integer Map_NextMalusPreparationTime;
 declare Integer Map_MalusDuration;
 declare Integer Map_RoundsPerMap;
+
+declare Text[] Map_AccountIdsOfEliminated;
 
 declare Text[] AccountIdsOfPlayers for This = [];
 declare Integer LandmarkIndex for This = 0;
@@ -220,7 +221,7 @@ declare netwrite Integer Net_RoundsPerMap for Teams[0] = 0;
 declare netwrite Integer Net_CurrentRoundNb for Teams[0] = 0;
 
 ResetNetworkVariables();
-UIModules_ScoresTable::SetCustomTimes([]);
+ResetCustomPoints();
 
 // Map Intro
 declare Boolean MapIsCompatible;
@@ -235,6 +236,7 @@ if (!MapIsCompatible) {
 	UIManager.UIAll.QueueMessage(3000, 1, CUIConfig::EMessageDisplay::Big, _("This map is not valid"));
 	MB_Sleep(3000);
 	MB_StopMap();
+	MB_SetValidMap(False);
 } else if (S_IntroTime > 0) {
 	declare netwrite Boolean Net_LMS_IsIntro for Teams[0] = False;
 	Net_LMS_IsIntro = True;
@@ -272,8 +274,9 @@ declare Boolean ThrottleUpdate;
 
 ***Match_StartRound***
 ***
-Scores::Clear();
-UIModules_ScoresTable::SetCustomTimes([]);
+ResetCustomPoints();
+UIModules_ScoresTable::SetScoreMode(UIModules_ScoresTable::C_Mode_Points);
+Race::SortScores(Race::C_Sort_RoundPoints);
 
 declare netwrite Integer Net_LMS_AFKIdleTime for Teams[0] = 120000;
 Net_LMS_AFKIdleTime = S_AFKIdleTime;
@@ -298,7 +301,7 @@ Net_DisplayUI = True;
 Net_TimeBeforeMalus = MalusTime;
 Net_NextMalus = -1;
 Net_RoundsPerMap = Map_RoundsPerMap;
-Net_CurrentRoundNb = Map_ValidRoundsNb + 1;
+Net_CurrentRoundNb = MB_GetValidRoundCount();
 MalusQueue = [];
 
 // Spawn players for the race
@@ -352,7 +355,7 @@ UIManager.UIAll.SendChat("$<$ff3$> Stay the most time on the structure. $<$ff
 XmlRpc::SendCallback(C_Callback_CustomChat_ChatMessage, ["$<$ff3$> Stay the most time on the structure. $<$ff9GL HF!$>"]);
 ***
 
-
+// @mslint-disable-next-line max-statements 
 ***Match_PlayLoop***
 ***
 // Manage race events
@@ -368,16 +371,19 @@ foreach (Event in RacePendingEvents) {
 
 			Scores::UpdatePlayerBestRaceIfBetter(Event.Player);
 			Race::StopSkipOutro(Event.Player);
-			UpdateCustomRanking(Event.Player.User, False);
+			UpdateCustomRanking(Event.Player.User, Event.Player, False);
+			if (Event.Player.User != Null) Map_AccountIdsOfEliminated.add(Event.Player.User.WebServicesUserId);
 		}
 		case Events::C_Type_GiveUp: {
 			ThrottleUpdate = True;
-			UpdateCustomRanking(Event.Player.User, True);
+			UpdateCustomRanking(Event.Player.User, Event.Player, True);
+			if (Event.Player.User != Null) Map_AccountIdsOfEliminated.add(Event.Player.User.WebServicesUserId);
 		}
 		case Events::C_Type_Eliminated: {
 			ThrottleUpdate = True;
 			Race::StopSkipOutro(Event.Player);
-			UpdateCustomRanking(Event.Player.User, True);
+			UpdateCustomRanking(Event.Player.User, Event.Player, True);
+			if (Event.Player.User != Null) Map_AccountIdsOfEliminated.add(Event.Player.User.WebServicesUserId);
 		}
 	}
 }
@@ -390,9 +396,10 @@ foreach (Event in PendingEvents) {
 	if (Event.Type == CSmModeEvent::EType::OnPlayerRemoved) {
 		if (Event.User == Null ) continue;
 		if (!AccountIdsOfPlayers.exists(Event.User.WebServicesUserId)) continue;
-		if (IsEliminated(Event.User, Null)) continue;
+		if (Map_AccountIdsOfEliminated.exists(Event.User.WebServicesUserId)) continue;
 		ThrottleUpdate = True;
-		UpdateCustomRanking(Event.User, True);
+		UpdateCustomRanking(Event.User, Null, True);
+		Map_AccountIdsOfEliminated.add(Event.User.WebServicesUserId);
 	}
 }
 
@@ -403,8 +410,9 @@ if (!ThrottleUpdate && Net_PlayersNbAlive != PlayersNbAlive) {
 		if (Player.User == Null || Player.Score == Null) continue;
 		if (!AccountIdsOfPlayers.exists(Player.User.WebServicesUserId)) continue;
 		if (Player.SpawnStatus != CSmPlayer::ESpawnStatus::NotSpawned) continue;
-		if (IsEliminated(Player.User, Player.Score)) continue;
-		UpdateCustomRanking(Player.User, True);
+		if (Map_AccountIdsOfEliminated.exists(Player.User.WebServicesUserId)) continue;
+		UpdateCustomRanking(Player.User, Player, True);
+		Map_AccountIdsOfEliminated.add(Player.User.WebServicesUserId);
 		ThrottleUpdate = True;
 	}
 }
@@ -519,6 +527,7 @@ foreach (Login => Malus in MalusQueue) {
 
 ***Match_EndRound***
 ***
+UIModules_BigMessage::SetMessage("");
 PendingMalus = False;
 ActiveMalus = False;
 Net_DisplayUI = False;
@@ -539,43 +548,73 @@ if (Round_ForceEndRound || Round_SkipPauseRound) {
 	}
 	MB_SetValidRound(False);
 } else {
-	Map_ValidRoundsNb += 1;
+	if (S_KeepScoresBetweenRounds) {
+		UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
+		MB_Sleep((S_ChatTime*1000)/2);
 
-	declare CSmScore WinnerScore <=> Scores::GetBestPlayer(Scores::C_Sort_RoundPoints);
-	if (WinnerScore == Null) {
-		foreach (Score in Scores) {
-			if (Score.BestRaceTimes.count <= 0 && Score.User != Null && AccountIdsOfPlayers.exists(Score.User.WebServicesUserId)) {
-				declare CSmPlayer Player = GetPlayer(Score.User.Login);
-				if (Player != Null && !Player.RequestsSpectate) {
-					WinnerScore <=> Score;
-					break;
+		ComputeRoundPoints();
+		UIModules_ScoresTable::SetCustomPoints([]);
+		UIModules_ScoresTable::DisplayRoundPoints(True);
+		MB_Sleep((S_ChatTime*1000)/2);
+
+		Scores::EndRound();
+		Race::SortScores(Race::C_Sort_TotalPoints);
+		MB_Sleep((S_ChatTime*1000)/2);
+	} else {
+		declare CSmScore WinnerScore <=> Scores::GetBestPlayer(Scores::C_Sort_RoundPoints);
+		if (WinnerScore == Null) {
+			foreach (Score in Scores) {
+				if (Score.BestRaceTimes.count <= 0 && Score.User != Null && AccountIdsOfPlayers.exists(Score.User.WebServicesUserId)) {
+					declare CSmPlayer Player = GetPlayer(Score.User.Login);
+					if (Player != Null && !Player.RequestsSpectate) {
+						WinnerScore <=> Score;
+						break;
+					}
 				}
 			}
 		}
+		Scores::SetPlayerWinner(WinnerScore);
+	
+		ModeUtils::PlaySound(CUIConfig::EUISound::EndRound, 0);
+	
+		if (WinnerScore == Null) {
+			UIModules_BigMessage::SetMessage(_("|Match|Draw"));
+		} else {
+			UIModules_BigMessage::SetMessage(_("$<%1$> wins the match!"), WinnerScore.User.WebServicesUserId);
+		}
+	
+		Scores::EndRound();
+		Race::SortScores(Race::C_Sort_TotalPoints);
+		MB_Sleep((S_ChatTime*1000)/2);
+
+		UIModules_BigMessage::SetMessage("");
+		UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
+		MB_Sleep((S_ChatTime*1000)/2);
+
+		Scores::Clear();
 	}
-	Scores::SetPlayerWinner(WinnerScore);
-
-	ModeUtils::PlaySound(CUIConfig::EUISound::EndRound, 0);
-
-	if (WinnerScore == Null) {
-		UIModules_BigMessage::SetMessage(_("|Match|Draw"));
-	} else {
-		UIModules_BigMessage::SetMessage(_("$<%1$> wins the match!"), WinnerScore.User.WebServicesUserId);
-	}
-
-	Scores::EndRound();
-	Race::SortScores(Race::C_Sort_TotalPoints);
-
-	MB_Sleep(5000);
-	UIModules_BigMessage::SetMessage("");
-	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
-	MB_Sleep((S_ChatTime*1000)/2);
 	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
 
-	if (MapIsOver(Map_ValidRoundsNb)) MB_StopMatch();
-}
+	UIModules_ScoresTable::DisplayRoundPoints(False);
+	UIModules_ScoresTable::SetCustomPoints([]);
 
+	if (MapIsOver()) MB_StopMap();
+}
+***
+
+
+***Match_EndMap***
+***
+if (MatchIsOver()) {
+	MB_StopMatch();
+	if (!S_KeepScoresBetweenRounds) MB_SkipPodiumSequence();
+
+	declare CSmScore Winner <=> Scores::GetBestPlayer(Scores::C_Sort_MatchPoints);
+	Scores::SetPlayerWinner(Winner);
+} else {
+	MB_SkipPodiumSequence();
+}
 ***
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -600,30 +639,13 @@ Void ResetNetworkVariables() {
 	Net_CurrentRoundNb = 0;
 }
 
-
-/** Check if a Player is already considered eliminated
- *
- *	@param	_User						The User
- *	@param	_Score						The Score, can be Null but it will search the Score in Scores
- *
- *	@return		Return True if the player have a time
- */
-Boolean IsEliminated(CUser _User, CSmScore _Score) {
-	if (UIModules_ScoresTable::GetCustomTimes().existskey(_User.WebServicesUserId)) return True;
-	if (_Score == Null) {
-		foreach (Score in Scores) {
-			if (Score.User == Null) continue;
-			if (Score.User == _User) {
-				if (Score.PrevRaceTimes.count > 0) return True;
-				else return False;
-				break;
-			}
-		}
-	} else if (_Score.PrevRaceTimes.count > 0) {
-		return True;
+Void ResetCustomPoints() {
+	declare Text[][Text] CustomPoints = [];
+	foreach (Score in Scores) {
+		if (Score.User == Null) continue;
+		CustomPoints[Score.User.WebServicesUserId] = ["--:--.---"];
 	}
-	
-	return False;
+	UIModules_ScoresTable::SetCustomPoints(CustomPoints);
 }
 
 /** Detect if all players are in Turtle
@@ -647,7 +669,7 @@ Boolean AllPlayersAreInTurtle() {
  *
  *	@return		The Malus Time or -1 in no Malus
  */
- Integer GetTimeBeforeMalus(Integer _StartTime, Integer _TimeBeforeMalus, Integer _TimeBeforeNightmare) {
+Integer GetTimeBeforeMalus(Integer _StartTime, Integer _TimeBeforeMalus, Integer _TimeBeforeNightmare) {
 	declare Integer MalusTime;
 	if (_TimeBeforeMalus >= 0 && (_TimeBeforeMalus < _TimeBeforeNightmare || _TimeBeforeNightmare == -1)) {
 		MalusTime = _StartTime + (_TimeBeforeMalus * 1000);
@@ -663,24 +685,46 @@ Boolean AllPlayersAreInTurtle() {
 /** Update the Scores Table with hidden custom points
  *
  *	@param	_User									The User who is eliminated
+  *	@param	_Player									The Player who is eliminated. Can be Null
  *	@param	_OverrideTime							Compute time because it not ended the Map
  */
- Void UpdateCustomRanking(CUser _User, Boolean _OverrideTime) {
+ Void UpdateCustomRanking(CUser _User, CSmPlayer _Player, Boolean _OverrideTime) {
 	if (_User == Null) return;
+
+	declare Text[][Text] CustomPoints = UIModules_ScoresTable::GetCustomPoints();
 	
-	if (_OverrideTime) {
-		declare Integer[Text] CustomTimes = UIModules_ScoresTable::GetCustomTimes();
-		CustomTimes[_User.WebServicesUserId] = Now - StartTime;
-		UIModules_ScoresTable::SetCustomTimes(CustomTimes);
+	if (_OverrideTime || _Player == Null || _Player.RaceWaypointTimes.count == 0) {
+		CustomPoints[_User.WebServicesUserId] = [TL::TimeToText(Now - StartTime, True, True)];
+	} else {
+		CustomPoints[_User.WebServicesUserId] = [TL::TimeToText(_Player.RaceWaypointTimes[-1], True, True)];
 	}
+	UIModules_ScoresTable::SetCustomPoints(CustomPoints);
 	UIManager.UIAll.SendChat("""$<$ff3$> Player $<$ff9{{{_User.Name}}}$> is eliminated""");
 	XmlRpc::SendCallback(C_Callback_CustomChat_ChatMessage, ["""$<$ff3$> Player $<$ff9{{{_User.Name}}}$> is eliminated"""]);
+}
+
+/** Distribute real RoundPoints using Points Repartition
+ *  Only used when S_KeepScoresBetweenRounds = True
+ */
+Void ComputeRoundPoints() {
+	declare Integer[] PointsRepartition = PointsRepartition::GetPointsRepartition();
+	foreach (Key => Score in Scores) {
+		declare Integer Points = 0;
+		if (PointsRepartition.count > 0) {
+			if (PointsRepartition.existskey(Key)) {
+				Points = PointsRepartition[Key];
+			} else {
+				Points = PointsRepartition[PointsRepartition.count - 1];
+			}
+		}
+		Scores::SetPlayerRoundPoints(Score, Points);
+	}
 }
 
 /** Update the scores table footer text
  *
  */
- Void UpdateScoresTableFooter() {
+Void UpdateScoresTableFooter() {
 	declare Text Footer = "";
 	if (S_MalusDuration <= 0 || (S_TimeBeforeMalus < 0 && S_TimeBeforeNightmare < 0)) {
 		Footer ^= "Malus disabled";
@@ -697,11 +741,18 @@ Boolean AllPlayersAreInTurtle() {
 			Message ^= """%{{{Parts.count + 1}}}{{{TL::TimeToText(S_TimeBeforeNightmare*1000)}}}""";
 			Parts.add("Time Before NM: ");
 		}
+		if (S_KeepScoresBetweenRounds) {
+			if (Parts.count > 0) Message ^= "\n";
+			Message ^= """%{{{Parts.count + 1}}}{{{MB_GetMapCount()}}}/{{{S_MapsPerMatch}}}""";
+			//L16N [Rounds] Number of maps played during the match.
+			Parts.add(_("Maps : "));
+		}
 
 		switch (Parts.count) {
 			case 0: Footer = Message;
 			case 1: Footer = TL::Compose(Message, Parts[0]);
 			case 2: Footer = TL::Compose(Message, Parts[0], Parts[1]);
+			case 3: Footer = TL::Compose(Message, Parts[0], Parts[1], Parts[2]);
 		}
 	}
 	UIModules_ScoresTable::SetFooterInfo(Footer);
@@ -1052,12 +1103,20 @@ Void SetML() {
 
 
 /** Check if we should go to the next map
- *
- *	@param	_ValidRoundsNb						Number of valid rounds played
- *
  *	@return		True if it is the case, false otherwise
  */
-Boolean MapIsOver(Integer _ValidRoundsNb) {
-	if (S_RoundsPerMap > 0 && _ValidRoundsNb >= S_RoundsPerMap) return True; //< There is a rounds limit and it is reached
+Boolean MapIsOver() {
+	log("""MapIsOver> S_RoundsPerMap: {{{S_RoundsPerMap}}} / MB_GetValidRoundCount() {{{MB_GetValidRoundCount()}}}""");
+	if (S_RoundsPerMap > 0 && MB_GetValidRoundCount() >= S_RoundsPerMap) return True; //< There is a rounds limit and it is reached
+	return False;
+}
+
+/** Check if the match is over
+ *	@return		True if it is the case, false otherwise
+ */
+Boolean MatchIsOver() {
+	log("""MatchIsOver> S_KeepScoresBetweenRounds: {{{S_KeepScoresBetweenRounds}}} / MB_GetValidMapCount() {{{MB_GetValidMapCount()}}} / S_MapsPerMatch {{{S_MapsPerMatch}}}""");
+	if (!S_KeepScoresBetweenRounds) return True;
+	if (MB_GetValidMapCount() >= S_MapsPerMatch) return True;
 	return False;
 }
