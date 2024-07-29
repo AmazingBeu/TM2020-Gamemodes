@@ -2,7 +2,7 @@
 // #RequireContext CSmMode
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2024-06-03"
+#Const	Version							"2024-07-29"
 #Const	ScriptName					"Modes/TM2020-Gamemodes/TM_RoundsThenTimeattack.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -23,6 +23,7 @@
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // MARK: Settings
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+#Setting S_DisableFreeCam False
 #Setting S_TimeLimit 300 as _("Time limit") ///< Time limit before going to the next map
 #Setting S_PointsLimit 50 as _("Points limit")
 #Setting S_FinishTimeout -1 as _("Finish timeout")
@@ -165,6 +166,8 @@ UpdateScoresTableFooter(S_PointsLimit, S_RoundsPerMap, S_MapsPerMatch, Map_Valid
 ***
 // Add bot when necessary
 Users_SetNbFakeUsers(C_FakeUsersNb, 0);
+
+UIManager.UIAll.PlayerDisableFreeCam = S_DisableFreeCam;
 
 Map_Skipped = True;
 CarRank::Reset();
