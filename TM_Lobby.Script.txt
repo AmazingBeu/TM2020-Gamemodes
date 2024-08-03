@@ -1,0 +1,179 @@
+/**
+ * Lobby Gamemode
+ */
+
+// #RequireContext CSmMode
+#Extends "Modes/TrackMania/TM_TimeAttack_Online.Script.txt"
+
+#Include "Libs/Nadeo/Trackmania/Modes/Stunt/Constants.Script.txt" as StuntConstants
+
+#Const StuntConstants::C_FigureNames as C_FigureNames
+#Const C_Manialink_Id "Lobby.Records"
+
+#Setting S_TimeLimit 0
+
+#Struct K_BestTime {
+	Text PlayerName;
+	Integer Time;
+}
+#Struct K_BestStunt {
+	Text PlayerName;
+	Text FigureName;
+	Integer FigurePoints;
+}
+
+***Match_StartServer***
+***
+UseStunts = True;
+***
+
+***Match_AfterLoadHud***
+***
+SetManialink();
+***
+
+***Match_InitMatch***
+***
+declare netwrite K_BestTime Net_Lobby_BestTime for Teams[0];
+declare netwrite Integer Net_Lobby_BestTime_Serial for Teams[0];
+declare netwrite K_BestStunt Net_Lobby_BestStunt for Teams[0];
+declare netwrite Integer Net_Lobby_BestStunt_Serial for Teams[0];
+***
+
+***Match_StartMatch***
+***
+Net_Lobby_BestTime = K_BestTime{};
+Net_Lobby_BestTime_Serial += 1;
+Net_Lobby_BestStunt = K_BestStunt{};
+Net_Lobby_BestStunt_Serial += 1;
+***
+
+***Match_PlayLoop***
+***
+
+
+foreach (Event in PendingEvents) {
+	if (Event.Player == Null || Event.Player.User == Null) continue;
+
+	switch (Event.Type) {
+		case CSmModeEvent::EType::OnPlayerTriggersWaypoint: {
+			if (Event.IsFinish && (Net_Lobby_BestTime.Time == 0 || Net_Lobby_BestTime.Time < Event.WaypointTime)) {
+				
+				Net_Lobby_BestTime = K_BestTime {
+					PlayerName = Event.Player.User.Name,
+					Time = Event.WaypointTime
+				};
+				Net_Lobby_BestTime_Serial += 1;
+			}
+		}
+		case CSmModeEvent::EType::OnStuntFigure: {
+			if (Event.StuntFigure.Points < 20) continue;
+			declare Integer FigurePoints = Event.StuntFigure.Points * 10;
+			declare Text FigureName = C_FigureNames[Event.StuntFigure.Name]^" "^ Event.StuntFigure.Angle ^"°";
+
+			if (Net_Lobby_BestStunt.FigurePoints == 0 || Net_Lobby_BestStunt.FigurePoints < Event.StuntFigure.Points * 10) {
+				Net_Lobby_BestStunt = K_BestStunt {
+					PlayerName = Event.Player.User.Name,
+					FigureName = FigureName,
+					FigurePoints = FigurePoints
+				};
+				Net_Lobby_BestStunt_Serial += 1;
+			}
+
+			declare CUIConfig UI <=> UIManager.GetUI(Event.Player);
+			if (UI != Null) {
+				UI.SendChat("$CFFYou made $<$fff"^ FigurePoints ^" points$> with a $<$fff"^ FigureName^ "$>");
+			}
+		}
+	}
+}
+***
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/// Load Manialink
+Void SetManialink() {
+	declare Text MLText = """
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<manialink version="3" name="{{{C_Manialink_Id}}}">
+<stylesheet>
+	<style class="text" textcolor="ffffff" textfont="GameFontSemiBold" textprefix="$s" textsize="1"/>
+</stylesheet>
+<frame id="frame-global" hidden="1" pos="0 90">
+	<frame pos="-71 0">
+		<quad size="45 15" bgcolor="000" opacity="0.5"/>
+		<label pos="22.5 -1.5" size="43 5" halign="center" textfont="GameFontBlack" textcolor="ffffff" textsize="2" textprefix="$i" text="BEST RACE TIME"/>
+		<label id="label-time-time" pos="22.5 -6" size="43 5" halign="center" textfont="GameFontExtraBold" textcolor="ffffff" textsize="1.5" text=""/>
+		<label id="label-time-playername" pos="22.5 -10" size="43 5" halign="center" textfont="GameFontSemiBold" textcolor="ffffff" textsize="1.5" text=""/>
+	</frame>
+	<frame pos="29 0">
+		<quad size="45 15" bgcolor="000" opacity="0.5"/>
+		<label pos="22.5 -1.5" size="43 5" halign="center" textfont="GameFontBlack" textcolor="ffffff" textsize="2" textprefix="$i" text="BEST STUNT FIGURE"/>
+		<label id="label-stunt-figurename" pos="22.5 -6" size="43 5" halign="center" textfont="GameFontExtraBold" textcolor="ffffff" textsize="1.5" text=""/>
+		<label id="label-stunt-playername" pos="22.5 -10" size="43 5" halign="center" textfont="GameFontSemiBold" textcolor="ffffff" textsize="1.5" text=""/>
+	</frame>
+</frame>
+<script><!--
+#Include "TextLib" as TL
+
+#Const ScriptName {{{dump(C_Manialink_Id)}}}
+#Const Version {{{dump(Version)}}}
+
+{{{dumptype(K_BestTime)}}}
+{{{dumptype(K_BestStunt)}}}
+
+main() {
+	declare CMlFrame Frame_Global <=> (Page.GetFirstChild("frame-global") as CMlFrame);
+
+	declare CMlLabel Label_Time_Time <=> (Frame_Global.GetFirstChild("label-time-time") as CMlLabel);
+	declare CMlLabel Label_Time_PlayerName <=> (Frame_Global.GetFirstChild("label-time-playername") as CMlLabel);
+
+	declare CMlLabel Label_Stunt_FigureName <=> (Frame_Global.GetFirstChild("label-stunt-figurename") as CMlLabel);
+	declare CMlLabel Label_Stunt_PlayerName <=> (Frame_Global.GetFirstChild("label-stunt-playername") as CMlLabel);
+
+	wait (InputPlayer != Null);
+
+	Frame_Global.Visible = True;
+
+	declare netread K_BestTime Net_Lobby_BestTime for Teams[0];
+	declare netread Integer Net_Lobby_BestTime_Serial for Teams[0];
+	declare Integer Last_BestTime_Serial = -1;
+
+	declare netread K_BestStunt Net_Lobby_BestStunt for Teams[0];
+	declare netread Integer Net_Lobby_BestStunt_Serial for Teams[0];
+	declare Integer Last_BestStunt_Serial = -1;
+
+	while (True) {
+		yield;
+
+		if (Last_BestTime_Serial != Net_Lobby_BestTime_Serial) {
+			Last_BestTime_Serial = Net_Lobby_BestTime_Serial;
+			
+			if (Net_Lobby_BestTime.PlayerName == "") {
+				Label_Time_Time.Value = "";
+				Label_Time_PlayerName.Value = "";
+			} else {
+				Label_Time_Time.Value = TL::TimeToText(Net_Lobby_BestTime.Time, True, True);
+				Label_Time_PlayerName.Value = "by "^ Net_Lobby_BestTime.PlayerName;
+			}
+		}
+		
+		if (Last_BestStunt_Serial != Net_Lobby_BestStunt_Serial) {
+			Last_BestStunt_Serial = Net_Lobby_BestStunt_Serial;
+			
+			if (Net_Lobby_BestStunt.PlayerName == "") {
+				Label_Stunt_FigureName.Value = "";
+				Label_Stunt_PlayerName.Value = "";
+			} else {
+				Label_Stunt_FigureName.Value = Net_Lobby_BestStunt.FigurePoints ^" points - "^ Net_Lobby_BestStunt.FigureName;
+				Label_Stunt_PlayerName.Value = "by "^ Net_Lobby_BestStunt.PlayerName;
+			}
+		}
+	}
+}
+--></script>
+</manialink>
+""";
+	Layers::Create(C_Manialink_Id, MLText);
+	Layers::SetType(C_Manialink_Id, CUILayer::EUILayerType::Normal);
+	Layers::Attach(C_Manialink_Id);
+}
