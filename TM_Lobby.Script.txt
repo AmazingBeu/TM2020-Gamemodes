@@ -101,15 +101,15 @@ Void SetManialink() {
 <frame id="frame-global" hidden="1" pos="0 90">
 	<frame pos="-71 0">
 		<quad size="45 15" bgcolor="000" opacity="0.5"/>
-		<label pos="22.5 -1.5" size="43 5" halign="center" textfont="GameFontBlack" textcolor="ffffff" textsize="2" textprefix="$i" text="BEST RACE TIME"/>
-		<label id="label-time-time" pos="22.5 -6" size="43 5" halign="center" textfont="GameFontExtraBold" textcolor="ffffff" textsize="1.5" text=""/>
-		<label id="label-time-playername" pos="22.5 -10" size="43 5" halign="center" textfont="GameFontSemiBold" textcolor="ffffff" textsize="1.5" text=""/>
+		<label pos="22.5 -2" size="43 5" halign="center" textfont="GameFontBlack" textcolor="ffffff" textsize="2" textprefix="$i" text="BEST RACE TIME"/>
+		<label id="label-time-time" pos="22.5 -6.5" size="43 5" halign="center" textfont="GameFontExtraBold" textcolor="ffffff" textsize="1.2" text=""/>
+		<label id="label-time-playername" pos="22.5 -10" size="43 5" halign="center" textfont="GameFontSemiBold" textcolor="ffffff" textsize="1.2" text=""/>
 	</frame>
 	<frame pos="29 0">
 		<quad size="45 15" bgcolor="000" opacity="0.5"/>
-		<label pos="22.5 -1.5" size="43 5" halign="center" textfont="GameFontBlack" textcolor="ffffff" textsize="2" textprefix="$i" text="BEST STUNT FIGURE"/>
-		<label id="label-stunt-figurename" pos="22.5 -6" size="43 5" halign="center" textfont="GameFontExtraBold" textcolor="ffffff" textsize="1.5" text=""/>
-		<label id="label-stunt-playername" pos="22.5 -10" size="43 5" halign="center" textfont="GameFontSemiBold" textcolor="ffffff" textsize="1.5" text=""/>
+		<label pos="22.5 -2" size="43 5" halign="center" textfont="GameFontBlack" textcolor="ffffff" textsize="2" textprefix="$i" text="BEST STUNT FIGURE"/>
+		<label id="label-stunt-figurename" pos="22.5 -6.5" size="43 5" halign="center" textfont="GameFontExtraBold" textcolor="ffffff" textsize="1.2" text=""/>
+		<label id="label-stunt-playername" pos="22.5 -10" size="43 5" halign="center" textfont="GameFontSemiBold" textcolor="ffffff" textsize="1.2" text=""/>
 	</frame>
 </frame>
 <script><!--
