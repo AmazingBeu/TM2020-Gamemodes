@@ -57,7 +57,7 @@ foreach (Event in PendingEvents) {
 
 	switch (Event.Type) {
 		case CSmModeEvent::EType::OnPlayerTriggersWaypoint: {
-			if (Event.IsFinish && (Net_Lobby_BestTime.Time == 0 || Net_Lobby_BestTime.Time < Event.WaypointTime)) {
+			if (Event.IsFinish && (Net_Lobby_BestTime.Time == 0 || Net_Lobby_BestTime.Time > Event.WaypointTime)) {
 				
 				Net_Lobby_BestTime = K_BestTime {
 					PlayerName = Event.Player.User.Name,
