@@ -2,7 +2,7 @@
 // #RequireContext CSmMode
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2024-07-29"
+#Const	Version							"2024-08-12"
 #Const	ScriptName					"Modes/TM2020-Gamemodes/TM_RoundsThenTimeattack.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -79,6 +79,7 @@ StateMgr::Unload();
 ***Match_Settings***
 ***
 MB_Settings_UseDefaultHud = (C_HudModulePath == "");
+MB_Settings_UseDefaultRespawnBehaviour = False;
 ***
 
 ***Match_Rules***
@@ -192,6 +193,8 @@ StateMgr::ForcePlayersStates([StateMgr::C_State_Playing]);
 Round_IsTimeAttack = (Map_ValidRoundsNb + 1 >= S_RoundsPerMap);
 
 if (Round_IsTimeAttack) {
+		Race::SetRespawnBehaviour(Race::C_RespawnBehaviour_GiveUpBeforeFirstCheckpoint);
+
     Round_TimeLimit = S_TimeLimit;
     StartTime = Now + Race::C_SpawnDuration;
     SetTimeLimit(StartTime, S_TimeLimit);
@@ -204,6 +207,8 @@ if (Round_IsTimeAttack) {
 
     UIModules_ScoresTable::SetScoreMode(UIModules_ScoresTable::C_Mode_PrevTime);
 } else {
+		Race::SetRespawnBehaviour(Race::C_RespawnBehaviour_NeverGiveUp);
+
     UIModules_Server::Private_CustomizableModule_SetProperties("Rounds_SmallScoresTable", UIModules_Common::K_ModuleProperties {
 		Position = <-158.5, 40.>,
 		Scale = 1.,
