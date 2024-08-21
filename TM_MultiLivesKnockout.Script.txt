@@ -1,0 +1,1605 @@
+/**
+ *	Multi Lives Knockout mode
+ */
+#Extends "Modes/Nadeo/Trackmania/Base/TrackmaniaRoundsBase.Script.txt"
+
+#Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
+#Const	Version							"2024-08-21"
+#Const	ScriptName					"Modes/TM2020-Gamemodes/TM_MultiLivesKnockout.Script.txt"
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+// MARK: Libraries
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+#Include "TextLib" as TL
+#Include "MathLib" as ML
+#Include "Libs/Nadeo/CMGame/Utils/Semver.Script.txt" as Semver
+#Include "Libs/Nadeo/CMGame/Utils/Utils.Script.txt" as CommonUtils
+#Include "Libs/Nadeo/Trackmania/Modes/Knockout/StateManager.Script.txt" as StateMgr
+#Include "Libs/Nadeo/Trackmania/MainMenu/Constants.Script.txt" as MenuConsts
+#Include "Libs/Nadeo/TMGame/Utils/Tracking.Script.txt" as Tracking
+#Include "Libs/Nadeo/Trackmania/Modes/Knockout/UIModules/KnockoutInfo_Server.Script.txt" as UIModules_KnockoutInfo
+#Include "Libs/Nadeo/Trackmania/Modes/TimeAttack/UIModules/BestRaceViewer_Server.Script.txt" as UIModules_BestRaceViewer
+#Include "Libs/Nadeo/Trackmania/Modes/Knockout/UIModules/KnockedOutPlayers_Server.Script.txt" as UIModules_KnockedOutPlayers
+#Include "Libs/Nadeo/Trackmania/Modes/Knockout/UIModules/KnockoutReward_Server.Script.txt" as UIModules_KnockoutReward
+#Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/PauseMenuOnline_Server.Script.txt" as UIModules_PauseMenu_Online
+#Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/Checkpoint_Server.Script.txt" as UIModules_Checkpoint
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+// MARK: Settings
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+#Setting S_FinishTimeout 5 as _("Finish timeout")
+#Setting S_RoundsPerMap -1 as _("Number of rounds per track") ///< Number of round to play on one map before going to the next one
+#Setting S_WarmUpNb 0 as _("Number of warm up")
+#Setting S_WarmUpDuration 0 as _("Duration of one warm up")
+#Setting S_WarmUpTimeout -1 as _("Warm up timeout")
+#Setting S_ChatTime 6
+#Setting S_EnableJoinLeaveNotifications False
+//L16N [Knockout] Setting for the KO mode, for example if the setting is "4,16,16" it means : "4 players eliminated per round until 16 players are left (16 is written twice, so two extra players are eliminated), then 2 players eliminated per round until 4 players are left (one extra player), then 1 player eliminated per round (default)".
+#Setting S_EliminatedPlayersNbRanks "4,16,16" as _("Nb of players above which one extra elim. /round")
+#Setting S_RoundsWithoutElimination 1 as _("Rounds without elimination")
+
+#Setting S_EliminatePerRounds False as "Eliminate par rounds instead of per players alive"
+#Setting S_MaximumLives 3
+#Setting S_MatchName "Final"
+
+/* About S_EliminatedPlayersNbRanks and S_EliminatePerRounds.
+ * If S_EliminatePerRounds is True, it will decrease the number of lose of life.
+ * Example : "8,16"
+ * Round 1 to 7 -> 3 eliminations per round
+ * Round 8 to 15 -> 2 eliminations per round
+ * Round 16 until the end -> 1 elimination per round
+ *
+ * Example : "8,16,16"
+ * Round 1 to 7 -> 4 eliminations per round
+ * Round 8 to 15 -> 3 eliminations per round
+ * Round 16 until the end -> 1 elimination per round
+ *
+ * Example : "0,8"
+ * Round 1 to 7 -> 3 eliminations per round
+ * Round 8 until the end -> 1 elimination per round
+ *
+ * Example : ""
+ * 1 elimination per round
+ * 
+ * If S_EliminatePerRounds is False, it will work like the official 
+ */
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+// MARK: Constants
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+#Const C_ModeName "Multi Lives Knockout"
+//L16N [Knockout] Description of the mode
+#Const Description _("$zIn $<$t$6F9Knockout$> mode, the goal is to be the last player standing. \n\nYou play a series of races as in Round mode. $<$t$6F9At the end of each race, the last players are eliminated$>!\n\nThe winner is the player who eliminates all of their opponents.")
+
+#Const C_HudModulePath "" //< Path to the hud module
+#Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/Trackmania/Modes/Knockout.Script.txt" //< Url of the mania app
+#Const C_FakeUsersNb 0
+
+#Const C_Callback_Elimination "Trackmania.Knockout.Elimination"
+#Const C_Callback_LostLife "Trackmania.Knockout.LostLife"
+
+#Const C_MlId_LiveRanking "MultiLivesKnockout.LiveRanking"
+
+
+// [Knockout] Time remaining before the first round begins (in seconds). %1 is a marker to apply typography. %2 is a digit. e.g. "Next round in 3s"
+#Const C_Text_NextRoundTimer _("%1Next round in %2s")
+
+#Const C_UploadRecord True
+#Const C_DisplayRecordGhost False
+#Const C_DisplayRecordMedal False
+#Const C_CelebrateRecordGhost True
+#Const C_CelebrateRecordMedal True
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+// MARK: Structures
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+#Struct K_Callback_Elimination {
+	Text[] accountids;
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+// MARK: Extends
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+***Match_LogVersions***
+***
+Log::RegisterScript(ScriptName, Version);
+Log::RegisterScript(Semver::ScriptName, Semver::Version);
+Log::RegisterScript(ModeUtils::ScriptName, ModeUtils::Version);
+Log::RegisterScript(StateMgr::ScriptName, StateMgr::Version);
+***
+
+***Match_LoadLibraries***
+***
+// Not used for now but can be useful for players
+XmlRpc::RegisterCallback(C_Callback_Elimination, """
+* Name: {{{C_Callback_Elimination}}}
+* Type: CallbackArray
+* Description: Callback sent at the end of each round with the accountid of eliminated players.
+* Data:
+	- Version >=2.0.0:
+	```
+	[
+		"{
+			"accountids": [
+				{
+					"45b9cf1e-3c97-4753-ac63-ac61b48b4bb7"
+				}
+			]
+		}"
+	]
+	```
+""");
+XmlRpc::RegisterCallback(C_Callback_LostLife, """
+* Name: {{{C_Callback_LostLife}}}
+* Type: CallbackArray
+* Description: Callback sent at the end of each round with the accountid of the players who lost a life.
+* Data:
+	- Version >=2.0.0:
+	```
+	[
+		"{
+			"accountids": [
+				{
+					"45b9cf1e-3c97-4753-ac63-ac61b48b4bb7"
+				}
+			]
+		}"
+	]
+	```
+""");
+
+StateMgr::Load();
+***
+
+***Match_UnloadLibraries***
+***
+StateMgr::Unload();
+
+XmlRpc::UnregisterCallback(C_Callback_Elimination);
+XmlRpc::UnregisterCallback(C_Callback_LostLife);
+***
+
+***Match_Settings***
+***
+MB_Settings_UseDefaultHud = (C_HudModulePath == "");
+MB_Settings_UseDefaultPodiumSequence = False;
+***
+
+***Match_Rules***
+***
+ModeInfo::SetName(C_ModeName);
+ModeInfo::SetType(ModeInfo::C_Type_FreeForAll);
+ModeInfo::SetRules(Description);
+ModeInfo::SetStatusMessage("");
+***
+
+***Match_LoadHud***
+***
+if (C_HudModulePath != "") Hud_Load(C_HudModulePath);
+***
+
+***Match_AfterLoadHud***
+***
+ClientManiaAppUrl = C_ManiaAppUrl;
+Race::SortScores(Race::C_Sort_TotalPoints);
+UIModules_TimeGap::SetTimeGapMode(UIModules_TimeGap::C_TimeGapMode_CurRace);
+UIModules_PauseMenu_Online::SetHelp(Description);
+UIModules_Checkpoint::SetVisibilityTimeDiff(False);
+UIModules_Checkpoint::SetRankMode(UIModules_Checkpoint::C_RankMode_CurrentRace);
+
+// Remove Default UI
+UIModules::UnloadModules([UIModules_KnockoutReward::C_Id, UIModules_KnockoutInfo::GetId()]);
+LoadManialinks();
+***
+
+***Match_Yield***
+***
+foreach (Event in PendingEvents) {
+	switch (Event.Type) {
+		// Initialize players when they join the server
+		case CSmModeEvent::EType::OnPlayerAdded: {
+			StateMgr::InitializePlayer(Event.Player);
+			CarRank::InitializePlayer(Event.Player);
+		}
+	}
+}
+
+// Manage XmlRpc events
+/**
+ * "Club.Match." callbacks are used by the official competition tool. Not used in community modes.
+ */
+/*foreach (Event in XmlRpc.PendingEvents) {
+	if (Event.Type == CXmlRpcEvent::EType::CallbackArray) {
+		if (Event.ParamArray1 == "Club.Match.Start") {
+			declare Boolean Match_SkipWarmup for This = False;
+			Match_SkipWarmup = True;
+		} else if (Event.ParamArray1 == "Club.Match.Completed") {
+			declare Boolean Match_SkipWarmup for This = False;
+			Match_SkipWarmup = False;
+		}
+	}
+}*/
+
+StateMgr::Yield();
+***
+
+***Match_StartServer***
+***
+// Initialize mode
+Clans::SetClansNb(0);
+Scores::SaveInScore(Scores::C_Points_Match);
+StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
+WarmUp::SetAvailability(True);
+
+Race::SetupRecord(
+	MenuConsts::C_ScopeType_Season,
+	MenuConsts::C_ScopeType_PersonalBest,
+	MenuConsts::C_GameMode_Knockout,
+	"",
+	C_UploadRecord,
+	C_DisplayRecordGhost,
+	C_DisplayRecordMedal,
+	C_CelebrateRecordGhost,
+	C_CelebrateRecordMedal
+);
+Race::UseAutomaticDossardColor(False);
+***
+
+***Match_InitMatch***
+***
+declare Integer Match_CurrentRoundNb;
+declare Boolean Match_RegistrationIsOpen;
+
+***
+
+***Match_StartMatch***
+***
+Match_CurrentRoundNb = 0;
+Match_RegistrationIsOpen = True;
+
+foreach (Score in Scores) {
+	declare netwrite Boolean Net_MultiLivesKnockout_IsRegistered for Score;
+	Net_MultiLivesKnockout_IsRegistered = False;
+
+	declare netwrite Integer Net_MultiLivesKnockout_ConsumedLives for Score;
+	Net_MultiLivesKnockout_ConsumedLives = 0;
+}
+UpdateCustomRanking(False);
+DisplayLiveRanking(False);
+***
+
+***Match_InitMap***
+***
+UpdateMatchInfos(Match_CurrentRoundNb);
+UpdateCustomRanking(False);
+UIModules_ScoresTable::SetScoreMode(UIModules_ScoresTable::C_Mode_PrevTime);
+***
+
+***Match_StartMap***
+***
+// Add bot when necessary
+Users_SetNbFakeUsers(C_FakeUsersNb, 0);
+
+CarRank::Reset();
+
+// Warm up
+if (S_WarmUpNb > 0) {
+	UpdateInterfacesInfo(-1);	
+	foreach (Score in Scores) {
+		WarmUp::CanPlay(Score, (Match_RegistrationIsOpen || ScoreIsAlive(Score)));
+	}
+
+	MB_WarmUp(S_WarmUpNb, S_WarmUpDuration * 1000, S_WarmUpTimeout * 1000);
+	UpdateInterfacesInfo(Match_CurrentRoundNb);	
+}
+
+UpdateCustomRanking(False);
+***
+
+***Match_InitRound***
+***
+declare Integer Round_LossOfLifeNb;
+declare Boolean Round_NeedInfoDisplayUpdate;
+***
+
+***Rounds_CanSpawn***
+***
+// Register new players while registration are open
+if (Match_RegistrationIsOpen) {
+	foreach(Player in Players) {
+		if (!ScoreIsRegistered(Player.Score)) RegisterScore(Player.Score);
+	}
+}
+
+Match_CurrentRoundNb += 1;
+declare Integer AliveScoresNb = GetAliveScoresNb();
+Round_LossOfLifeNb = GetLossOfLifeNb(Match_CurrentRoundNb, AliveScoresNb);
+if (Round_LossOfLifeNb <= 0) {
+	CarRank::ResetRanksColors();
+} else {
+	CarRank::SetRanksColors([
+		1 => Race::C_DossardColor_Default,
+		AliveScoresNb - Round_LossOfLifeNb + 1 => <0.7, 0., 0.>
+	]);
+}
+
+UpdateInterfacesInfo(Match_CurrentRoundNb, Round_LossOfLifeNb, AliveScoresNb);
+
+declare Text ObjectiveMessage = "";
+if (Round_LossOfLifeNb > 1) {
+	//L16N [Knockout] Announce the number of players that will be eliminated at the end of the round. %1 will be replaced by a number greater than 1. eg: "2 players will be eliminated".
+	ObjectiveMessage = TL::Compose("%1 players will lose a life", "$t$i$fff"^TL::ToText(Round_LossOfLifeNb));
+} else if (Round_LossOfLifeNb == 1){
+	//L16N [Knockout] Announce the number of players that will be eliminated at the end of the round. %1 will be replaced by the digit 1. eg: "1 player will be eliminated".
+	ObjectiveMessage = TL::Compose("%1 player will lose a life", "$t$i$fff"^TL::ToText(Round_LossOfLifeNb));
+} else {
+	//L16N [Knockout] Announce the number of players that will be eliminated at the end of the round. %1 will be replaced by a marker for Typography
+	ObjectiveMessage = TL::Compose("%1No loss of life this round", "$t$i$fff");
+}
+UIModules_BigMessage::SetMessage(ObjectiveMessage, 5500);
+UIModules_BigMessage::SetOffset(<0., -40.>);
+
+// Knockout 3, 2, 1
+UIManager.UIAll.BigMessageSound = CUIConfig::EUISound::Default;
+UIManager.UIAll.BigMessageSoundVariant = 0;
+MB_Sleep(1000);
+UIManager.UIAll.BigMessage = TL::Compose(C_Text_NextRoundTimer, "$i$t", "3");
+MB_Sleep(1000);
+UIManager.UIAll.BigMessage = TL::Compose(C_Text_NextRoundTimer, "$i$t", "2");
+MB_Sleep(1000);
+UIManager.UIAll.BigMessage = TL::Compose(C_Text_NextRoundTimer, "$i$t", "1");
+MB_Sleep(1000);
+UIManager.UIAll.BigMessage = "";
+StartTime = Now + Race::C_SpawnDuration;
+
+// Set spawn permission
+foreach (Score in Scores) {
+	declare Boolean ModeRounds_CanSpawn for Score = True;
+	ModeRounds_CanSpawn = ScoreIsAlive(Score);
+}
+***
+
+***Match_StartRound***
+***
+// Update UI
+UIModules_BestRaceViewer::SetPrevDisplay(False);
+
+UpdateLiveRanking();
+DisplayLiveRanking(True);
+UpdateCustomRanking(True);
+UpdateInterfacesInfo(Match_CurrentRoundNb);
+Round_NeedInfoDisplayUpdate = False;
+
+StateMgr::ForcePlayersStates([StateMgr::C_State_Playing]);
+***
+
+***Rounds_PlayerSpawned***
+***
+CarRank::ThrottleUpdate(CarRank::C_SortCriteria_CurrentRace);
+***
+
+***Rounds_PlayLoopSpawnPlayers***
+***
+// Spawn allowed players
+foreach (Player in Players) {
+	if (Player.Score == Null) continue;
+
+	declare Boolean ModeRounds_CanSpawn for Player.Score = True;
+
+	if (Match_RegistrationIsOpen && !ScoreIsRegistered(Player.Score)) {
+		RegisterScore(Player.Score);
+		ModeRounds_CanSpawn = ScoreIsAlive(Player.Score);
+	}
+
+	if (MB_RoundIsRunning() && Race::IsReadyToStart(Player) && ModeRounds_CanSpawn && ScoreIsAlive(Player.Score)) {
+		Race::Start(Player, StartTime);
+		ModeRounds_CanSpawn = False;
+		Round_NeedInfoDisplayUpdate = True;	
+		+++Rounds_PlayerSpawned+++
+	}
+}
+if (Round_NeedInfoDisplayUpdate) {
+	UpdateCustomRanking(True);
+	UpdateInterfacesInfo(Match_CurrentRoundNb);
+	Round_NeedInfoDisplayUpdate = False;
+}
+***
+
+***Match_PlayLoop***
+***
+foreach (Event in PendingEvents) {
+	if (Event.Type == CSmModeEvent::EType::OnPlayerAdded) {
+		if (Event.Player != Null) {
+			UIModules_BestRaceViewer::SetPrevDisplay(Event.Player, False);
+		}
+	}
+}
+
+// Manage race events
+declare Events::K_RaceEvent[] RacePendingEvents = Race::GetPendingEvents();
+foreach (Event in RacePendingEvents) {
+	Race::ValidEvent(Event);
+	UpdateLiveRanking();
+
+	// Waypoint
+	if (Event.Type == Events::C_Type_Waypoint) {
+		CarRank::ThrottleUpdate(CarRank::C_SortCriteria_CurrentRace);
+		if (Event.Player != Null) {
+			if (Event.IsEndRace) {
+				Scores::UpdatePlayerPrevRace(Event.Player);
+				Scores::UpdatePlayerBestRaceIfBetter(Event.Player);
+				Scores::UpdatePlayerBestLapIfBetter(Event.Player);
+
+				// Start the countdown if it's the first player to finish
+				if (EndTime <= 0) {
+					EndTime = GetFinishTimeout();
+				}
+
+				UIModules_BestRaceViewer::SetPrevDisplay(Event.Player, True);
+				UpdateCustomRanking(True);
+			}
+			if (Event.IsEndLap) {
+				Scores::UpdatePlayerBestLapIfBetter(Event.Player);
+			}
+		}
+	}
+}
+
+// Manage mode events
+foreach (Event in PendingEvents) {
+	if (Event.HasBeenPassed || Event.HasBeenDiscarded) continue;
+	Events::Invalid(Event);
+}
+***
+
+***Match_EndRound***
+***
+Race::StopSkipOutroAll();
+EndTime = -1;
+StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
+CarRank::Update(CarRank::C_SortCriteria_CurrentRace);
+
+if (Semver::Compare(XmlRpc::GetApiVersion(), ">=", "2.1.1")) {
+	Scores::XmlRpc_SendScores(Scores::C_Section_PreEndRound, "");
+}
+
+DisplayLiveRanking(False);
+
+declare Text[] LostLifeAccountIds;
+declare Text[] EliminatedAccountIds;
+declare Integer[] EliminatedRanks;
+
+if (Round_ForceEndRound || Round_SkipPauseRound) {
+	// Cancel points
+	foreach (Score in Scores) {
+		Scores::SetPlayerRoundPoints(Score, 0);
+	}
+	// Do not launch the forced end round sequence after a pause
+	if (!Round_SkipPauseRound) {
+		ForcedEndRoundSequence();
+	}
+	MB_SetValidRound(False);
+} else {
+	// Eliminate players that did not finish in time
+	declare Ident[] EliminatedPlayersScoresIds = []; // Score.Id
+
+	if (Match_CurrentRoundNb > S_RoundsWithoutElimination) {
+		// Close registrations. Players can join the game any time during no elimination rounds
+		Match_RegistrationIsOpen = False;
+
+		// Eliminate last players
+		Race::SortScores(Race::C_Sort_PrevRaceTime);
+		declare Integer ParticipantsNb = GetParticipantsNb();
+		declare Integer AliveScoresNb = GetAliveScoresNb();
+		declare Integer LossOfLifeNb = GetLossOfLifeNb(Match_CurrentRoundNb, AliveScoresNb);
+		declare Integer Rank = AliveScoresNb;
+		
+		foreach (Score in GetPrevRaceRanking() reverse) {
+			if (Score.User == Null) continue;
+			if (!ScoreIsAlive(Score)) continue;
+			if (Scores::GetPlayerPrevRaceTime(Score) > 0 && LossOfLifeNb <= 0) {
+				break;
+			}
+
+			ConsumeLife(Score);
+			LostLifeAccountIds.add(Score.User.WebServicesUserId);
+
+			if (!ScoreIsAlive(Score)) {
+				Scores::SetPlayerMatchPoints(Score, ParticipantsNb - Rank);
+				EliminatedAccountIds.add(Score.User.WebServicesUserId);
+				EliminatedRanks.add(Rank);
+
+				Rank -= 1;
+			}
+			
+			LossOfLifeNb -= 1;
+		}
+	}
+
+	declare K_Callback_Elimination Callback_LostLife;
+	foreach(AccountId in LostLifeAccountIds) {
+		Callback_LostLife.accountids.add(AccountId);
+	}
+	XmlRpc::SendCallback(C_Callback_LostLife, [Callback_LostLife.tojson()]);
+
+
+	// Send Trophies, uses EliminatedAccountIds array
+	+++Match_EndRound_AfterComputeScores+++
+
+	UpdateCustomRanking(True);
+	UpdateMatchInfos(Match_CurrentRoundNb);
+
+	// The UI display "no elimination during the FIRST round" when no elimination. So to prevent confusion, i disable it
+	if (EliminatedAccountIds.count > 0) {
+		UIModules_KnockedOutPlayers::DisplayContent(True);
+		UIModules_KnockedOutPlayers::DisplayEliminatedPlayer(EliminatedAccountIds, EliminatedRanks);
+		declare Integer PagesToShow = EliminatedAccountIds.count/4;
+		if (EliminatedAccountIds.count%4 != 0) PagesToShow += 1;
+		MB_Sleep(ML::Max(1100 + 350*EliminatedAccountIds.count + 1600*PagesToShow + 250, 6000 + 250));
+		UIModules_KnockedOutPlayers::DisplayEliminatedPlayer([], []);
+		UIModules_KnockedOutPlayers::DisplayContent(False);
+		declare K_Callback_Elimination Callback_Elimination;
+		foreach(AccountId in EliminatedAccountIds) {
+			Callback_Elimination.accountids.add(AccountId);
+		}
+		XmlRpc::SendCallback(C_Callback_Elimination, [Callback_Elimination.tojson()]);
+	}
+
+	if (MapIsOver(Match_CurrentRoundNb)) {
+		MB_StopMap();
+	} else {
+		UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
+		MB_Sleep(S_ChatTime / 2 * 1000);
+		UpdateCustomRanking(False);
+		MB_Sleep(S_ChatTime / 2 * 1000);
+		UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
+	}
+}
+***
+
+***Match_EndMap***
+***
+if (MatchIsOver(Match_CurrentRoundNb)) {
+	MB_StopMatch();
+} else {
+	MB_Sleep(2500);
+}
+
+if (!MB_MapIsRunning() && MB_MatchIsRunning()) MB_SkipPodiumSequence();
+
+Race::SortScores(Race::C_Sort_TotalPoints);
+Scores::SetPlayerWinner(Scores::GetBestPlayer(Scores::C_Sort_MatchPoints));
+***
+
+***Match_PodiumSequence***
+***
+if (!MB_Private_SkipPodiumSequence) {
+	ModeUtils::PlaySound(CUIConfig::EUISound::EndRound, 0);
+
+	declare CSmScore WinnerScore <=> Scores::GetPlayerWinner();
+	if (WinnerScore == Null) {
+		UIModules_BigMessage::SetMessage(_("|Match|Draw"));
+	} else {
+		UIModules_BigMessage::SetMessage(_("$<%1$> wins the match!"), WinnerScore.User.WebServicesUserId);
+	}
+
+	declare CUIConfig::EUISequence PrevUISequence = UIManager.UIAll.UISequence;
+	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Podium;
+	MB_Private_Sleep(10000);
+	UIModules_BigMessage::SetMessage("");
+	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
+	MB_Private_Sleep((S_ChatTime*1000));
+	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
+	UIManager.UIAll.UISequence = PrevUISequence;
+}
+***
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+// MARK: Functions
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/** Init player at the beginning of the match
+ *
+ *	@param	_Player							Player to init
+ */
+Void RegisterScore(CSmScore _Score) {
+	declare netwrite Boolean Net_MultiLivesKnockout_IsRegistered for _Score;
+	Net_MultiLivesKnockout_IsRegistered = True;
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/** Whether the player is registered or not
+ *
+ *	@return									True if the player is registered
+ *													False Otherwise
+ */
+Boolean ScoreIsRegistered(CSmScore _Score) {
+	declare netwrite Boolean Net_MultiLivesKnockout_IsRegistered for _Score;
+	return Net_MultiLivesKnockout_IsRegistered;
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/** Whether the player has been eliminated or not
+ *
+ *	@return									True if the player has been eliminated
+ *													False Otherwise
+ */
+Boolean ScoreIsAlive(CSmScore _Score) {
+	if (_Score == Null) return False;
+
+	if (!ScoreIsRegistered(_Score)) return False;
+
+	declare netwrite Integer Net_MultiLivesKnockout_ConsumedLives for _Score;
+	if (Net_MultiLivesKnockout_ConsumedLives >= S_MaximumLives) return False;
+
+	return True;
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/** Number of scores registred
+ *
+ *  @param														_Score
+ *	@return														Number of Lives
+ */
+Integer GetScoreRemainingLives(CSmScore _Score) {
+	if (_Score == Null) return 0;
+	if (!ScoreIsAlive(_Score)) return 0;
+
+	declare netwrite Integer Net_MultiLivesKnockout_ConsumedLives for _Score;
+	return S_MaximumLives - Net_MultiLivesKnockout_ConsumedLives;
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/** Consume life of a Score
+ *
+ *	@param														_Score
+ */
+Void ConsumeLife(CSmScore _Score) {
+	if (_Score == Null) return;
+	declare netwrite Integer Net_MultiLivesKnockout_ConsumedLives for _Score;
+	Net_MultiLivesKnockout_ConsumedLives += 1;
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/** Number of scores registred
+ *
+ *	@return														Number of scores registred
+ */
+Integer GetParticipantsNb() {
+	declare Integer ParticipantsNb;
+	foreach (Score in Scores) {
+		if (!ScoreIsRegistered(Score)) continue;
+
+		ParticipantsNb += 1;
+	}
+	return ParticipantsNb;
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/** Number of players still playing
+ *
+ *	@return														Number of players still playing
+ */
+Integer GetAliveScoresNb() {
+	declare Integer AliveScoresNb;
+	foreach (Score in Scores) {
+		if (!ScoreIsAlive(Score)) continue;
+
+		AliveScoresNb += 1;
+	}
+	return AliveScoresNb;
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/** Compute Lose of Life Milestones
+ *
+ *	@return														Array of each milestone
+ */
+Integer[] GetAllMilestones() {
+	declare Text[] Text_Milestones = TL::Split(",", S_EliminatedPlayersNbRanks);
+	declare Integer[] Milestones = [ 1 ];
+	foreach (Text_Milestone in Text_Milestones) {
+		declare Integer Milestone = TL::ToInteger(Text_Milestone);
+		if (Milestone > 0) Milestones.add(Milestone);
+		else if (Milestone == 0) Milestones.add(1);
+	}
+	return Milestones;
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/** Get next milestone of loss of life
+ *
+ *	@param	_RoundNb									Round Number
+ *	@param	_AliveScoresNb						Number of players still playing
+ *	@return														next milestone value
+ */
+Integer GetNextMilestone(Integer _RoundNb, Integer _AliveScoresNb) {
+	if (_AliveScoresNb <= 0) return 0;
+	declare Integer[] Milestones = GetAllMilestones();
+
+	declare Integer NextMilestone = 0;
+	foreach (Milestone in Milestones) {
+		if (S_EliminatePerRounds && Milestone > _RoundNb) {
+			NextMilestone = Milestone;
+			break;
+		} else if (!S_EliminatePerRounds && Milestone < _AliveScoresNb) { // could be optimized but can change original behavior
+			NextMilestone = Milestone;
+		}
+	}
+	return NextMilestone;
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/** Number of players that will lose a life this round
+ *
+ *	@param	_RoundNb									Round Number
+ *	@param	_AliveScoresNb						Number of players still playing
+ *	@return														Number of eliminations this round
+ */
+Integer GetLossOfLifeNb(Integer _RoundNb, Integer _AliveScoresNb) {
+	if (_AliveScoresNb <= 1) return 0;
+	if (_RoundNb <= S_RoundsWithoutElimination) return 0;
+	declare Integer[] Milestones = GetAllMilestones();
+
+	declare Integer NumberOfElimination;
+
+	if (S_EliminatePerRounds) {
+		Milestones = Milestones.slice(1);
+		NumberOfElimination = 1;
+		foreach (Milestone in Milestones) {
+			if (Milestone > _RoundNb) {
+				NumberOfElimination += 1;
+			}
+		}
+	} else {
+		declare Integer RoundMinEliminations = Milestones.count + 1;
+		foreach (Index => Milestone in Milestones) {
+			if (Milestone < _AliveScoresNb) {
+				RoundMinEliminations = Index + 1;
+			}
+		}
+		NumberOfElimination = RoundMinEliminations;
+	}
+
+	return ML::Min(NumberOfElimination, _AliveScoresNb-1);
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/// Get the scores ranked by previous race time
+CSmScore[] GetPrevRaceRanking() {
+	declare Integer[][Ident] ScoreIdsToSortByWaypointTimes;
+	foreach (Score in Scores) {
+		ScoreIdsToSortByWaypointTimes[Score.Id] = CommonUtils::ToScriptArray(Score.PrevRaceTimes);
+	}
+
+	declare Ident[][Integer] ScoreIdsSortedByWaypointTimes = Scores::SortIdsByWaypointTimes(ScoreIdsToSortByWaypointTimes);
+	declare CSmScore[] SortedScores;
+	foreach (WaypointTimesScoreIds in ScoreIdsSortedByWaypointTimes) {
+		declare Ident[][] ScoreIdsSortedByPoints;
+		if (WaypointTimesScoreIds.count <= 1) {
+			ScoreIdsSortedByPoints = [WaypointTimesScoreIds];
+		} else {
+			declare Integer[Ident] ScoreIdsToSortByPoints;
+			foreach (ScoreId in WaypointTimesScoreIds) {
+				ScoreIdsToSortByPoints[ScoreId] = Scores::GetPlayerMatchPoints(Scores[ScoreId]);
+			}
+			ScoreIdsSortedByPoints = Scores::SortIdsByPoints(ScoreIdsToSortByPoints, Scores::C_Order_Descending, 0);
+		}
+		foreach (PointsScoreIds in ScoreIdsSortedByPoints) {
+			foreach (ScoreId in PointsScoreIds) {
+				SortedScores.add(Scores[ScoreId]);
+			}
+		}
+	}
+
+	return SortedScores;
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/** Return the number of the remaining lives in text format, with heart symbol if possible
+ *
+ *	@param	_Score								Player's score
+ *	@return												True if player finished race
+ */
+Text GetScoreRemainingLivesText(CSmScore _Score) {
+	declare Integer RemainingLives = GetScoreRemainingLives(_Score);
+
+	// Use text if too much lives
+	if (S_MaximumLives > 5) {
+		if (RemainingLives == 1) return "1 life";
+		else return RemainingLives ^" lives";
+	}
+
+	declare Text Result = " ";
+	for (I, 1, S_MaximumLives - RemainingLives) {
+		Result ^= " ";
+	}
+
+	for (I, 1, RemainingLives) {
+		Result ^= " ";
+	}
+
+	/*
+	 * To reduce height of the hearts symbols, we add spaces around them to make the length of the CMlText too long,
+	 * to force the ScoresTable ML to fit the text. It's weird but it's pretty.
+	 */
+	switch (TL::Length(Result)) {
+		case 3: Result  = "             "^ Result ^"             ";
+		case 5: Result  = "          "^ Result ^"          ";
+		case 7: Result  = "        "^ Result ^"        ";
+		case 9: Result  = "      "^ Result ^"      ";
+		case 11: Result = "   "^ Result ^"   ";
+	}
+
+	return Result;
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/** Update the Scores Table with hidden custom points
+ *
+ *	@param	_DisplayTimes							Display Player Time instead of their Lives
+ */
+Void UpdateCustomRanking(Boolean _DisplayTimes) {
+	declare Text[] AccountIdsToDisplay = [];
+	declare Text[][Text] CustomPoints = [];
+	declare Integer[Text] CustomTimes = [];
+
+	declare Integer ParticipantsNb = GetParticipantsNb();
+	declare Integer AliveScoresNb = GetAliveScoresNb();
+
+	foreach (Index => Score in GetPrevRaceRanking() reverse) {
+		if (Score == Null) continue;
+		if (Score.User == Null) continue;
+		if (!ScoreIsRegistered(Score)) continue;
+		AccountIdsToDisplay.add(Score.User.WebServicesUserId);
+		if (!ScoreIsAlive(Score)) continue;
+
+		Scores::SetPlayerMatchPoints(Score, Scores.count + ParticipantsNb - Index); 
+		if (_DisplayTimes && Score.PrevRaceTimes.count == 0) {
+			CustomTimes[Score.User.WebServicesUserId] = 0; //@ prev race is updated automatically at the moment (22/10/20) so we need to use this
+		} else if (!_DisplayTimes) {
+			CustomPoints[Score.User.WebServicesUserId] = [GetScoreRemainingLivesText(Score)];
+		}
+		if (AliveScoresNb == 1 && ParticipantsNb > 1) {
+			CustomPoints[Score.User.WebServicesUserId] = [_("|Status|Winner"), "0f0"];
+		}
+	}
+
+	declare Integer Rank = 1;
+	declare Text[Text] CustomRanks = [];
+	Race::SortScores(Race::C_Sort_TotalPoints);
+	foreach (Score in Scores) {
+		if (ScoreIsAlive(Score)) {
+			CustomRanks[Score.User.WebServicesUserId] = "-";
+		}	else if (ScoreIsRegistered(Score)) {
+			CustomRanks[Score.User.WebServicesUserId] = ""^Rank;
+			CustomPoints[Score.User.WebServicesUserId] = [_("|Status|K.O."), "f00"];
+		}
+		Rank += 1;
+	}
+
+	UIModules_ScoresTable::SetCustomRanks(CustomRanks);
+	UIModules_ScoresTable::DisplayOnly(AccountIdsToDisplay); // Display only registered players
+	UIModules_ScoresTable::SetCustomPoints(CustomPoints);
+	UIModules_ScoresTable::SetCustomTimes(CustomTimes);
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/** Get the time left to the players to finish the round after the first player
+ *
+ *	@return 		The time left in ms
+ */
+Integer GetFinishTimeout() {
+	declare Integer FinishTimeout = 0;
+
+	if (S_FinishTimeout >= 0) {
+		FinishTimeout = S_FinishTimeout * 1000;
+	} else {
+		FinishTimeout = 5000;
+		if (Map.TMObjective_IsLapRace && Race::GetLapsNb() > 0 && Map.TMObjective_NbLaps > 0) {
+			FinishTimeout += ((Map.TMObjective_AuthorTime / Map.TMObjective_NbLaps) * Race::GetLapsNb()) / 6;
+		} else {
+			FinishTimeout += Map.TMObjective_AuthorTime / 6;
+		}
+	}
+
+	return Now + FinishTimeout;
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/** Check if we should go to the next match
+ *
+ *	@param _RoundNb		Current round number
+ *	@return						True if it is the case, false otherwise
+ */
+Boolean MatchIsOver(Integer _RoundNb) {
+	if (_RoundNb <= S_RoundsWithoutElimination || GetAliveScoresNb() > 1) return False;
+
+	return True;
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/** Check if we should go to the next map
+ *
+ *	@param _RoundNb		Current round number
+ *	@return						True if it is the case, false otherwise
+ */
+Boolean MapIsOver(Integer _RoundNb) {
+	if (MatchIsOver(_RoundNb)) return True;
+	if (S_RoundsPerMap > 0 && MB_GetRoundCount() >= S_RoundsPerMap) return True; //< There is a rounds limit and it is reached
+
+	return False;
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/// Update LiveRanking
+Void UpdateLiveRanking() {
+	declare netwrite Integer Net_MultiLivesKnockout_LiveRanking_Serial for Teams[0];
+	Net_MultiLivesKnockout_LiveRanking_Serial += 1;
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/// Update LiveRanking Info
+Void UpdateLiveRankingInfo() {
+	declare netwrite Integer Net_MultiLivesKnockout_LiveRanking_Info_Serial for Teams[0];
+	Net_MultiLivesKnockout_LiveRanking_Info_Serial += 1;
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/// Update LiveRanking
+Void DisplayLiveRanking(Boolean _Display) {
+	declare netwrite Boolean Net_MultiLivesKnockout_LiveRanking_Display for Teams[0] = False;
+	Net_MultiLivesKnockout_LiveRanking_Display = _Display;
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/** Update the Match Info UI and scores table footer text
+ *
+ *	@param	_CurrentRoundNb							Current Round Number
+ *	@param	_LossOfLife									Number of loss of life
+ *	@param	_AliveScoresNb							Number of Alive scores
+ *	@param	_Milestone									Next Milestone
+ */
+Void UpdateMatchInfos(Integer _CurrentRoundNb, Integer _LossOfLife, Integer _AliveScoresNb, Integer _Milestone) {
+	declare Text MatchInfo = "";
+	declare Text ScoreTablesInfo = "";
+	if (MatchIsOver(_CurrentRoundNb)) {
+		MatchInfo = _("Match is over");
+		ScoreTablesInfo = _("Match is over");
+	} else {
+		ScoreTablesInfo = _AliveScoresNb ^" Players racing";
+
+
+		if (S_RoundsPerMap > 0) {
+			declare Integer MapNumber = MB_GetMapCount() % MapList.count;
+			if (MapNumber == 0) MapNumber = 3;
+
+			if (_CurrentRoundNb == -1) MatchInfo = "Warm Up";
+			else if (S_EliminatePerRounds) MatchInfo = "Match Round "^ _CurrentRoundNb ^ " - Round "^ ML::Max(MB_GetRoundCount(), 1) ^"/"^ S_RoundsPerMap ^" of Map "^ MapNumber ^"/"^ MapList.count;
+			else MatchInfo = "Round "^ ML::Max(MB_GetRoundCount(), 1) ^"/"^ S_RoundsPerMap ^ " - Map "^ MapNumber ^"/"^ MapList.count;
+		} else if (_CurrentRoundNb == -1) {
+			MatchInfo = "Warm Up";
+		} else {
+			MatchInfo = "Round "^ ML::Max(_CurrentRoundNb, 1);
+		}
+		ScoreTablesInfo ^= "\n"^ MatchInfo;
+
+		if (_LossOfLife == 0) {
+			MatchInfo ^= "\nNo loss of life";
+			ScoreTablesInfo ^= "\nNo loss of life this round";
+		} else if (S_EliminatePerRounds && _LossOfLife > 1 && _Milestone > 1) {
+			MatchInfo ^= "\n"^ _LossOfLife ^" lose of life until Match Round "^ _Milestone;
+			ScoreTablesInfo ^= "\n"^ _LossOfLife ^" players will lose a life until Match Round "^ _Milestone;
+		} else if (!S_EliminatePerRounds && _LossOfLife > 1 && _Milestone > 1) {
+			MatchInfo ^= "\n"^ _LossOfLife ^" lose of life until "^ _Milestone ^" players are alive";
+			ScoreTablesInfo ^= "\n"^ _LossOfLife ^" players will lose a life until "^ _Milestone ^" players are alive";
+		} else if (_LossOfLife > 1) {
+			MatchInfo ^= "\n"^ _LossOfLife ^" lose of life";
+			ScoreTablesInfo ^= "\n"^ _LossOfLife ^" player will lose a life per round";
+		} else {
+			MatchInfo ^= "\n1 lose of life";
+			ScoreTablesInfo ^= "\n1 player will lose a life";
+		}
+	}
+
+	UIModules_ScoresTable::SetFooterInfo(ScoreTablesInfo);
+
+	declare netwrite Text Net_MultiLivesKnockout_LiveRanking_MatchInfo for Teams[0];
+	Net_MultiLivesKnockout_LiveRanking_MatchInfo = MatchInfo;
+
+	UpdateLiveRankingInfo();
+}
+
+Void UpdateMatchInfos(Integer _CurrentRoundNb) {
+	declare Integer AliveScoresNb = GetAliveScoresNb();
+	UpdateMatchInfos(_CurrentRoundNb, GetLossOfLifeNb(_CurrentRoundNb, AliveScoresNb), AliveScoresNb, GetNextMilestone(_CurrentRoundNb, AliveScoresNb));
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+// Update Match Name
+Void UpdateMatchName() {
+	declare netwrite Text Net_MultiLivesKnockout_LiveRanking_MatchName for Teams[0];
+	Net_MultiLivesKnockout_LiveRanking_MatchName = S_MatchName;
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+// Update Number of lives
+Void UpdateMaximumLives() {
+	declare netwrite Integer Net_MultiLivesKnockout_LiveRanking_MaximumLives for Teams[0];
+	Net_MultiLivesKnockout_LiveRanking_MaximumLives = S_MaximumLives;
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/** Update number of loss of life
+ *
+ *	@param	_LossOfLife							Number of loss of life
+ */
+Void UpdateLossOfLife(Integer _LossOfLife) {
+	declare netwrite Integer Net_MultiLivesKnockout_LiveRanking_LossOfLife for Teams[0];
+	Net_MultiLivesKnockout_LiveRanking_LossOfLife = _LossOfLife;
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/** Update all the interfaces info
+ *
+ *	@param	_CurrentRoundNb								Current Round Number
+ *	@param	_LossOfLife										Number of loss of life
+ *	@param	_AliveScoresNb								Number of Alive scores
+ */
+Void UpdateInterfacesInfo(Integer _CurrentRoundNb, Integer _LossOfLife, Integer _AliveScoresNb) {
+	UpdateMatchInfos(_CurrentRoundNb, _LossOfLife, _AliveScoresNb, GetNextMilestone(_CurrentRoundNb, _AliveScoresNb));
+	UpdateMatchName();
+	UpdateMaximumLives();
+	UpdateLossOfLife(_LossOfLife);
+
+	UpdateLiveRankingInfo();
+}
+Void UpdateInterfacesInfo(Integer _CurrentRoundNb) {
+	declare Integer AliveScoresNb = GetAliveScoresNb();
+	UpdateInterfacesInfo(_CurrentRoundNb, GetLossOfLifeNb(_CurrentRoundNb, AliveScoresNb), AliveScoresNb);
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/// Load Manialinks
+Void LoadManialinks() {
+	declare Text MLText = """
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<manialink version="3" name="{{{C_MlId_LiveRanking}}}">
+<framemodel id="framemodel-player">
+	<quad id="quad-player-button" pos="0 0" size="55 5" opacity="0" scriptevents="1"/>
+	<quad id="quad-player-selector" pos="0 0" size="42.8 4.8" opacity="0" bgcolor="ffffff"/>
+	<label id="label-player-rank" pos="3 -2.1" z-index="2" size="5 5" halign="center" valign="center" textsize="1.5" textfont="GameFontSemiBold" textcolor="dedede"/>
+	<label id="label-player-name" pos="6 -2.1" z-index="2" size="27 5"  halign="left" valign="center" textsize="1.5" textfont="GameFontExtraBold" textcolor="ffffff"/>
+	<label id="label-player-lives" pos="42 -2.5" z-index="2" size="10 5"  halign="right" valign="center" textsize="0.8" textfont="GameFontExtraBold" textcolor="dedede"/>
+	<quad id="quad-player-time-background" pos="55 0" size="12 4.8" halign="right" bgcolor="ffffff" opacity="0.2"/>
+	<label id="label-player-time" pos="54 -2" z-index="2" size="10 5" halign="right" valign="center" textsize="2" textfont="Nadeo/Trackmania/BebasNeueRegular" textcolor="ffffff"/>
+</framemodel>
+<frame id="frame-global" hidden="1">
+	<frame id="frame-matchinfo" pos="-160 80">
+		<quad size="55 18" bgcolor="000000" opacity="0.6"/>
+		<label id="label-matchinfo-name" pos="3 -7.8" size="49 6" valign="bottom" textsize="3.5" textfont="GameFontExtraBold" textcolor="ffffff" text=""/>
+		<label id="label-matchinfo-info" pos="3 -8.8" size="49 8" textsize="1.3" maxline="2" linespacing="1.1" textfont="GameFontSemiBold" textcolor="ffffff" text="" />
+	</frame>
+	<frame id="frame-liveranking" pos="-160 30" size="65 90" hidden="1">
+		<frame pos="55 0">
+			<quad id="quad-liveranking-togglebutton" pos="0 0" size="4 4" z-index="3" opacity="0.9" colorize="ffffff" scriptevents="1"/>
+		</frame>
+		<frame id="frame-liveranking-content">
+			<quad id="quad-liveranking-background" size="55 12" bgcolor="000000" opacity="0.6"/>
+			<label pos="27.5 -3" halign="center" textsize="2.5" textfont="GameFontExtraBold" textcolor="ffffff" text="LIVE RANKING"/>
+			<frame id="frame-liveranking-players" pos="0 -10">
+				<frameinstance pos="0 0" modelid="framemodel-player" hidden="1"/>
+				<frameinstance pos="0 -5" modelid="framemodel-player" hidden="1"/>
+				<frameinstance pos="0 -10" modelid="framemodel-player" hidden="1"/>
+				<frameinstance pos="0 -15" modelid="framemodel-player" hidden="1"/>
+				<frameinstance pos="0 -20" modelid="framemodel-player" hidden="1"/>
+				<frameinstance pos="0 -25" modelid="framemodel-player" hidden="1"/>
+				<frameinstance pos="0 -30" modelid="framemodel-player" hidden="1"/>
+				<frameinstance pos="0 -35" modelid="framemodel-player" hidden="1"/>
+				<frameinstance pos="0 -40" modelid="framemodel-player" hidden="1"/>
+				<frameinstance pos="0 -45" modelid="framemodel-player" hidden="1"/>
+				<frameinstance pos="0 -50" modelid="framemodel-player" hidden="1"/>
+				<frameinstance pos="0 -55" modelid="framemodel-player" hidden="1"/>
+			</frame>
+		</frame>
+	</frame>
+</frame>
+<script><!--
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+// MARK: Libraries
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+#Include "TextLib" as TL
+#Include "MathLib" as ML
+#Include "Libs/Nadeo/CMGame/Utils/Icons.Script.txt" as Icons
+#Include "Libs/Nadeo/CMGame/Utils/Tools.Script.txt" as Tools
+#Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/WarmupHelpers_Client.Script.txt" as WarmupHelpers
+#Include "Libs/Nadeo/Trackmania/Modes/Knockout/Components/EliminationStatus.Script.txt" as EliminationStatus
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+// MARK: Constants
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+#Const ScriptName {{{dump(C_MlId_LiveRanking)}}}
+#Const Version {{{dump(Version)}}}
+
+#Const C_LinesNb_Top 3
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+// MARK: Structures
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+#Struct K_PlayerState {
+	Ident ScoreId;
+	Text Login;
+	Text Name;
+	Integer Rank;
+	Integer CPNb;
+	Integer LastCPTime;
+	Integer RaceTime;
+	Integer Delta;
+	Integer Lives;
+	Boolean InDanger;
+	Boolean IsNotPlaying;
+	Boolean Finished;
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+// MARK: Functions
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/** Toggle LiveRanking UI
+ *
+ *	@param	_Display								Display the UI or not
+ *	@param	_UseAnimation						Use animation
+ */
+Void ToggleUI(Boolean _Display, Boolean _UseAnimation) {
+	declare CMlFrame Frame <=> (Page.GetFirstChild("frame-liveranking") as CMlFrame);
+	declare CMlFrame Frame_Content <=> (Frame.GetFirstChild("frame-liveranking-content") as CMlFrame);
+	declare CMlQuad Quad_ToggleButton <=> (Frame.GetFirstChild("quad-liveranking-togglebutton") as CMlQuad);
+
+	AnimMgr.Flush(Frame_Content);
+	AnimMgr.Flush(Quad_ToggleButton);
+
+	if (_Display) {
+		Quad_ToggleButton.ImageUrl = Icons::C_Icon_128x128_Arrow_Left_Oblique;
+		Frame_Content.Visible = True;
+
+		if (_UseAnimation) {
+			AnimMgr.Add(Quad_ToggleButton, "<a pos=\"0 "^Quad_ToggleButton.RelativePosition_V3.Y^ "\"/>", Now, 250, CAnimManager::EAnimManagerEasing::Linear);
+			AnimMgr.Add(Frame_Content, "<a pos=\"0 "^Frame_Content.RelativePosition_V3.Y^ "\" />", Now, 250, CAnimManager::EAnimManagerEasing::Linear);
+		} else {
+			Quad_ToggleButton.RelativePosition_V3.X = 0.;
+			Frame_Content.RelativePosition_V3.X = 0.;
+		}
+	} else {
+		Quad_ToggleButton.ImageUrl = Icons::C_Icon_128x128_Arrow_Right_Oblique;
+		if (_UseAnimation) {
+			AnimMgr.Add(Quad_ToggleButton, "<a pos=\"-55 "^ Quad_ToggleButton.RelativePosition_V3.Y ^"\"/>", Now, 250, CAnimManager::EAnimManagerEasing::Linear);
+			AnimMgr.Add(Frame_Content, "<a pos=\"-55 "^ Frame_Content.RelativePosition_V3.Y ^"\" hidden=\"1\"/>", Now, 250, CAnimManager::EAnimManagerEasing::Linear);
+		} else {
+			Quad_ToggleButton.RelativePosition_V3.X = -55.;
+			Frame_Content.RelativePosition_V3.X = -55.;
+			Frame_Content.Visible = False;
+		}
+	}
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+// Update Match info
+Void UpdateMatchInfo() {
+	declare CMlFrame Frame <=> (Page.GetFirstChild("frame-matchinfo") as CMlFrame);
+	declare CMlLabel Label_Name <=> (Frame.GetFirstChild("label-matchinfo-name") as CMlLabel);
+	declare CMlLabel Label_Info <=> (Frame.GetFirstChild("label-matchinfo-info") as CMlLabel);
+
+	declare netread Text Net_MultiLivesKnockout_LiveRanking_MatchName for Teams[0];
+	Label_Name.Value = Net_MultiLivesKnockout_LiveRanking_MatchName;
+	Tools::FitLabelValue(Label_Name, 3.5, 2., .2);
+
+	declare netread Text Net_MultiLivesKnockout_LiveRanking_MatchInfo for Teams[0];
+	Label_Info.Value = Net_MultiLivesKnockout_LiveRanking_MatchInfo;
+	Tools::FitLabelValue(Label_Info, 1.3, .8, .1);
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/** Transform delta time to pretty value
+ *
+ *	@param	_Time													Display the UI or not
+ *	@return 															Human readable delta time
+ */
+Text TimeToText(Integer _Time) {		
+	if (_Time < 1000) {
+		return TL::FormatReal(_Time / 1000., 3, False, False);
+	}
+
+	declare TimeWithoutMs = _Time / 10;
+	declare TimeInSeconds = TimeWithoutMs / 100.;
+	if (TimeInSeconds <= 10.) {
+		return TL::FormatReal(TimeInSeconds, 2, False, False);
+	} else if (TimeInSeconds <= 100.) {
+		return TL::FormatReal(TimeInSeconds, 1, False, False);
+	}
+	return TL::ToText(ML::FloorInteger(TimeInSeconds));
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/** Display official Knockout Warning
+ *
+ *	@param	_Display													Display
+ */
+Void DisplayWarning(Boolean _Display) {		
+	EliminationStatus::SetOwnerEliminated(UI, _Display);
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/** Transform delta time to pretty value
+ *
+ *	@param	_Control_Player							CMlControl of the Player Line
+ *	@param	_PlayerState								Player State
+ */
+Void UpdateRankingPlayer(CMlControl _Control_Player, K_PlayerState _PlayerState) {
+	declare CMlFrame Frame_Player <=> (_Control_Player as CMlFrame);
+	if (Frame_Player == Null) return;
+	if (!Frame_Player.Visible) Frame_Player.Visible = True;
+
+	declare netread Integer Net_MultiLivesKnockout_LiveRanking_MaximumLives for Teams[0];
+
+	// Set Rank
+	declare CMlLabel Label_Player_Rank <=> (Frame_Player.GetFirstChild("label-player-rank") as CMlLabel);
+	Label_Player_Rank.Value = TL::ToText(_PlayerState.Rank);
+
+	// Set Name
+	declare CMlLabel Label_Player_Name <=> (Frame_Player.GetFirstChild("label-player-name") as CMlLabel);
+	Label_Player_Name.Value = _PlayerState.Name;
+	Tools::FitLabelValue(Label_Player_Name, 1.5, .8, .1);
+
+	// Set Points
+	declare CMlLabel Label_Player_Lives <=> (Frame_Player.GetFirstChild("label-player-lives") as CMlLabel);
+	switch (_PlayerState.Lives) {
+		case 3: Label_Player_Lives.Value = "";
+		case 2: Label_Player_Lives.Value = "";
+		case 1: Label_Player_Lives.Value = "";
+		default: Label_Player_Lives.Value = ""; // If Lives = 0, it's because MaximumLives > 3
+	}
+
+	// Set Spectate Button
+	declare CMlQuad Quad_Player_Button <=> (Frame_Player.GetFirstChild("quad-player-button") as CMlQuad);
+	declare Text Quad_Login for Quad_Player_Button = "";
+	if (_PlayerState.IsNotPlaying) Quad_Login = "";
+	else Quad_Login = _PlayerState.Login;
+	
+	// Set CP Time Background
+	declare CMlQuad Quad_Player_Time_Background <=> (Frame_Player.GetFirstChild("quad-player-time-background") as CMlQuad);
+	if (WarmupHelpers::IsWarmupActive(Teams[0])) Quad_Player_Time_Background.BgColor = <0.96, 0.35, 0.14>;
+	else if (_PlayerState.InDanger) Quad_Player_Time_Background.BgColor = <1., 0., 0.>;
+	else Quad_Player_Time_Background.BgColor = <1., 1., 1.>;
+
+	//Set background opacity (if playing or spectated)
+	declare CMlQuad Quad_Player_Bg <=> (Frame_Player.GetFirstChild("quad-player-selector") as CMlQuad);
+	if (GUIPlayer != Null && GUIPlayer.Score.Id == _PlayerState.ScoreId) {
+		Quad_Player_Bg.Opacity = 0.3;
+		Quad_Player_Time_Background.Opacity = 0.3;
+		DisplayWarning(_PlayerState.InDanger);
+	} else {
+		Quad_Player_Bg.Opacity = 0.;
+		Quad_Player_Time_Background.Opacity = 0.2;
+	}
+
+	// Set CP Time
+	declare CMlLabel Label_Player_CP_Time <=> (Frame_Player.GetFirstChild("label-player-time") as CMlLabel);
+	if (WarmupHelpers::IsWarmupActive(Teams[0])) Label_Player_CP_Time.Value = "-";
+	else if (_PlayerState.IsNotPlaying && !_PlayerState.Finished) Label_Player_CP_Time.Value = "DNF";
+	else if (_PlayerState.Rank == 1) Label_Player_CP_Time.Value = TL::TimeToText(_PlayerState.LastCPTime, True, True);
+	else if (_PlayerState.LastCPTime == 0) Label_Player_CP_Time.Value = "-";
+	else Label_Player_CP_Time.Value = "+" ^ TimeToText(_PlayerState.Delta);
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+// Update Live Ranking UI
+Void UpdateRanking() {
+	// map Score Id to Player Id
+	declare Ident[Ident] ScoreIdToPlayerId;
+	foreach (Player in Players) {
+			if (Player.Score != Null) {
+					ScoreIdToPlayerId[Player.Score.Id] = Player.Id;
+			}
+	}
+
+	declare K_PlayerState[][Integer][Integer] Ranking; // Ranking[<CP number>][<Time>][<Players>]
+	declare netread Integer Net_MultiLivesKnockout_LiveRanking_MaximumLives for Teams[0];
+	declare Integer PlayersNb = 0;
+	declare Integer GlobalLastCPTime = -1;
+
+	// Build Ranking array
+	foreach (Score in Scores) {
+		if (Score.User == Null) continue;
+
+		declare netread Boolean Net_MultiLivesKnockout_IsRegistered for Score;
+		if (!Net_MultiLivesKnockout_IsRegistered) continue;
+
+		declare netread Integer Net_MultiLivesKnockout_ConsumedLives for Score;
+		declare Integer Lives = Net_MultiLivesKnockout_LiveRanking_MaximumLives - Net_MultiLivesKnockout_ConsumedLives;
+		if (Lives <= 0) continue; // Skip KO player
+		if (Net_MultiLivesKnockout_LiveRanking_MaximumLives > 3) Lives = 0; // Display hearts only if max live <= 3
+
+		declare K_PlayerState PlayerState = K_PlayerState {
+			Name = Score.User.Name,
+			Login = Score.User.Login,
+			ScoreId = Score.Id,
+			Lives = Lives,
+			IsNotPlaying = True
+		};
+
+		if (WarmupHelpers::IsWarmupActive(Teams[0])) {
+			PlayerState.IsNotPlaying = False;
+		} else {
+			declare Ident PlayerId = ScoreIdToPlayerId.get(Score.Id, NullId);
+			if (PlayerId != NullId) {
+				declare CSmPlayer Player <=> Players[PlayerId];
+				PlayerState.CPNb = Player.RaceWaypointTimes.count;
+				PlayerState.IsNotPlaying = (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned);
+				PlayerState.Finished = (Score.PrevRaceTimes.count != 0);
+	
+				if (PlayerState.CPNb > 0) {
+					PlayerState.LastCPTime = Player.RaceWaypointTimes[-1];
+				}
+				if (GlobalLastCPTime < PlayerState.LastCPTime) GlobalLastCPTime = PlayerState.LastCPTime;
+			}
+		}
+
+		if (!Ranking.existskey(PlayerState.CPNb)) Ranking[PlayerState.CPNb] = [];
+		if (!Ranking[PlayerState.CPNb].existskey(PlayerState.LastCPTime)) Ranking[PlayerState.CPNb][PlayerState.LastCPTime] = [];
+
+		Ranking[PlayerState.CPNb][PlayerState.LastCPTime].add(PlayerState);
+
+		PlayersNb += 1;
+	}
+
+	// Sort Ranking by CP Count
+	Ranking = Ranking.sortkeyreverse();
+
+	// Players variables
+	declare Integer Rank = 1;
+	declare CSmPlayer FirstPlayer;
+	declare Integer MinDelta = 0;
+
+	declare netread Integer Net_MultiLivesKnockout_LiveRanking_LossOfLife for Teams[0];
+	declare Integer LostOfLifeRank = PlayersNb - Net_MultiLivesKnockout_LiveRanking_LossOfLife + 1;
+
+	// Display only variables
+	declare Integer FrameIndex = 0;
+	declare CMlFrame Frame_Players <=> (Page.GetFirstChild("frame-liveranking-players") as CMlFrame);
+
+	declare Integer DisplayLinesNb = ML::Min(Frame_Players.Controls.count, PlayersNb);
+
+	declare Integer RemainingTopLines = C_LinesNb_Top;
+	declare Integer MaxDangerLines = DisplayLinesNb - RemainingTopLines;
+
+	declare Integer MiddleLinesNb = ML::Max(DisplayLinesNb - RemainingTopLines - Net_MultiLivesKnockout_LiveRanking_LossOfLife, 3);
+	declare Integer RemainingMiddleLines = MiddleLinesNb;
+	
+	declare Boolean GUIPlayerIsPassed = (GUIPlayer == Null); // We consider GUIPlayer passed if Null
+
+	declare K_PlayerState[] PreviousPlayerStates;
+
+
+	foreach (CPNb => Value in Ranking) {
+		// Sort Times for this CP
+		Ranking[CPNb] = Ranking[CPNb].sortkey();
+
+		foreach (CPTime => PlayerStates in Ranking[CPNb]) {
+			foreach (Key => PlayerStateRO in PlayerStates) { // If multiple players have the same time
+				// Variable Dummy = PlayerState but is Read-Only. So I redefine it here:
+				declare K_PlayerState PlayerState = PlayerStateRO;
+
+				PlayerState.Rank = Rank;
+				PlayerState.InDanger = (Rank >= LostOfLifeRank);
+
+				if (FirstPlayer == Null) {
+					FirstPlayer <=> Players[ScoreIdToPlayerId.get(PlayerState.ScoreId, NullId)];
+				}
+
+				if (FirstPlayer != Null) {
+					declare Integer Delta = 0;
+					if (CPNb > 0) {
+						if (FirstPlayer.RaceWaypointTimes.existskey(CPNb)) { // Get Delta Time based on the next CP if needed (if the player is slow during the CP)
+							Delta = ML::Max(PlayerState.LastCPTime - FirstPlayer.RaceWaypointTimes[-1], GlobalLastCPTime - FirstPlayer.RaceWaypointTimes[CPNb]);
+						} else {
+							Delta = PlayerState.LastCPTime - FirstPlayer.RaceWaypointTimes[-1];
+						}
+					}
+
+					// Store the Minimal Delta for before the 1st CP
+					if (Delta > MinDelta) {
+						MinDelta = Delta;
+					} else {
+						Delta = MinDelta;
+					}
+					PlayerState.Delta = Delta;
+				}
+
+				if (DisplayLinesNb >= PlayersNb) { // Enough lines to display
+					UpdateRankingPlayer(Frame_Players.Controls[FrameIndex], PlayerState);
+					FrameIndex += 1;
+				} else if (RemainingTopLines > 0) { // Display Top
+					UpdateRankingPlayer(Frame_Players.Controls[FrameIndex], PlayerState);
+					if (!GUIPlayerIsPassed) GUIPlayerIsPassed = (GUIPlayer.Score.Id == PlayerState.ScoreId);
+					RemainingTopLines -= 1;
+					FrameIndex += 1;
+				} else if (GUIPlayerIsPassed && RemainingMiddleLines > 0) { // Display lines after GUIPlayer before the danger zone
+					UpdateRankingPlayer(Frame_Players.Controls[FrameIndex], PlayerState);
+					RemainingMiddleLines -= 1;
+					FrameIndex += 1;
+				} else if (GUIPlayerIsPassed && Rank >= LostOfLifeRank) { // In danger zone
+					UpdateRankingPlayer(Frame_Players.Controls[FrameIndex], PlayerState);
+					FrameIndex += 1;
+				} else if (!GUIPlayerIsPassed && GUIPlayer.Score.Id == PlayerState.ScoreId) { // Display Previous Players + GUIPlayer in Middle lines			
+					// The slicing method is a very complex thing, do not touch if you don't want to break everything
+					declare Integer MinLinesBefore = ML::NearestInteger((MiddleLinesNb - 1) / 2.); // Ceiling return 2 for 1.0 in Maniascript. So using NearestInteger
+					declare Integer MaxLinesAfter = MaxDangerLines - MinLinesBefore - 1;
+					declare Integer RemainingPlayers = PlayersNb - Rank;
+
+					declare Integer Slice = ML::Max(PreviousPlayerStates.count - MinLinesBefore - ML::Max(MaxLinesAfter - RemainingPlayers, 0), 0);
+
+					PreviousPlayerStates = PreviousPlayerStates.slice(Slice);
+
+					// Display previous PlayerStates
+					while (PreviousPlayerStates.count > 0) {
+						UpdateRankingPlayer(Frame_Players.Controls[FrameIndex], PreviousPlayerStates[0]);
+						PreviousPlayerStates = PreviousPlayerStates.slice(1);
+						FrameIndex += 1;
+						RemainingMiddleLines -= 1;
+					}
+					// display current PlayerState
+					UpdateRankingPlayer(Frame_Players.Controls[FrameIndex], PlayerState);
+
+					GUIPlayerIsPassed = True;
+					FrameIndex += 1;
+					RemainingMiddleLines -= 1;
+				} else { // Store Previous PlayerStates
+					PreviousPlayerStates.add(PlayerState);
+					if (PreviousPlayerStates.count > MaxDangerLines) {
+						PreviousPlayerStates = PreviousPlayerStates.slice(1);
+					}
+				}
+
+				Rank += 1;
+				if (!Frame_Players.Controls.existskey(FrameIndex)) break;
+			}
+			if (!Frame_Players.Controls.existskey(FrameIndex)) break;
+		}
+		if (!Frame_Players.Controls.existskey(FrameIndex)) break;
+	}
+
+	// Manage if Nb Of players changed
+	declare Integer Last_NbOfFrames for Frame_Players = 0;
+	if (Last_NbOfFrames != DisplayLinesNb) {
+		Last_NbOfFrames = DisplayLinesNb;
+
+		// Set 
+		declare CMlQuad Quad_Bg <=> (Page.GetFirstChild("quad-liveranking-background") as CMlQuad);
+		Quad_Bg.Size.Y = ML::ToReal(12 + (Last_NbOfFrames * 5));
+
+		// Hide other Frame_Players
+		while (FrameIndex < Frame_Players.Controls.count) {
+			if (Frame_Players.Controls[FrameIndex].Visible) {
+				Frame_Players.Controls[FrameIndex].Visible = False;
+				FrameIndex += 1;
+			} else {
+				break;
+			}
+		}
+	}
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/** Spectate player using their login
+ *
+ *	@param	_Login									Login of the Player
+ */
+Void SpectateLogin(Text _Login) {
+	ClientUI.Spectator_SetForcedTarget_Clear();
+	SetSpectateTarget(_Login);
+}
+
+main() {
+	log("Init "^ ScriptName ^" v"^ Version);
+	declare CMlFrame Frame_Global <=> (Page.GetFirstChild("frame-global") as CMlFrame);
+	declare CMlFrame Frame_LiveRanking <=> (Page.GetFirstChild("frame-liveranking") as CMlFrame);
+
+	wait (InputPlayer != Null);
+	Frame_Global.Visible = True;
+
+	declare netread Boolean Net_MultiLivesKnockout_LiveRanking_Display for Teams[0] = False;
+
+	declare persistent Boolean MultiLivesKnockout_LiveRanking_IsVisible for InputPlayer.User = True;
+	ToggleUI(MultiLivesKnockout_LiveRanking_IsVisible, False);
+
+	declare netread Integer Net_MultiLivesKnockout_LiveRanking_Info_Serial for Teams[0];
+	declare Integer Last_Info_Serial;
+
+	declare netread Integer Net_MultiLivesKnockout_LiveRanking_Serial for Teams[0];
+	declare Integer Last_LiveRanking_Serial;
+
+	declare Ident Last_GUIPlayer;
+
+	declare Boolean UpdateLiveRanking = True;
+
+	while (True) {
+		yield;
+		if (!PageIsVisible) continue;
+
+		if (Last_Info_Serial != Net_MultiLivesKnockout_LiveRanking_Info_Serial) {
+			Last_Info_Serial = Net_MultiLivesKnockout_LiveRanking_Info_Serial;
+			UpdateMatchInfo();
+		}
+
+		Frame_LiveRanking.Visible = Net_MultiLivesKnockout_LiveRanking_Display;
+		if (!Frame_LiveRanking.Visible) {
+			DisplayWarning(False);
+			continue;
+		}
+
+		if (Last_LiveRanking_Serial != Net_MultiLivesKnockout_LiveRanking_Serial) {
+			Last_LiveRanking_Serial = Net_MultiLivesKnockout_LiveRanking_Serial;
+			UpdateLiveRanking = True;
+		}
+
+		foreach (Event in PendingEvents) {
+			switch (Event.Type) {
+				case CMlScriptEvent::Type::MouseClick: {
+					switch (Event.ControlId) {
+						case "quad-player-button": {
+							if (InputPlayer == GUIPlayer) continue;
+							declare Text Quad_Login for Event.Control = "";
+							SpectateLogin(Quad_Login);
+						}
+						case "quad-liveranking-togglebutton": {
+							MultiLivesKnockout_LiveRanking_IsVisible = !MultiLivesKnockout_LiveRanking_IsVisible;
+							ToggleUI(MultiLivesKnockout_LiveRanking_IsVisible, True);
+						}
+					}
+				}
+				case CMlScriptEvent::Type::MouseOver: {
+					switch (Event.ControlId) {
+						case "quad-player-button": {
+							if (InputPlayer == GUIPlayer) continue;
+							declare CMlQuad Quad <=> (Event.Control.Parent.GetFirstChild("quad-player-selector") as CMlQuad);
+							if (Quad.Opacity < .25) {
+								Quad.Opacity = .2;
+							}
+						}
+					}
+				}
+				case CMlScriptEvent::Type::MouseOut: {
+					switch (Event.ControlId) {
+						case "quad-player-button": {
+							declare CMlQuad Quad <=> (Event.Control.Parent.GetFirstChild("quad-player-selector") as CMlQuad);
+							if (Quad.Opacity < .25) {
+								Quad.Opacity = 0.;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		if (GUIPlayer == Null && Last_GUIPlayer != NullId) {
+			Last_GUIPlayer == NullId;
+			UpdateLiveRanking = True;
+		} else if (GUIPlayer != Null && Last_GUIPlayer != GUIPlayer.Id) {
+			Last_GUIPlayer = GUIPlayer.Id;
+			UpdateLiveRanking = True;
+		}
+
+		// Need to be update even when hidden to trigger Knockout Warning
+		if (UpdateLiveRanking) { 
+			UpdateLiveRanking = False;
+			UpdateRanking();
+		}
+	}
+}
+--></script>
+</manialink>
+""";
+	Layers::Create(C_MlId_LiveRanking, MLText);
+	Layers::SetType(C_MlId_LiveRanking, CUILayer::EUILayerType::Normal);
+	Layers::Attach(C_MlId_LiveRanking);
+}
