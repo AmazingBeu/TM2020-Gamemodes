@@ -995,7 +995,7 @@ Void UpdateMatchInfos(Integer _CurrentRoundNb, Integer _LossOfLife, Integer _Ali
 			ScoreTablesInfo ^= "\n"^ _LossOfLife ^" players will lose a life until "^ _Milestone ^" players are alive";
 		} else if (_LossOfLife > 1) {
 			MatchInfo ^= "\n"^ _LossOfLife ^" lose of life";
-			ScoreTablesInfo ^= "\n"^ _LossOfLife ^" player will lose a life per round";
+			ScoreTablesInfo ^= "\n"^ _LossOfLife ^" players will lose a life per round";
 		} else {
 			MatchInfo ^= "\n1 lose of life";
 			ScoreTablesInfo ^= "\n1 player will lose a life";
