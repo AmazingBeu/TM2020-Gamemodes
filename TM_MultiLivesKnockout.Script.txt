@@ -4,7 +4,7 @@
 #Extends "Modes/Nadeo/Trackmania/Base/TrackmaniaRoundsBase.Script.txt"
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2024-08-21"
+#Const	Version							"2024-08-22"
 #Const	ScriptName					"Modes/TM2020-Gamemodes/TM_MultiLivesKnockout.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -1380,11 +1380,11 @@ Void UpdateRanking() {
 	declare K_PlayerState[] PreviousPlayerStates;
 
 
-	foreach (CPNb => Value in Ranking) {
+	foreach (CPNb => CPTimes in Ranking) {
 		// Sort Times for this CP
-		Ranking[CPNb] = Ranking[CPNb].sortkey();
+		declare K_PlayerState[][Integer] SortedCPTimes = CPTimes.sort();
 
-		foreach (CPTime => PlayerStates in Ranking[CPNb]) {
+		foreach (CPTime => PlayerStates in SortedCPTimes) {
 			foreach (Key => PlayerStateRO in PlayerStates) { // If multiple players have the same time
 				// Variable Dummy = PlayerState but is Read-Only. So I redefine it here:
 				declare K_PlayerState PlayerState = PlayerStateRO;
@@ -1400,9 +1400,9 @@ Void UpdateRanking() {
 					declare Integer Delta = 0;
 					if (CPNb > 0) {
 						if (FirstPlayer.RaceWaypointTimes.existskey(CPNb)) { // Get Delta Time based on the next CP if needed (if the player is slow during the CP)
-							Delta = ML::Max(PlayerState.LastCPTime - FirstPlayer.RaceWaypointTimes[-1], GlobalLastCPTime - FirstPlayer.RaceWaypointTimes[CPNb]);
+							Delta = ML::Max(PlayerState.LastCPTime - FirstPlayer.RaceWaypointTimes[CPNb - 1], GlobalLastCPTime - FirstPlayer.RaceWaypointTimes[CPNb]);
 						} else {
-							Delta = PlayerState.LastCPTime - FirstPlayer.RaceWaypointTimes[-1];
+							Delta = PlayerState.LastCPTime - FirstPlayer.RaceWaypointTimes[CPNb - 1];
 						}
 					}
 
