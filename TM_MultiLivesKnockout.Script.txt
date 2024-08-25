@@ -488,7 +488,6 @@ if (Round_ForceEndRound || Round_SkipPauseRound) {
 		Match_RegistrationIsOpen = False;
 
 		// Eliminate last players
-		Race::SortScores(Race::C_Sort_PrevRaceTime);
 		declare Integer ParticipantsNb = GetParticipantsNb();
 		declare Integer AliveScoresNb = GetAliveScoresNb();
 		declare Integer LossOfLifeNb = GetLossOfLifeNb(Match_CurrentRoundNb, AliveScoresNb);
@@ -842,7 +841,6 @@ Text GetScoreRemainingLivesText(CSmScore _Score) {
 Void UpdateCustomRanking(Boolean _DisplayTimes) {
 	declare Text[] AccountIdsToDisplay = [];
 	declare Text[][Text] CustomPoints = [];
-	declare Integer[Text] CustomTimes = [];
 
 	declare Integer ParticipantsNb = GetParticipantsNb();
 	declare Integer AliveScoresNb = GetAliveScoresNb();
@@ -853,11 +851,11 @@ Void UpdateCustomRanking(Boolean _DisplayTimes) {
 		if (!ScoreIsRegistered(Score)) continue;
 		AccountIdsToDisplay.add(Score.User.WebServicesUserId);
 		if (!ScoreIsAlive(Score)) continue;
-
-		Scores::SetPlayerMatchPoints(Score, Scores.count + ParticipantsNb - Index); 
-		if (_DisplayTimes && Score.PrevRaceTimes.count == 0) {
-			CustomTimes[Score.User.WebServicesUserId] = 0; //@ prev race is updated automatically at the moment (22/10/20) so we need to use this
-		} else if (!_DisplayTimes) {
+		
+		if (_DisplayTimes) {
+			Scores::SetPlayerMatchPoints(Score, ParticipantsNb + ParticipantsNb - Index); 
+		} else {
+			Scores::SetPlayerMatchPoints(Score, ParticipantsNb + GetScoreRemainingLives(Score)); 
 			CustomPoints[Score.User.WebServicesUserId] = [GetScoreRemainingLivesText(Score)];
 		}
 		if (AliveScoresNb == 1 && ParticipantsNb > 1) {
@@ -869,7 +867,9 @@ Void UpdateCustomRanking(Boolean _DisplayTimes) {
 	declare Text[Text] CustomRanks = [];
 	Race::SortScores(Race::C_Sort_TotalPoints);
 	foreach (Score in Scores) {
-		if (ScoreIsAlive(Score)) {
+		if (AliveScoresNb == 1 && ScoreIsAlive(Score)) {
+			CustomRanks[Score.User.WebServicesUserId] = "1";
+		} else if (ScoreIsAlive(Score)) {
 			CustomRanks[Score.User.WebServicesUserId] = "-";
 		}	else if (ScoreIsRegistered(Score)) {
 			CustomRanks[Score.User.WebServicesUserId] = ""^Rank;
@@ -881,7 +881,6 @@ Void UpdateCustomRanking(Boolean _DisplayTimes) {
 	UIModules_ScoresTable::SetCustomRanks(CustomRanks);
 	UIModules_ScoresTable::DisplayOnly(AccountIdsToDisplay); // Display only registered players
 	UIModules_ScoresTable::SetCustomPoints(CustomPoints);
-	UIModules_ScoresTable::SetCustomTimes(CustomTimes);
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
