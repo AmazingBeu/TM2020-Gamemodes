@@ -41,6 +41,8 @@
 #Setting S_EliminatePerRounds False as "Eliminate par rounds instead of per players alive"
 #Setting S_MaximumLives 3
 #Setting S_MatchName "Final"
+#Setting S_AlternativeMatchInfosPosition False
+
 
 /* About S_EliminatedPlayersNbRanks and S_EliminatePerRounds.
  * If S_EliminatePerRounds is True, it will decrease the number of lose of life.
@@ -1021,6 +1023,13 @@ Void UpdateMatchName() {
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+// Update Match Infos 
+Void UpdateMatchInfosPosition() {
+	declare netwrite Boolean Net_MultiLivesKnockout_AlternativePosition for Teams[0];
+	Net_MultiLivesKnockout_AlternativePosition = S_AlternativeMatchInfosPosition;
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Update Number of lives
 Void UpdateMaximumLives() {
 	declare netwrite Integer Net_MultiLivesKnockout_LiveRanking_MaximumLives for Teams[0];
@@ -1046,6 +1055,7 @@ Void UpdateLossOfLife(Integer _LossOfLife) {
  */
 Void UpdateInterfacesInfo(Integer _CurrentRoundNb, Integer _LossOfLife, Integer _AliveScoresNb) {
 	UpdateMatchInfos(_CurrentRoundNb, _LossOfLife, _AliveScoresNb, GetNextMilestone(_CurrentRoundNb, _AliveScoresNb));
+	UpdateMatchInfosPosition();
 	UpdateMatchName();
 	UpdateMaximumLives();
 	UpdateLossOfLife(_LossOfLife);
@@ -1186,6 +1196,10 @@ Void UpdateMatchInfo() {
 	declare CMlFrame Frame <=> (Page.GetFirstChild("frame-matchinfo") as CMlFrame);
 	declare CMlLabel Label_Name <=> (Frame.GetFirstChild("label-matchinfo-name") as CMlLabel);
 	declare CMlLabel Label_Info <=> (Frame.GetFirstChild("label-matchinfo-info") as CMlLabel);
+
+	declare netread Boolean Net_MultiLivesKnockout_AlternativePosition for Teams[0];
+	if (Net_MultiLivesKnockout_AlternativePosition) Frame.RelativePosition_V3.Y = 50.;
+	else Frame.RelativePosition_V3.Y = 80.;
 
 	declare netread Text Net_MultiLivesKnockout_LiveRanking_MatchName for Teams[0];
 	Label_Name.Value = Net_MultiLivesKnockout_LiveRanking_MatchName;
