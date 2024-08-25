@@ -463,8 +463,6 @@ if (Semver::Compare(XmlRpc::GetApiVersion(), ">=", "2.1.1")) {
 	Scores::XmlRpc_SendScores(Scores::C_Section_PreEndRound, "");
 }
 
-DisplayLiveRanking(False);
-
 declare Text[] LostLifeAccountIds;
 declare Text[] EliminatedAccountIds;
 declare Integer[] EliminatedRanks;
@@ -553,6 +551,7 @@ if (Round_ForceEndRound || Round_SkipPauseRound) {
 		MB_Sleep(S_ChatTime / 2 * 1000);
 		UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
 	}
+	DisplayLiveRanking(False);
 }
 ***
 
