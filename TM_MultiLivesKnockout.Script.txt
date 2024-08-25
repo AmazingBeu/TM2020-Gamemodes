@@ -4,7 +4,7 @@
 #Extends "Modes/Nadeo/Trackmania/Base/TrackmaniaRoundsBase.Script.txt"
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2024-08-22"
+#Const	Version							"2024-08-25"
 #Const	ScriptName					"Modes/TM2020-Gamemodes/TM_MultiLivesKnockout.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -1382,7 +1382,7 @@ Void UpdateRanking() {
 
 	foreach (CPNb => CPTimes in Ranking) {
 		// Sort Times for this CP
-		declare K_PlayerState[][Integer] SortedCPTimes = CPTimes.sort();
+		declare K_PlayerState[][Integer] SortedCPTimes = CPTimes.sortkey();
 
 		foreach (CPTime => PlayerStates in SortedCPTimes) {
 			foreach (Key => PlayerStateRO in PlayerStates) { // If multiple players have the same time
