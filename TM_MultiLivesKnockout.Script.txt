@@ -1331,15 +1331,17 @@ Void UpdateRanking() {
 		} else {
 			declare Ident PlayerId = ScoreIdToPlayerId.get(Score.Id, NullId);
 			if (PlayerId != NullId) {
-				declare CSmPlayer Player <=> Players[PlayerId];
-				PlayerState.CPNb = Player.RaceWaypointTimes.count;
-				PlayerState.IsNotPlaying = (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned);
-				PlayerState.Finished = (Score.PrevRaceTimes.count != 0);
-	
-				if (PlayerState.CPNb > 0) {
-					PlayerState.LastCPTime = Player.RaceWaypointTimes[-1];
+				declare CSmPlayer Player <=> Players.get(PlayerId, Null);
+				if (Player != Null) {
+					PlayerState.CPNb = Player.RaceWaypointTimes.count;
+					PlayerState.IsNotPlaying = (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned);
+					PlayerState.Finished = (Score.PrevRaceTimes.count != 0);
+		
+					if (PlayerState.CPNb > 0) {
+						PlayerState.LastCPTime = Player.RaceWaypointTimes[-1];
+					}
+					if (GlobalLastCPTime < PlayerState.LastCPTime) GlobalLastCPTime = PlayerState.LastCPTime;
 				}
-				if (GlobalLastCPTime < PlayerState.LastCPTime) GlobalLastCPTime = PlayerState.LastCPTime;
 			}
 		}
 
@@ -1392,7 +1394,10 @@ Void UpdateRanking() {
 				PlayerState.InDanger = (Rank >= LostOfLifeRank);
 
 				if (FirstPlayer == Null) {
-					FirstPlayer <=> Players[ScoreIdToPlayerId.get(PlayerState.ScoreId, NullId)];
+					declare Ident FirstPlayerId = ScoreIdToPlayerId.get(PlayerState.ScoreId, NullId);
+					if (FirstPlayerId != NullId) {
+						FirstPlayer <=> Players[FirstPlayerId];
+					}
 				}
 
 				if (FirstPlayer != Null) {
