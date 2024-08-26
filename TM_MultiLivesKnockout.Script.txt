@@ -4,7 +4,7 @@
 #Extends "Modes/Nadeo/Trackmania/Base/TrackmaniaRoundsBase.Script.txt"
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2024-08-25"
+#Const	Version							"2024-08-26"
 #Const	ScriptName					"Modes/TM2020-Gamemodes/TM_MultiLivesKnockout.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -1083,7 +1083,7 @@ Void LoadManialinks() {
 	<label id="label-player-time" pos="54 -2" z-index="2" size="10 5" halign="right" valign="center" textsize="2" textfont="Nadeo/Trackmania/BebasNeueRegular" textcolor="ffffff"/>
 </framemodel>
 <frame id="frame-global" hidden="1">
-	<frame id="frame-matchinfo" pos="-160 80">
+	<frame id="frame-matchinfo" pos="-160 80" hidden="1">
 		<quad size="55 18" bgcolor="000000" opacity="0.6"/>
 		<label id="label-matchinfo-name" pos="3 -7.8" size="49 6" valign="bottom" textsize="3.5" textfont="GameFontExtraBold" textcolor="ffffff" text=""/>
 		<label id="label-matchinfo-info" pos="3 -8.8" size="49 8" textsize="1.3" maxline="2" linespacing="1.1" textfont="GameFontSemiBold" textcolor="ffffff" text="" />
@@ -1194,6 +1194,10 @@ Void ToggleUI(Boolean _Display, Boolean _UseAnimation) {
 // Update Match info
 Void UpdateMatchInfo() {
 	declare CMlFrame Frame <=> (Page.GetFirstChild("frame-matchinfo") as CMlFrame);
+
+	declare netread Text Net_MultiLivesKnockout_LiveRanking_MatchName for Teams[0];
+	Frame.Visible = (Net_MultiLivesKnockout_LiveRanking_MatchName != "");
+
 	declare CMlLabel Label_Name <=> (Frame.GetFirstChild("label-matchinfo-name") as CMlLabel);
 	declare CMlLabel Label_Info <=> (Frame.GetFirstChild("label-matchinfo-info") as CMlLabel);
 
@@ -1201,13 +1205,12 @@ Void UpdateMatchInfo() {
 	if (Net_MultiLivesKnockout_AlternativePosition) Frame.RelativePosition_V3.Y = 50.;
 	else Frame.RelativePosition_V3.Y = 80.;
 
-	declare netread Text Net_MultiLivesKnockout_LiveRanking_MatchName for Teams[0];
 	Label_Name.Value = Net_MultiLivesKnockout_LiveRanking_MatchName;
 	Tools::FitLabelValue(Label_Name, 3.5, 2., .2);
 
 	declare netread Text Net_MultiLivesKnockout_LiveRanking_MatchInfo for Teams[0];
 	Label_Info.Value = Net_MultiLivesKnockout_LiveRanking_MatchInfo;
-	Tools::FitLabelValue(Label_Info, 1.3, .8, .1);
+	Tools::FitLabelValue(Label_Info, 1.3, .4, .1);
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
