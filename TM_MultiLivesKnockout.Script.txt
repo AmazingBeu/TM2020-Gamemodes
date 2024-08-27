@@ -4,7 +4,7 @@
 #Extends "Modes/Nadeo/Trackmania/Base/TrackmaniaRoundsBase.Script.txt"
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2024-08-26"
+#Const	Version							"2024-08-27"
 #Const	ScriptName					"Modes/TM2020-Gamemodes/TM_MultiLivesKnockout.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -988,16 +988,16 @@ Void UpdateMatchInfos(Integer _CurrentRoundNb, Integer _LossOfLife, Integer _Ali
 			MatchInfo ^= "\nNo loss of life";
 			ScoreTablesInfo ^= "\nNo loss of life this round";
 		} else if (S_EliminatePerRounds && _LossOfLife > 1 && _Milestone > 1) {
-			MatchInfo ^= "\n"^ _LossOfLife ^" lose of life until Match Round "^ _Milestone;
+			MatchInfo ^= "\n"^ _LossOfLife ^" lives lost until Match Round "^ _Milestone;
 			ScoreTablesInfo ^= "\n"^ _LossOfLife ^" players will lose a life until Match Round "^ _Milestone;
 		} else if (!S_EliminatePerRounds && _LossOfLife > 1 && _Milestone > 1) {
-			MatchInfo ^= "\n"^ _LossOfLife ^" lose of life until "^ _Milestone ^" players are alive";
+			MatchInfo ^= "\n"^ _LossOfLife ^" lives lost until "^ _Milestone ^" players are alive";
 			ScoreTablesInfo ^= "\n"^ _LossOfLife ^" players will lose a life until "^ _Milestone ^" players are alive";
 		} else if (_LossOfLife > 1) {
-			MatchInfo ^= "\n"^ _LossOfLife ^" lose of life";
+			MatchInfo ^= "\n"^ _LossOfLife ^" players will lose a life";
 			ScoreTablesInfo ^= "\n"^ _LossOfLife ^" players will lose a life per round";
 		} else {
-			MatchInfo ^= "\n1 lose of life";
+			MatchInfo ^= "\n1 player will lose a life";
 			ScoreTablesInfo ^= "\n1 player will lose a life";
 		}
 	}
