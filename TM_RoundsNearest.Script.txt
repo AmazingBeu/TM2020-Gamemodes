@@ -5,7 +5,7 @@
 #Extends "Modes/Nadeo/Trackmania/Base/TrackmaniaRoundsBase.Script.txt"
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2024-04-11"
+#Const	Version							"2024-11-29"
 #Const	ScriptName					"Modes/TM2020-Gamemodes/TM_RoundsNearest.Script.txt"
 
 // #RequireContext CSmMode
@@ -33,6 +33,7 @@
 #Setting S_PointsRepartition "5,4,3,2,1,0"
 #Setting S_RoundsPerMap 8 as _("Number of rounds per track") ///< Number of round to play on one map before going to the next one
 #Setting S_TargetTime 20000
+#Setting S_SendSameTimeMessage False
 
 #Setting S_WarmUpDuration 30 as _("Duration of one warm up")
 #Setting S_WarmUpNb 1	as _("Number of warm up")
@@ -201,6 +202,13 @@ foreach (Score in Scores) {
 UpdateScoresTableFooter(S_PointsLimit, S_RoundsPerMap, S_MapsPerMatch, Map_ValidRoundsNb);
 StateMgr::ForcePlayersStates([StateMgr::C_State_Playing]);
 UIModules_ScoresTable::SetCustomPoints(GetWinnersCustomPoints());
+
+foreach (Score in Scores) {
+	declare Boolean RoundsNearest_AlmostPerfectTime_MessageSent for Score;
+	RoundsNearest_AlmostPerfectTime_MessageSent = False;
+	declare Boolean RoundsNearest_DidPerfectTime_MessageSent for Score;
+	RoundsNearest_DidPerfectTime_MessageSent = False;
+}
 ***
 
 ***Rounds_PlayerSpawned***
@@ -448,7 +456,7 @@ Text[][Text] GetWinnersCustomPoints() {
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 /// Compute the latest race scores
-Void ComputeLatestRaceScores(Boolean _DisplayMessages) {
+Void ComputeLatestRaceScores(Boolean _IsEndRound) {
 	Race::SortScores(Race::C_Sort_PrevRaceTime);
 	
 	// Points distributed between all players
@@ -478,12 +486,12 @@ Void ComputeLatestRaceScores(Boolean _DisplayMessages) {
 
 	declare Integer I = 0;
 	declare Integer[] PointsRepartition = PointsRepartition::GetPointsRepartition();
+	declare Text Names;
 
 	foreach (Delta => CustomScores in ScoresPerAbsoluteDelta) {
 		// Attribute less points if they have the same time
-		if (_DisplayMessages && CustomScores.count > 1) {
+		if (S_SendSameTimeMessage && _IsEndRound && CustomScores.count > 1) {
 			I += CustomScores.count - 1;
-			declare Text Names;
 			foreach (Key => Score in CustomScores) {
 				if (Key == 0) {
 					Names = FormatPlayerName(Score.User.Name);
@@ -494,8 +502,12 @@ Void ComputeLatestRaceScores(Boolean _DisplayMessages) {
 				}
 			}
 			UIManager.UIAll.SendChat("$ff3" ^ Names^ " have the same time");
-		} 
-		foreach (Score in CustomScores) {
+		}
+
+		Names = "";
+		declare Boolean UpdateBigMessage;
+
+		foreach (Key => Score in CustomScores) {
 			declare Integer Points;
 
 			if (PointsRepartition.existskey(I)) {
@@ -504,15 +516,38 @@ Void ComputeLatestRaceScores(Boolean _DisplayMessages) {
 				Points = PointsRepartition[PointsRepartition.count - 1];
 			}
 
-			if (Delta == 0 && CustomScores.count == 1) {
-				Points += S_BonusForPerfect;
-				if (_DisplayMessages) {
+			if (Delta == 0) {
+				declare Boolean RoundsNearest_DidPerfectTime_MessageSent for Score;
+				if (!RoundsNearest_DidPerfectTime_MessageSent) {
+					RoundsNearest_DidPerfectTime_MessageSent = True;
+					UpdateBigMessage = True;
 					UIManager.UIAll.SendChat("$ff3" ^ FormatPlayerName(Score.User.Name) ^ " did the perfect time");
-					UIModules_BigMessage::SetMessage(FormatPlayerName(Score.User.Name) ^ " did the perfect time");
 					ModeUtils::PlaySound(CUIConfig::EUISound::TieBreakPoint, 0);
-				} 
+				}
+
+				if (Key == 0) {
+					Names = FormatPlayerName(Score.User.Name);
+				} else if (Key == CustomScores.count - 1) {
+					Names ^= " and " ^ FormatPlayerName(Score.User.Name);
+				} else {
+					Names ^= ", " ^ FormatPlayerName(Score.User.Name);
+				}
+
+				if (CustomScores.count == 1) {
+					Points += S_BonusForPerfect;
+				}
+			} else if (Delta == 1) {
+				declare Boolean RoundsNearest_AlmostPerfectTime_MessageSent for Score;
+				if (!RoundsNearest_AlmostPerfectTime_MessageSent) {
+					RoundsNearest_AlmostPerfectTime_MessageSent = True;
+					UIManager.UIAll.SendChat("$ff3" ^ FormatPlayerName(Score.User.Name) ^ " HAH");
+				}
 			}
 			Scores::SetPlayerRoundPoints(Score, Points);
+		}
+
+		if (UpdateBigMessage) {
+			UIModules_BigMessage::SetMessage(Names ^ " did the perfect time");
 		}
 
 		I += 1;
