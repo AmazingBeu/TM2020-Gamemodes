@@ -479,6 +479,7 @@ if (Round_ForceEndRound || Round_SkipPauseRound) {
 		ForcedEndRoundSequence();
 	}
 	MB_SetValidRound(False);
+	Match_CurrentRoundNb -= 1;
 } else {
 	// Eliminate players that did not finish in time
 	declare Ident[] EliminatedPlayersScoresIds = []; // Score.Id
