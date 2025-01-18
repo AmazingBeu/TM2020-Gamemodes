@@ -4,7 +4,7 @@
 #Extends "Modes/Nadeo/Trackmania/Base/TrackmaniaRoundsBase.Script.txt"
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2024-08-27"
+#Const	Version							"2025-01-18"
 #Const	ScriptName					"Modes/TM2020-Gamemodes/TM_MultiLivesKnockout.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -38,14 +38,14 @@
 #Setting S_EliminatedPlayersNbRanks "4,16,16" as _("Nb of players above which one extra elim. /round")
 #Setting S_RoundsWithoutElimination 1 as _("Rounds without elimination")
 
-#Setting S_EliminatePerRounds False as "Eliminate par rounds instead of per players alive"
+#Setting S_EliminationMode 0 as "0 per player / 1 per lives / 2 per round"
 #Setting S_MaximumLives 3
 #Setting S_MatchName "Final"
 #Setting S_AlternativeMatchInfosPosition False
 
 
-/* About S_EliminatedPlayersNbRanks and S_EliminatePerRounds.
- * If S_EliminatePerRounds is True, it will decrease the number of lose of life.
+/* About S_EliminatedPlayersNbRanks.
+ * If S_EliminationMode is 2, it will decrease the number of lose of life.
  * Example : "8,16"
  * Round 1 to 7 -> 3 eliminations per round
  * Round 8 to 15 -> 2 eliminations per round
@@ -63,7 +63,8 @@
  * Example : ""
  * 1 elimination per round
  * 
- * If S_EliminatePerRounds is False, it will work like the official 
+ * If S_EliminationMode is 1, it will sum number of remaining lives and apply official system on it
+ * If S_EliminationMode is 0, it will work like the official Knockout Mode
  */
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -75,7 +76,10 @@
 
 #Const C_HudModulePath "" //< Path to the hud module
 #Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/Trackmania/Modes/Knockout.Script.txt" //< Url of the mania app
-#Const C_FakeUsersNb 0
+
+#Const C_ElimMode_Rounds 2
+#Const C_ElimMode_Lives 1
+#Const C_ElimMode_Official 0
 
 #Const C_Callback_Elimination "Trackmania.Knockout.Elimination"
 #Const C_Callback_LostLife "Trackmania.Knockout.LostLife"
@@ -692,6 +696,19 @@ Integer GetAliveScoresNb() {
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/** Number of lives cumulated
+ *
+ *	@return														Number of lives cumulated
+ */
+Integer GetRemainingLivesNb() {
+	declare Integer LivesNb;
+	foreach (Score in Scores) {
+		LivesNb += GetScoreRemainingLives(Score);
+	}
+	return LivesNb;
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 /** Compute Lose of Life Milestones
  *
  *	@return														Array of each milestone
@@ -716,14 +733,20 @@ Integer[] GetAllMilestones() {
  */
 Integer GetNextMilestone(Integer _RoundNb, Integer _AliveScoresNb) {
 	if (_AliveScoresNb <= 0) return 0;
+
+	declare Integer ThresholdValue = _AliveScoresNb;
+	if (S_EliminationMode == C_ElimMode_Lives) {
+		ThresholdValue = GetRemainingLivesNb();
+	}
+
 	declare Integer[] Milestones = GetAllMilestones();
 
 	declare Integer NextMilestone = 0;
 	foreach (Milestone in Milestones) {
-		if (S_EliminatePerRounds && Milestone > _RoundNb) {
+		if (S_EliminationMode == C_ElimMode_Rounds && Milestone > _RoundNb) {
 			NextMilestone = Milestone;
 			break;
-		} else if (!S_EliminatePerRounds && Milestone < _AliveScoresNb) { // could be optimized but can change original behavior
+		} else if ((S_EliminationMode == C_ElimMode_Official || S_EliminationMode == C_ElimMode_Lives) && Milestone < ThresholdValue) { // could be optimized but can change original behavior
 			NextMilestone = Milestone;
 		}
 	}
@@ -740,11 +763,17 @@ Integer GetNextMilestone(Integer _RoundNb, Integer _AliveScoresNb) {
 Integer GetLossOfLifeNb(Integer _RoundNb, Integer _AliveScoresNb) {
 	if (_AliveScoresNb <= 1) return 0;
 	if (_RoundNb <= S_RoundsWithoutElimination) return 0;
+
+	declare Integer ThresholdValue = _AliveScoresNb;
+	if (S_EliminationMode == C_ElimMode_Lives) {
+		ThresholdValue = GetRemainingLivesNb();
+	}
+
 	declare Integer[] Milestones = GetAllMilestones();
 
 	declare Integer NumberOfElimination;
 
-	if (S_EliminatePerRounds) {
+	if (S_EliminationMode == C_ElimMode_Rounds) {
 		Milestones = Milestones.slice(1);
 		NumberOfElimination = 1;
 		foreach (Milestone in Milestones) {
@@ -752,10 +781,10 @@ Integer GetLossOfLifeNb(Integer _RoundNb, Integer _AliveScoresNb) {
 				NumberOfElimination += 1;
 			}
 		}
-	} else {
+	} else if (S_EliminationMode == C_ElimMode_Official || S_EliminationMode == C_ElimMode_Lives) {
 		declare Integer RoundMinEliminations = Milestones.count + 1;
 		foreach (Index => Milestone in Milestones) {
-			if (Milestone < _AliveScoresNb) {
+			if (Milestone < ThresholdValue) {
 				RoundMinEliminations = Index + 1;
 			}
 		}
@@ -976,7 +1005,7 @@ Void UpdateMatchInfos(Integer _CurrentRoundNb, Integer _LossOfLife, Integer _Ali
 			if (MapNumber == 0) MapNumber = 3;
 
 			if (_CurrentRoundNb == -1) MatchInfo = "Warm Up";
-			else if (S_EliminatePerRounds) MatchInfo = "Match Round "^ _CurrentRoundNb ^ " - Round "^ ML::Max(MB_GetRoundCount(), 1) ^"/"^ S_RoundsPerMap ^" of Map "^ MapNumber ^"/"^ MapList.count;
+			else if (S_EliminationMode == C_ElimMode_Rounds) MatchInfo = "Match Round "^ _CurrentRoundNb ^ " - Round "^ ML::Max(MB_GetRoundCount(), 1) ^"/"^ S_RoundsPerMap ^" of Map "^ MapNumber ^"/"^ MapList.count;
 			else MatchInfo = "Round "^ ML::Max(MB_GetRoundCount(), 1) ^"/"^ S_RoundsPerMap ^ " - Map "^ MapNumber ^"/"^ MapList.count;
 		} else if (_CurrentRoundNb == -1) {
 			MatchInfo = "Warm Up";
@@ -988,10 +1017,13 @@ Void UpdateMatchInfos(Integer _CurrentRoundNb, Integer _LossOfLife, Integer _Ali
 		if (_LossOfLife == 0) {
 			MatchInfo ^= "\nNo loss of life";
 			ScoreTablesInfo ^= "\nNo loss of life this round";
-		} else if (S_EliminatePerRounds && _LossOfLife > 1 && _Milestone > 1) {
+		} else if (S_EliminationMode == C_ElimMode_Rounds && _LossOfLife > 1 && _Milestone > 1) {
 			MatchInfo ^= "\n"^ _LossOfLife ^" lives lost until Match Round "^ _Milestone;
 			ScoreTablesInfo ^= "\n"^ _LossOfLife ^" players will lose a life until Match Round "^ _Milestone;
-		} else if (!S_EliminatePerRounds && _LossOfLife > 1 && _Milestone > 1) {
+		} else if (S_EliminationMode == C_ElimMode_Lives && _LossOfLife > 1 && _Milestone > 1) {
+			MatchInfo ^= "\n"^ _LossOfLife ^" lives lost until "^ _Milestone ^" lives remaining";
+			ScoreTablesInfo ^= "\n"^ _LossOfLife ^" players will lose a life until "^ _Milestone ^" lives remaining";
+		} else if (S_EliminationMode == C_ElimMode_Official && _LossOfLife > 1 && _Milestone > 1) {
 			MatchInfo ^= "\n"^ _LossOfLife ^" lives lost until "^ _Milestone ^" players are alive";
 			ScoreTablesInfo ^= "\n"^ _LossOfLife ^" players will lose a life until "^ _Milestone ^" players are alive";
 		} else if (_LossOfLife > 1) {
