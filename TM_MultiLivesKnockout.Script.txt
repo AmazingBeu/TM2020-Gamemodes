@@ -473,7 +473,7 @@ declare Text[] LostLifeAccountIds;
 declare Text[] EliminatedAccountIds;
 declare Integer[] EliminatedRanks;
 
-if (Round_ForceEndRound || Round_SkipPauseRound) {
+if (Round_ForceEndRound || Round_SkipPauseRound || Round_Skipped) {
 	// Cancel points
 	foreach (Score in Scores) {
 		Scores::SetPlayerRoundPoints(Score, 0);
