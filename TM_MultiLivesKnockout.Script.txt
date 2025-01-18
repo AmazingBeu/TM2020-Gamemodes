@@ -1021,8 +1021,8 @@ Void UpdateMatchInfos(Integer _CurrentRoundNb, Integer _LossOfLife, Integer _Ali
 			MatchInfo ^= "\n"^ _LossOfLife ^" lives lost until Match Round "^ _Milestone;
 			ScoreTablesInfo ^= "\n"^ _LossOfLife ^" players will lose a life until Match Round "^ _Milestone;
 		} else if (S_EliminationMode == C_ElimMode_Lives && _LossOfLife > 1 && _Milestone > 1) {
-			MatchInfo ^= "\n"^ _LossOfLife ^" lives lost until "^ _Milestone ^" lives remaining";
-			ScoreTablesInfo ^= "\n"^ _LossOfLife ^" players will lose a life until "^ _Milestone ^" lives remaining";
+			MatchInfo ^= "\n"^ _LossOfLife ^" lives lost until "^ _Milestone ^" lives left";
+			ScoreTablesInfo ^= "\n"^ _LossOfLife ^" players will lose a life until "^ _Milestone ^" lives left";
 		} else if (S_EliminationMode == C_ElimMode_Official && _LossOfLife > 1 && _Milestone > 1) {
 			MatchInfo ^= "\n"^ _LossOfLife ^" lives lost until "^ _Milestone ^" players are alive";
 			ScoreTablesInfo ^= "\n"^ _LossOfLife ^" players will lose a life until "^ _Milestone ^" players are alive";
