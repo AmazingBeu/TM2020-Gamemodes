@@ -4,7 +4,7 @@
 #Extends "Modes/Nadeo/Trackmania/Base/TrackmaniaRoundsBase.Script.txt"
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2025-01-18b"
+#Const	Version							"2025-01-30"
 #Const	ScriptName					"Modes/TM2020-Gamemodes/TM_MultiLivesKnockout.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -1635,7 +1635,7 @@ main() {
 		}
 
 		if (GUIPlayer == Null && Last_GUIPlayer != NullId) {
-			Last_GUIPlayer == NullId;
+			Last_GUIPlayer = NullId;
 			UpdateLiveRanking = True;
 		} else if (GUIPlayer != Null && Last_GUIPlayer != GUIPlayer.Id) {
 			Last_GUIPlayer = GUIPlayer.Id;
