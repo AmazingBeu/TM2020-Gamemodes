@@ -4,7 +4,7 @@
 #Extends "Modes/Nadeo/Trackmania/Base/TrackmaniaRoundsBase.Script.txt"
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2025-01-30"
+#Const	Version							"2025-02-09"
 #Const	ScriptName					"Modes/TM2020-Gamemodes/TM_MultiLivesKnockout.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -509,7 +509,8 @@ if (Round_ForceEndRound || Round_SkipPauseRound || Round_Skipped) {
 			LostLifeAccountIds.add(Score.User.WebServicesUserId);
 
 			if (!ScoreIsAlive(Score)) {
-				Scores::SetPlayerMatchPoints(Score, ParticipantsNb - Rank);
+				// Registered Score must have at least 1 point or a best race time to not be reset at end of the map: https://forum.nadeo.com/viewtopic.php?t=4365
+				Scores::SetPlayerMatchPoints(Score, ParticipantsNb + 1 - Rank);
 				EliminatedAccountIds.add(Score.User.WebServicesUserId);
 				EliminatedRanks.add(Rank);
 
