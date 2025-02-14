@@ -4,7 +4,7 @@
 #Extends "Modes/Nadeo/Trackmania/Base/TrackmaniaRoundsBase.Script.txt"
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2025-02-09"
+#Const	Version							"2025-02-14"
 #Const	ScriptName					"Modes/TM2020-Gamemodes/TM_MultiLivesKnockout.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -76,6 +76,7 @@
 
 #Const C_HudModulePath "" //< Path to the hud module
 #Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/Trackmania/Modes/Knockout.Script.txt" //< Url of the mania app
+#Const C_FakeUsersNb 0
 
 #Const C_ElimMode_Rounds 2
 #Const C_ElimMode_Lives 1
