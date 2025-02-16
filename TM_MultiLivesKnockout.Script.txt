@@ -4,7 +4,7 @@
 #Extends "Modes/Nadeo/Trackmania/Base/TrackmaniaRoundsBase.Script.txt"
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2025-02-14"
+#Const	Version							"2025-02-15"
 #Const	ScriptName					"Modes/TM2020-Gamemodes/TM_MultiLivesKnockout.Script.txt"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -958,7 +958,7 @@ Boolean MatchIsOver(Integer _RoundNb) {
  */
 Boolean MapIsOver(Integer _RoundNb) {
 	if (MatchIsOver(_RoundNb)) return True;
-	if (S_RoundsPerMap > 0 && MB_GetRoundCount() >= S_RoundsPerMap) return True; //< There is a rounds limit and it is reached
+	if (S_RoundsPerMap > 0 && MB_GetValidRoundCount() >= S_RoundsPerMap) return True; //< There is a rounds limit and it is reached
 
 	return False;
 }
@@ -1007,8 +1007,8 @@ Void UpdateMatchInfos(Integer _CurrentRoundNb, Integer _LossOfLife, Integer _Ali
 			if (MapNumber == 0) MapNumber = 3;
 
 			if (_CurrentRoundNb == -1) MatchInfo = "Warm Up";
-			else if (S_EliminationMode == C_ElimMode_Rounds) MatchInfo = "Match Round "^ _CurrentRoundNb ^ " - Round "^ ML::Max(MB_GetRoundCount(), 1) ^"/"^ S_RoundsPerMap ^" of Map "^ MapNumber ^"/"^ MapList.count;
-			else MatchInfo = "Round "^ ML::Max(MB_GetRoundCount(), 1) ^"/"^ S_RoundsPerMap ^ " - Map "^ MapNumber ^"/"^ MapList.count;
+			else if (S_EliminationMode == C_ElimMode_Rounds) MatchInfo = "Match Round "^ _CurrentRoundNb ^ " - Round "^ ML::Max(MB_GetValidRoundCount(), 1) ^"/"^ S_RoundsPerMap ^" of Map "^ MapNumber ^"/"^ MapList.count;
+			else MatchInfo = "Round "^ ML::Max(MB_GetValidRoundCount(), 1) ^"/"^ S_RoundsPerMap ^ " - Map "^ MapNumber ^"/"^ MapList.count;
 		} else if (_CurrentRoundNb == -1) {
 			MatchInfo = "Warm Up";
 		} else {
