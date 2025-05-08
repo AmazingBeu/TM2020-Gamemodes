@@ -5,7 +5,7 @@
 #Extends "Modes/Nadeo/Trackmania/Base/TrackmaniaRoundsBase.Script.txt"
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
-#Const	Version							"2024-11-29"
+#Const	Version							"2025-05-08"
 #Const	ScriptName					"Modes/TM2020-Gamemodes/TM_RoundsNearest.Script.txt"
 
 // #RequireContext CSmMode
@@ -21,6 +21,7 @@
 #Include "Libs/Nadeo/TMGame/Utils/Tracking.Script.txt" as Tracking
 #Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/Checkpoint_Server.Script.txt" as UIModules_Checkpoint
 #Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/PauseMenuOnline_Server.Script.txt" as UIModules_PauseMenu_Online
+#Include "Libs/Nadeo/Trackmania/Modes/Rounds/UIModules/SmallScoresTable_Server.Script.txt" as UIModules_SmallScoresTable
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Settings
@@ -68,6 +69,7 @@ Log::RegisterScript(ScriptName, Version);
 Log::RegisterScript(Semver::ScriptName, Semver::Version);
 Log::RegisterScript(ModeUtils::ScriptName, ModeUtils::Version);
 Log::RegisterScript(StateMgr::ScriptName, StateMgr::Version);
+Log::RegisterScript(UIModules_SmallScoresTable::ScriptName, UIModules_SmallScoresTable::Version);
 ***
 
 ***Match_LoadLibraries***
@@ -112,7 +114,7 @@ UIManager.UIAll.OverlayHideSpectatorInfos = True;
 UIManager.UIAll.OverlayHideCountdown = True;
 
 UIModules_ScoresTable::DisplayRoundPoints(True);
-UIModules::UnloadModules(["UIModule_Race_TimeGap", "UIModule_Rounds_SmallScoresTable"]);
+UIModules::UnloadModules(["UIModule_Race_TimeGap"]);
 ***
 
 ***Match_Yield***
@@ -164,6 +166,8 @@ Server_MapsPerMatch = S_MapsPerMatch - 1;
 ***Match_StartMatch***
 ***
 UIModules_ScoresTable::SetCustomPoints([]);
+UIModules_SmallScoresTable::ResetCustomTimes();
+UIModules_SmallScoresTable::ResetCustomResults();
 ***
 
 ***Match_InitMap***
@@ -314,6 +318,8 @@ if (Round_ForceEndRound || Round_SkipPauseRound || Round_Skipped) {
 		MB_StopMap();
 	}
 }
+UIModules_SmallScoresTable::ResetCustomTimes();
+UIModules_SmallScoresTable::ResetCustomResults();
 ***
 
 ***Match_EndMap***
@@ -463,6 +469,8 @@ Void ComputeLatestRaceScores(Boolean _IsEndRound) {
 
 	declare Text[][Text] CustomPoints = GetWinnersCustomPoints();
 	declare CSmScore[][Integer] ScoresPerAbsoluteDelta;
+	declare Integer[Text] CustomTimes;
+	declare Text[Text] CustomResult;
 	foreach (Score in Scores) {
 		if (Score.User == Null) continue;
 		if (Scores::GetPlayerPrevRaceTime(Score) <= 0) continue;
@@ -478,6 +486,12 @@ Void ComputeLatestRaceScores(Boolean _IsEndRound) {
 		TextDelta ^= DeltaTimeToText(AbsoluteDelta);
 		if (S_PointsLimit < 0 || Scores::GetPlayerMatchPoints(Score) < S_PointsLimit) {
 			CustomPoints[Score.User.WebServicesUserId] = [Scores::GetPlayerMatchPoints(Score) ^ " (" ^ TextDelta ^ ")"];
+			if (AbsoluteDelta == 0) {
+				CustomResult[Score.User.WebServicesUserId] = "PERFECT";
+			} else {
+				CustomResult[Score.User.WebServicesUserId] = TextDelta;
+			}
+			CustomTimes[Score.User.WebServicesUserId] = AbsoluteDelta;
 		}
 	}
 	UIModules_ScoresTable::SetCustomPoints(CustomPoints);
@@ -552,6 +566,9 @@ Void ComputeLatestRaceScores(Boolean _IsEndRound) {
 
 		I += 1;
 	}
+
+	UIModules_SmallScoresTable::SetCustomTimes(CustomTimes);
+	UIModules_SmallScoresTable::SetCustomResults(CustomResult);
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
