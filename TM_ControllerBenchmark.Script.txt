@@ -28,7 +28,7 @@ if (ServerAdmin != Null) {
 	log("Spawning "^ NbBots ^" bots");
 	Users_SetNbFakeUsers(ML::Max(0, NbBots) , 0);
 }
-if (RandomizedFakePlayersEnabled()) Map_CheckConnectPlayer = Now + ML::Rand(1000,120000);
+if (RandomizedFakePlayersEnabled()) Map_CheckConnectPlayer = Now + ML::Rand(S_RandomizedFakePlayersTimeMin, S_RandomizedFakePlayersTimeMax);
 ***
 
 ***Match_PlayLoop***
@@ -51,7 +51,7 @@ if (Map_CheckSpawnedPlayers < Now) {
 }
 
 if (RandomizedFakePlayersEnabled() && Map_CheckConnectPlayer < Now && ServerAdmin != Null) {
-	Map_CheckConnectPlayer = Now + ML::Rand(1000,120000);
+	Map_CheckConnectPlayer = Now + ML::Rand(S_RandomizedFakePlayersTimeMin, S_RandomizedFakePlayersTimeMax);
 	if (Players.count >= ServerAdmin.ServerInfo.MaxPlayerCount) {
 		log("Removing randomly FakePlayer");
 		DisconnectRandomBot();
