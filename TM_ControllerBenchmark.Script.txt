@@ -16,9 +16,17 @@ declare Integer Map_CheckConnectPlayer;
 ***Match_StartMap***
 ***
 if (ServerAdmin != Null) {
-	MB_Sleep(500); // Wait a bit before if bot already exits
-	log("Spawning "  ^ServerAdmin.ServerInfo.MaxPlayerCount - 5 - Players.count ^ " bots");
-	Users_SetNbFakeUsers(ML::Max(0, ServerAdmin.ServerInfo.MaxPlayerCount - 5 - Players.count) , 0);
+	MB_Sleep(500); // Wait a bit before if bot already exists
+
+	declare Integer CurrentNbOfBots;
+	foreach (Player in AllPlayers) {
+		if (Player.IsFakePlayer) CurrentNbOfBots += 1;
+	}
+
+	declare Integer NbBots = ServerAdmin.ServerInfo.MaxPlayerCount - 5 - Players.count + CurrentNbOfBots;
+
+	log("Spawning "^ NbBots ^" bots");
+	Users_SetNbFakeUsers(ML::Max(0, NbBots) , 0);
 }
 if (RandomizedFakePlayersEnabled()) Map_CheckConnectPlayer = Now + ML::Rand(1000,120000);
 ***
