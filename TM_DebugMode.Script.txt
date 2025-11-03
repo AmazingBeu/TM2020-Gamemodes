@@ -377,6 +377,10 @@ Text GetManialink() {
 								<quad id="quad-leftpanel-varinsp" class="leftpanel-button" size="26 4" pos="-1 0" bgcolor="fff" opacity="0" scriptevents="1"/>
 								<label class="leftpanel-text" size="24 3" pos="0 -2" text="Variable Inspector"/>
 							</frame>
+							<frame pos="0 -20">
+								<quad id="quad-leftpanel-features" class="leftpanel-button" size="26 4" pos="-1 0" bgcolor="fff" opacity="0" scriptevents="1"/>
+								<label class="leftpanel-text" size="24 3" pos="0 -2" text="Nadeo Features"/>
+							</frame>
 						</frame>
 					</frame>
 
@@ -538,6 +542,56 @@ Text GetManialink() {
 								</frame>
 							</frame>
 						</frame>
+
+
+						<frame id="frame-rightpanel-features" hidden=1>
+							<frame pos="0 0">
+								<label class="text" size="23 3" pos="0 -1" text="Override Platform:"/>
+								<frameinstance pos="23 0" modelid="framemodel-tooltip" tooltip="Interfaces need to reloaded by reloading the mode or disconnecting and reconnecting."/>
+								<frame pos="0 -5">
+									<quad id="quad-features-overrideplatform-none" class="button" pos="0 0" size="47 4" z-index="-1" bgcolor="666" opacity="0.5" scriptevents="1"/>
+									<label class="rightpanel-text-button" size="46 3" pos="23.5 -2" text="None"/>
+								</frame>
+								<frame pos="0 -10">
+									<frame pos="0 0">
+										<quad id="quad-features-overrideplatform-ps5" class="button" pos="0 0" size="23 4" z-index="-1" bgcolor="666" opacity="0.5" scriptevents="1"/>
+										<label class="rightpanel-text-button" size="0 3" pos="12 -2" text="PS5"/>
+									</frame>
+									<frame pos="24 0">
+										<quad id="quad-features-overrideplatform-ps4" class="button" pos="0 0" size="23 4" z-index="-1" bgcolor="666" opacity="0.5" scriptevents="1"/>
+										<label class="rightpanel-text-button" size="0 3" pos="12 -2" text="PS4"/>
+									</frame>
+								</frame>
+								<frame pos="0 -15">
+									<frame pos="0 0">
+										<quad id="quad-features-overrideplatform-xboxseries" class="button" pos="0 0" size="23 4" z-index="-1" bgcolor="666" opacity="0.5" scriptevents="1"/>
+										<label class="rightpanel-text-button" size="0 3" pos="12 -2" text="XBox Series"/>
+									</frame>
+									<frame pos="24 0">
+										<quad id="quad-features-overrideplatform-xboxone" class="button" pos="0 0" size="23 4" z-index="-1" bgcolor="666" opacity="0.5" scriptevents="1"/>
+										<label class="rightpanel-text-button" size="0 3" pos="12 -2" text="XBox One"/>
+									</frame>
+								</frame>
+								<frame pos="0 -20">
+									<frame pos="0 0">
+										<quad id="quad-features-overrideplatform-uplay" class="button" pos="0 0" size="23 4" z-index="-1" bgcolor="666" opacity="0.5" scriptevents="1"/>
+										<label class="rightpanel-text-button" size="0 3" pos="12 -2" text="UPlay"/>
+									</frame>
+									<frame pos="24 0">
+										<quad id="quad-features-overrideplatform-luna" class="button" pos="0 0" size="23 4" z-index="-1" bgcolor="666" opacity="0.5" scriptevents="1"/>
+										<label class="rightpanel-text-button" size="0 3" pos="12 -2" text="Amazon Luna"/>
+									</frame>
+								</frame>
+								<frame pos="0 -25">
+									<label class="text" size="11 3" pos="0 -1" text="Toolbox:"/>
+									<frameinstance pos="11 0" modelid="framemodel-tooltip" tooltip="Interfaces need to reloaded by reloading the mode or DC and RC. Press Y + F3 to open the toolbox."/>
+									<frame pos="0 -5">
+										<quad id="quad-features-toolbox" class="button" pos="0 0" size="47 4" z-index="-1" bgcolor="666" opacity="0.5" scriptevents="1"/>
+										<label class="rightpanel-text-button" size="46 3" pos="23.5 -2" text="Enable Toolbox"/>
+									</frame>
+								</frame>
+							</frame>
+						</frame>
 					</frame>
 				</frame>
 			</frame>
@@ -546,6 +600,9 @@ Text GetManialink() {
 <script><!--
 #Include "TextLib" as TL
 #Include "MathLib" as ML
+
+#Include "Libs/Nadeo/CMGame/Utils/Config.Script.txt" as Config
+
 // #RequireContext CSmMlScriptIngame
 
 #Const ScriptName {{{dump(C_DebugMode_MainUI)}}}
@@ -751,6 +808,12 @@ main() {
 								Entry_VarInsp_Players.Value = "";
 							}
 						}
+						case "quad-features-toolbox": {
+							declare Config::K_Config CMGame_Config_Config for System;
+							if (!CMGame_Config_Config.Features.exists("DebugToolbox")) {
+								CMGame_Config_Config.Features.add("DebugToolbox");
+							}
+						}
 					}
 					if (TL::StartsWith("quad-bots-delbots-", Event.Control.ControlId)) {
 						SendCustomEvent("DebugMode.Bots.DelBots", [Entry_Bots_Name.Value, TL::Split("-",Event.Control.ControlId)[3]]);
@@ -779,6 +842,19 @@ main() {
 							SendCustomEvent("DebugMode.VarInsp.Struct.Dump.Player", [Entry_VarInsp_Players.Value, TL::Split("-",Event.Control.ControlId)[4]]);
 							SwitchToTab(P_DebugMode_SelectedTab, "quad-leftpanel-logs");
 							P_DebugMode_SelectedTab = "quad-leftpanel-logs";
+						}
+					}
+					if (TL::StartsWith("quad-features-overrideplatform-", Event.Control.ControlId)) {
+						declare CSystemPlatform::ESystemPlatform CMGame_Platform_OverridePlatform for System = CSystemPlatform::ESystemPlatform::None;
+
+						switch (TL::Split("-",Event.Control.ControlId)[3]) {
+							case "none": CMGame_Platform_OverridePlatform = CSystemPlatform::ESystemPlatform::None;
+							case "ps5": CMGame_Platform_OverridePlatform = CSystemPlatform::ESystemPlatform::PS5;
+							case "ps4": CMGame_Platform_OverridePlatform = CSystemPlatform::ESystemPlatform::PS4;
+							case "xboxseries": CMGame_Platform_OverridePlatform = CSystemPlatform::ESystemPlatform::XBoxSeries;
+							case "xboxone": CMGame_Platform_OverridePlatform = CSystemPlatform::ESystemPlatform::XBoxOne;
+							case "uplay": CMGame_Platform_OverridePlatform = CSystemPlatform::ESystemPlatform::UPlay;
+							case "luna": CMGame_Platform_OverridePlatform = CSystemPlatform::ESystemPlatform::Luna;
 						}
 					}
 					if (Event.Control.HasClass("leftpanel-button")) {
