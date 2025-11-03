@@ -13,7 +13,7 @@
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Constants
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
-#Const C_DebugMode_Version "2024-05-08"
+#Const C_DebugMode_Version "2025-11-03"
 #Const C_DebugMode_MainUI "DebugMode_MainUI"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
