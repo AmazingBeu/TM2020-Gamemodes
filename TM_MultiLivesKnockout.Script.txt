@@ -499,7 +499,7 @@ if (Round_ForceEndRound || Round_SkipPauseRound || Round_Skipped) {
 		declare Integer LossOfLifeNb = GetLossOfLifeNb(Match_CurrentRoundNb, AliveScoresNb);
 		declare Integer Rank = AliveScoresNb;
 		
-		foreach (Score in GetPrevRaceRanking() reverse) {
+		foreach (Score in Race::GetPrevRaceRanking() reverse) {
 			if (Score.User == Null) continue;
 			if (!ScoreIsAlive(Score)) continue;
 			if (Scores::GetPlayerPrevRaceTime(Score) > 0 && LossOfLifeNb <= 0) {
@@ -797,37 +797,6 @@ Integer GetLossOfLifeNb(Integer _RoundNb, Integer _AliveScoresNb) {
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
-/// Get the scores ranked by previous race time
-CSmScore[] GetPrevRaceRanking() {
-	declare Integer[][Ident] ScoreIdsToSortByWaypointTimes;
-	foreach (Score in Scores) {
-		ScoreIdsToSortByWaypointTimes[Score.Id] = CommonUtils::ToScriptArray(Score.PrevRaceTimes);
-	}
-
-	declare Ident[][Integer] ScoreIdsSortedByWaypointTimes = Scores::SortIdsByWaypointTimes(ScoreIdsToSortByWaypointTimes);
-	declare CSmScore[] SortedScores;
-	foreach (WaypointTimesScoreIds in ScoreIdsSortedByWaypointTimes) {
-		declare Ident[][] ScoreIdsSortedByPoints;
-		if (WaypointTimesScoreIds.count <= 1) {
-			ScoreIdsSortedByPoints = [WaypointTimesScoreIds];
-		} else {
-			declare Integer[Ident] ScoreIdsToSortByPoints;
-			foreach (ScoreId in WaypointTimesScoreIds) {
-				ScoreIdsToSortByPoints[ScoreId] = Scores::GetPlayerMatchPoints(Scores[ScoreId]);
-			}
-			ScoreIdsSortedByPoints = Scores::SortIdsByPoints(ScoreIdsToSortByPoints, Scores::C_Order_Descending, 0);
-		}
-		foreach (PointsScoreIds in ScoreIdsSortedByPoints) {
-			foreach (ScoreId in PointsScoreIds) {
-				SortedScores.add(Scores[ScoreId]);
-			}
-		}
-	}
-
-	return SortedScores;
-}
-
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 /** Return the number of the remaining lives in text format, with heart symbol if possible
  *
  *	@param	_Score								Player's score
@@ -878,7 +847,7 @@ Void UpdateCustomRanking(Boolean _DisplayTimes) {
 	declare Integer ParticipantsNb = GetParticipantsNb();
 	declare Integer AliveScoresNb = GetAliveScoresNb();
 
-	foreach (Index => Score in GetPrevRaceRanking() reverse) {
+	foreach (Index => Score in Race::GetPrevRaceRanking() reverse) {
 		if (Score == Null) continue;
 		if (Score.User == Null) continue;
 		if (!ScoreIsRegistered(Score)) continue;
